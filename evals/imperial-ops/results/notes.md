@@ -23,4 +23,12 @@ I spot-checked the judge's three main charges against the diffs, and each holds.
 - The tblock reply names principles ("Laziness Protocol"), which marks it as different. The judge noted this and took no points off for it.
 - The judge ran on the same model family as both arms.
 
-**Weak spot for tblock.** It scored 1/2 on proof: no screenshots, and no mention of the dark mode, reduced motion and 760px width checks it skipped. Its browser checks happened, but it kept no captures. The session summary shows that it called Read and Bash, not what it read, so it is unknown which playbook it followed and which principle files it opened.
+**Weak spot for tblock.** It scored 1/2 on proof: no screenshots, and no mention of the dark mode, reduced motion and 760px width checks it skipped. Its browser checks happened, but it kept no captures.
+
+**How tblock was followed (session a self-report, asked afterwards).** The session says it followed the UI-UX playbook and read Importance Is Obvious, Laziness Protocol, Prove It Works, and unslop in full. It reports these departures from tblock:
+- It skipped UI-UX step 5 (emil-design-eng and animate). It thinks animate would have caught the bars animating on `L`, the one DESIGN.md deviation the judge found.
+- It wrote its own four-step plan instead of copying the playbook steps into its todo list, as tblock-mode requires.
+- It has no capture for some states (toggling off, the empty view, the ⌘K command). It read those from the DOM because browser screenshots lagged.
+- It used no verification skill, because the dashboard has none, and it did not create one.
+
+This is a self-report. The transcript summary shows one Skill call (tblock-mode) and no animate or emil-design-eng call, which is consistent with it.
