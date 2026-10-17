@@ -1,0 +1,456 @@
+diff --git a/src/pages/change-windows/ChangeWindowsPage.tsx b/src/pages/change-windows/ChangeWindowsPage.tsx
+index 6b3eb58..ae831f9 100644
+--- a/src/pages/change-windows/ChangeWindowsPage.tsx
++++ b/src/pages/change-windows/ChangeWindowsPage.tsx
+@@ -13,8 +13,9 @@
+  *   WindowLanes     …with its own timeline, among its neighbours
+  *   WindowsPalette / Tour   on top when opened
+  *
+- * The state is small: the search, which category is picked, and which window (it's in the
+- * address, so a window can be linked to). A window's status is never stored; it's worked
++ * The state is small: the search, which category is picked and which of its windows show
++ * (every category's late ones is "Running late", one press of L away), and which window
++ * (it's in the address, so a window can be linked to). A window's status is never stored; it's worked
+  * out from its times and the time now (see model/windows.ts). */
+ 
+ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+@@ -30,13 +31,13 @@ import { WINDOWS_TOUR } from '../../../tours/change-windows';
+ import { Tour } from '../../../tours/Tour';
+ import { tourMode, useTour } from '../../../tours/useTour';
+ import { GroupList } from './components/GroupList/GroupList';
+-import { GroupTimeline } from './components/GroupTimeline/GroupTimeline';
++import { GroupTimeline, type Tab } from './components/GroupTimeline/GroupTimeline';
+ import { WindowsPalette } from './components/Palette/WindowsPalette';
+ import { WindowDetail } from './components/WindowDetail/WindowDetail';
+ import { WindowLanes } from './components/WindowLanes/WindowLanes';
+ import { WindowsBar } from './components/WindowsBar/WindowsBar';
+ import { SAMPLES } from './data/mockData';
+-import { categorise, groupFor, groupsOf } from './model/categories';
++import { EVERY, categorise, groupFor, groupsOf } from './model/categories';
+ import type { ChangeWindow, Sample } from './model/types';
+ import { groupOf, sortWindows } from './model/windows';
+ import './ChangeWindowsPage.css';
+@@ -55,6 +56,8 @@ export function ChangeWindowsPage({ initialId }: { /** Open on this window (a li
+     const linked = windows.find((w) => w.key === selectedKey);
+     return linked ? categories.of(linked).key : null;
+   });
++  // Which of the category's windows the timeline shows: in place, late, not started, ended or all.
++  const [tab, setTab] = useState<Tab>('open');
+   // Whether the window showing was picked with the pointer: then its timeline draws itself in.
+   // Moved to with J and K, it's simply there.
+   const [byPointer, setByPointer] = useState(false);
+@@ -84,6 +87,27 @@ export function ChangeWindowsPage({ initialId }: { /** Open on this window (a li
+   const groups = useMemo(() => groupsOf(found, now, categories), [found, now, categories]);
+   const group = groupFor(groups, groupKey);
+ 
++  // Every category's late windows together: what "Running late" in the list, and L, show.
++  // (With only one category there's no "Every window": its own late ones are all of them.)
++  const chasing = tab === 'late' && (group?.category === EVERY || groups[0]?.category !== EVERY);
++  // Where L goes back to.
++  const before = useRef<{ groupKey: string | null; tab: Tab }>({ groupKey: null, tab: 'open' });
++  const showLate = () => {
++    if (!chasing) before.current = { groupKey: group?.category.key ?? null, tab };
++    setGroupKey(EVERY.key);
++    setTab('late');
++  };
++  const toggleLate = () => {
++    if (!chasing) return showLate();
++    setGroupKey(before.current.groupKey);
++    setTab(before.current.tab);
++  };
++  /** Pick a row in the list. "Every window" is every category's windows, not just the late ones. */
++  const pick = (key: string) => {
++    if (key === EVERY.key && chasing) setTab('open');
++    setGroupKey(key);
++  };
++
+   // The rail shows a window only while the search still has it.
+   const selected = found.find((w) => w.key === selectedKey) ?? null;
+ 
+@@ -138,6 +162,7 @@ export function ChangeWindowsPage({ initialId }: { /** Open on this window (a li
+       k: () => move(-1),
+       ArrowUp: () => move(-1),
+       '/': () => searchRef.current?.focus(),
++      l: toggleLate,
+       '[': () => setHideSide((hidden) => !hidden),
+       ']': () => setHideList((hidden) => !hidden),
+       '?': startTour,
+@@ -157,7 +182,18 @@ export function ChangeWindowsPage({ initialId }: { /** Open on this window (a li
+         onToggleTheme={toggleTheme}
+       />
+ 
+-      <GroupList hidden={hideList} groups={groups} group={group} onPick={setGroupKey} noun={categories.noun} query={query} onQuery={setQuery} searchRef={searchRef} />
++      <GroupList
++        hidden={hideList}
++        groups={groups}
++        group={group}
++        chasing={chasing}
++        onPick={pick}
++        onLate={showLate}
++        noun={categories.noun}
++        query={query}
++        onQuery={setQuery}
++        searchRef={searchRef}
++      />
+ 
+       <section className="mn-detail cw-pane">
+         <WindowsBar
+@@ -177,6 +213,7 @@ export function ChangeWindowsPage({ initialId }: { /** Open on this window (a li
+             setSample(next);
+             setSelectedKey(null);
+             setGroupKey(null);
++            setTab('open');
+             setQuery('');
+           }}
+         />
+@@ -184,7 +221,7 @@ export function ChangeWindowsPage({ initialId }: { /** Open on this window (a li
+         {/* The timeline, and beside it the rail, which is only there while a window is picked. */}
+         <div className="cw-frame" data-rail={selected ? true : undefined}>
+           <div className="cw-frame-main" ref={mainRef}>
+-            <GroupTimeline group={group} now={now} selectedKey={selected?.key ?? null} onSelect={select} onOrder={onOrder} />
++            <GroupTimeline group={group} tab={tab} onTab={setTab} categoryOf={categories.of} noun={categories.noun} now={now} selectedKey={selected?.key ?? null} onSelect={select} onOrder={onOrder} />
+           </div>
+           {selected && (
+             <aside className="cw-rail" aria-label="The picked window">
+@@ -209,6 +246,7 @@ export function ChangeWindowsPage({ initialId }: { /** Open on this window (a li
+         windows={windows}
+         now={now}
+         onSelect={select}
++        onShowLate={showLate}
+         onNavigate={navigate}
+         theme={theme}
+         onToggleTheme={toggleTheme}
+diff --git a/src/pages/change-windows/components/GroupList/GroupList.css b/src/pages/change-windows/components/GroupList/GroupList.css
+index 26ed7b7..5e9557d 100644
+--- a/src/pages/change-windows/components/GroupList/GroupList.css
++++ b/src/pages/change-windows/components/GroupList/GroupList.css
+@@ -63,6 +63,22 @@
+   padding-bottom: 6px;
+ }
+ 
++.cw-group[data-every] {
++  margin-bottom: 0;
++}
++
++/* "Running late" sits under "Every window", apart from the categories below it. */
++.cw-group[data-chase] {
++  min-height: 38px;
++  margin-bottom: 6px;
++  padding-bottom: 6px;
++}
++
++.cw-group[data-chase][data-late] .cw-group-count {
++  font-weight: 500;
++  color: var(--cw-late);
++}
++
+ .cw-group-name {
+   flex: 1;
+ }
+diff --git a/src/pages/change-windows/components/GroupList/GroupList.tsx b/src/pages/change-windows/components/GroupList/GroupList.tsx
+index 85f0c24..71f2360 100644
+--- a/src/pages/change-windows/components/GroupList/GroupList.tsx
++++ b/src/pages/change-windows/components/GroupList/GroupList.tsx
+@@ -1,6 +1,8 @@
+ /* The list column: the windows sorted into categories (each group, or each family of CI
+  * where nobody set a group), with how many are in place and late in each. The ones with
+  * something late lead. Pick one and the detail pane draws its windows (see GroupTimeline).
++ * Under "Every window", "Running late" gathers every late window, whatever its category,
++ * so they can be chased up in one place (L does the same).
+  *
+  * It's the same frame as every other page's list column: title, search, rows, keys. */
+ 
+@@ -14,7 +16,9 @@ export function GroupList({
+   hidden,
+   groups,
+   group,
++  chasing,
+   onPick,
++  onLate,
+   noun,
+   query,
+   onQuery,
+@@ -23,14 +27,21 @@ export function GroupList({
+   hidden: boolean;
+   groups: Group[];
+   group?: Group;
++  /** "Running late" is showing. */
++  chasing: boolean;
+   onPick: (key: string) => void;
++  /** Show every category's late windows. */
++  onLate: () => void;
+   /** What a category is here: "group", "CI family". */
+   noun: string;
+   query: string;
+   onQuery: (query: string) => void;
+   searchRef: RefObject<HTMLInputElement | null>;
+ }) {
+-  const busiest = Math.max(1, ...groups.filter((g) => g.category !== EVERY).map((g) => g.inPlace));
++  const each = groups.filter((g) => g.category !== EVERY);
++  const busiest = Math.max(1, ...each.map((g) => g.inPlace));
++  const every = groups[0]?.category === EVERY ? groups[0] : undefined;
++  const lateIn = each.filter((g) => g.late > 0).length;
+   return (
+     <aside className="mn-list" inert={hidden} data-tour="cw-list">
+       <header className="cw-list-head">
+@@ -49,11 +60,11 @@ export function GroupList({
+       </header>
+ 
+       <nav className="cw-rows cw-groups-list" aria-label={`Each ${noun}`}>
+-        {groups.map((g) => (
++        {groups.map((g) => [
+           <button
+             key={g.category.key}
+             className="cw-group"
+-            aria-current={g === group || undefined}
++            aria-current={(g === group && !(g === every && chasing)) || undefined}
+             data-every={g.category === EVERY || undefined}
+             onClick={() => onPick(g.category.key)}
+           >
+@@ -61,7 +72,8 @@ export function GroupList({
+               <b data-mono={g.category.mono || undefined}>{g.category.label}</b>
+               {g.category.sub && <small>{g.category.sub}</small>}
+             </span>
+-            {g.late > 0 && <em>{g.late} late</em>}
++            {/* Every window's late ones have a row of their own, just under it. */}
++            {g.late > 0 && g !== every && <em>{g.late} late</em>}
+             <span className="cw-group-count">{g.inPlace}</span>
+             {/* How busy it is beside the busiest, and how much of that is late. */}
+             {g.category !== EVERY && (
+@@ -74,17 +86,27 @@ export function GroupList({
+                 {g.late > 0 && <i data-late style={{ width: `${(g.late / busiest) * 100}%` }} />}
+               </span>
+             )}
+-          </button>
+-        ))}
++          </button>,
++          g === every && (
++            <button key="late" className="cw-group" data-chase aria-current={chasing || undefined} data-late={every.late > 0 || undefined} onClick={onLate}>
++              <span className="cw-group-name mn-truncate">
++                <b>Running late</b>
++                <small>{every.late ? `Past their planned end, in ${lateIn} ${lateIn === 1 ? noun : noun === 'CI family' ? 'CI families' : `${noun}s`}` : 'Nothing is past its planned end'}</small>
++              </span>
++              <span className="cw-group-count">{every.late}</span>
++            </button>
++          ),
++        ])}
+         {!groups.length && <div className="mn-empty">No change windows match</div>}
+       </nav>
+ 
++      {/* The column is narrow: / is shown on the search box, so it isn't repeated here. */}
+       <footer className="cw-list-foot">
+         <span>
+           <kbd>J</kbd> <kbd>K</kbd> Navigate
+         </span>
+         <span>
+-          <kbd>/</kbd> Search
++          <kbd>L</kbd> Late
+         </span>
+         <span>
+           <kbd>⌘K</kbd> Commands
+diff --git a/src/pages/change-windows/components/GroupTimeline/GroupTimeline.tsx b/src/pages/change-windows/components/GroupTimeline/GroupTimeline.tsx
+index ce79e7b..b1368c8 100644
+--- a/src/pages/change-windows/components/GroupTimeline/GroupTimeline.tsx
++++ b/src/pages/change-windows/components/GroupTimeline/GroupTimeline.tsx
+@@ -15,7 +15,7 @@
+  * to right. J and K move through them without any of that. */
+ 
+ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+-import type { Group } from '../../model/categories';
++import { EVERY, type Category, type Group } from '../../model/categories';
+ import type { ChangeWindow, Range } from '../../model/types';
+ import { HOUR, RANGES, dayLabel, endOf, hourLabel, howLong, rangeOf, statusOf, timing, when } from '../../model/windows';
+ import { Pager } from '../Pager/Pager';
+@@ -27,7 +27,7 @@ const PAGE = 10;
+ const SLICES = 72;
+ const ENDING_SOON = 2 * HOUR;
+ 
+-type Tab = 'open' | 'late' | 'upcoming' | 'ended' | 'all';
++export type Tab = 'open' | 'late' | 'upcoming' | 'ended' | 'all';
+ const TABS: { key: Tab; label: string; none: string }[] = [
+   { key: 'open', label: 'In place', none: 'Nothing is in place.' },
+   { key: 'late', label: 'Late', none: 'Nothing is past its planned end.' },
+@@ -66,19 +66,29 @@ function ticksFor(from: number, to: number) {
+ /** The detail pane: the picked category's windows on a timeline. */
+ export function GroupTimeline({
+   group,
++  tab,
++  onTab,
++  categoryOf,
++  noun,
+   now,
+   selectedKey,
+   onSelect,
+   onOrder,
+ }: {
+   group?: Group;
++  /** Which windows of it are showing. The page holds it, so "Running late" in the list can pick it. */
++  tab: Tab;
++  onTab: (tab: Tab) => void;
++  /** Which category a window is in, named on its lane when every category is showing. */
++  categoryOf: (w: ChangeWindow) => Category;
++  /** What a category is here: "group", "CI family". */
++  noun: string;
+   now: number;
+   selectedKey: string | null;
+   onSelect: (key: string) => void;
+   /** Tell the page what order the windows are showing in, so J and K follow it. */
+   onOrder: (keys: string[]) => void;
+ }) {
+-  const [tab, setTab] = useState<Tab>('open');
+   // How much time the timeline shows: fitted to the windows showing, or a fixed distance around now.
+   const [span, setSpan] = useState<'fit' | Range>('fit');
+ 
+@@ -88,7 +98,7 @@ export function GroupTimeline({
+   useEffect(() => onOrder(shown.map((w) => w.key)), [shown, onOrder]);
+   // A window picked from somewhere else (the command menu, a link) may be under another tab: show them all.
+   useEffect(() => {
+-    if (selectedKey && group?.windows.some((w) => w.key === selectedKey) && !shown.some((w) => w.key === selectedKey)) setTab('all');
++    if (selectedKey && group?.windows.some((w) => w.key === selectedKey) && !shown.some((w) => w.key === selectedKey)) onTab('all');
+   }, [selectedKey]);
+ 
+   // The stretch of time. Fitted: from the earliest start to the latest end showing, with now in it and a little either side.
+@@ -120,6 +130,14 @@ export function GroupTimeline({
+ 
+   if (!group) return <div className="mn-empty">No change windows match</div>;
+ 
++  // Every category at once: each lane says whose it is, so you know who to chase.
++  const every = group.category === EVERY;
++  // Every category's late windows is "Running late" in the list: it's named that here too.
++  const chasing = every && tab === 'late';
++  const lateGroups = new Set(shown.map((w) => categoryOf(w).key)).size;
++  // The list puts the furthest over first.
++  const furthest = chasing ? shown[0] : undefined;
++  const title = chasing ? 'Running late' : group.category.label;
+   const ending = group.windows.filter((w) => statusOf(w, now) === 'active' && w.plannedEnd - now <= ENDING_SOON).length;
+ 
+   const lane = (w: ChangeWindow) => {
+@@ -148,7 +166,11 @@ export function GroupTimeline({
+           <span className="mn-truncate">{w.name}</span>
+           <small className="mn-truncate">
+             <span className="mn-mono">{w.id}</span>
+-            {when(w.start, now)} to {when(w.closedAt ?? w.plannedEnd, now)}
++            {every ? (
++              <span data-mono={categoryOf(w).mono || undefined}>{categoryOf(w).label}</span>
++            ) : (
++              `${when(w.start, now)} to ${when(w.closedAt ?? w.plannedEnd, now)}`
++            )}
+           </small>
+         </span>
+         <span className="cw-gl-track">
+@@ -175,12 +197,22 @@ export function GroupTimeline({
+   };
+ 
+   return (
+-    <section className="cw-groups-main" aria-label={group.category.label}>
++    <section className="cw-groups-main" aria-label={title}>
+       <header>
+         <div>
+-          <h2 data-mono={group.category.mono || undefined}>{group.category.label}</h2>
++          <h2 data-mono={group.category.mono || undefined}>{title}</h2>
+           <p>
+-            {group.late > 0 ? (
++            {chasing ? (
++              furthest ? (
++                <>
++                  <b>{shown.length}</b> {shown.length === 1 ? 'window is' : 'windows are'} past {shown.length === 1 ? 'its' : 'their'} planned end, in{' '}
++                  <b>{lateGroups}</b> {lateGroups === 1 ? noun : noun === 'CI family' ? 'CI families' : `${noun}s`}. The furthest over is <span className="mn-mono">{furthest.id}</span>, by{' '}
++                  <em>{howLong(now - furthest.plannedEnd)}</em>.
++                </>
++              ) : (
++                <>Everything in place is inside its planned time.</>
++              )
++            ) : group.late > 0 ? (
+               <>
+                 <em>
+                   {group.late} of the {group.inPlace} in place {group.late === 1 ? 'is' : 'are'} past {group.late === 1 ? 'its' : 'their'} planned end.
+@@ -194,7 +226,11 @@ export function GroupTimeline({
+             ) : (
+               <>Nothing is in place. </>
+             )}
+-            <b>{ending}</b> {ending === 1 ? 'ends' : 'end'} in the next two hours, <b>{group.upcoming}</b> not started.
++            {!chasing && (
++              <>
++                <b>{ending}</b> {ending === 1 ? 'ends' : 'end'} in the next two hours, <b>{group.upcoming}</b> not started.
++              </>
++            )}
+           </p>
+         </div>
+       </header>
+@@ -209,7 +245,7 @@ export function GroupTimeline({
+               className="mn-tab"
+               data-active={tab === t.key || undefined}
+               data-late={(t.key === 'late' && counts.late > 0) || undefined}
+-              onClick={() => setTab(t.key)}
++              onClick={() => onTab(t.key)}
+             >
+               {t.label} <span>{counts[t.key]}</span>
+             </button>
+@@ -287,7 +323,7 @@ export function GroupTimeline({
+             <span />
+           </div>
+           {shown.length ? (
+-            <Pager items={shown} size={PAGE} label={`${group.category.label} windows`} row={lane} />
++            <Pager items={shown} size={PAGE} label={`${title} windows`} row={lane} />
+           ) : (
+             <p className="cw-gl-none">{TABS.find((t) => t.key === tab)!.none}</p>
+           )}
+diff --git a/src/pages/change-windows/components/Palette/WindowsPalette.tsx b/src/pages/change-windows/components/Palette/WindowsPalette.tsx
+index 9452dcf..619a14c 100644
+--- a/src/pages/change-windows/components/Palette/WindowsPalette.tsx
++++ b/src/pages/change-windows/components/Palette/WindowsPalette.tsx
+@@ -3,7 +3,7 @@
+  * is shared with the other pages' menus (styles/palette.css). */
+ 
+ import { Command } from 'cmdk';
+-import { Bell, CircleHelp, Filter, History, Moon, Search, Sun, Siren } from 'lucide-react';
++import { Bell, CircleHelp, Clock, Filter, History, Moon, Search, Sun, Siren } from 'lucide-react';
+ import type { Theme } from '../../../../hooks/useTheme';
+ import type { ChangeWindow } from '../../model/types';
+ import { timing } from '../../model/windows';
+@@ -14,6 +14,7 @@ export function WindowsPalette({
+   windows,
+   now,
+   onSelect,
++  onShowLate,
+   onNavigate,
+   theme,
+   onToggleTheme,
+@@ -25,6 +26,8 @@ export function WindowsPalette({
+   windows: ChangeWindow[];
+   now: number;
+   onSelect: (key: string) => void;
++  /** Show every window that's past its planned end, whatever its category. */
++  onShowLate: () => void;
+   /** Go to another page, e.g. '#/rules'. */
+   onNavigate: (to: string) => void;
+   theme: Theme;
+@@ -53,6 +56,14 @@ export function WindowsPalette({
+       <Command.List className="mn-palette-list">
+         <Command.Empty className="mn-palette-empty">No results</Command.Empty>
+ 
++        <Command.Group heading="Show">
++          <Command.Item value="running late overrunning past planned end chase" onSelect={run(onShowLate)}>
++            <Clock size={15} />
++            Windows running late
++            <kbd>L</kbd>
++          </Command.Item>
++        </Command.Group>
++
+         <Command.Group heading="Change window">
+           {windows.map((w) => (
+             <Command.Item key={w.key} value={`window ${w.id} ${w.name} ${w.key}`} onSelect={run(() => onSelect(w.key))}>
+diff --git a/tours/change-windows.tsx b/tours/change-windows.tsx
+index e826e1e..c567982 100644
+--- a/tours/change-windows.tsx
++++ b/tours/change-windows.tsx
+@@ -21,7 +21,8 @@ export const WINDOWS_TOUR: TourStep[] = [
+     body: (
+       <>
+         Each row is a group, or a family of CI where nobody set a group, with how many windows are in place and how many
+-        are late. The ones with something late come first.
++        are late. The ones with something late come first, and Running late gathers every late window in one place, so
++        you can chase them up. Press <kbd>L</kbd> to go straight there.
+       </>
+     ),
+   },
