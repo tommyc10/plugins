@@ -1,6 +1,6 @@
 ---
 name: tblock-mode
-description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes bug fixes, UI work, prototypes, skill evaluations, and verification setup or upkeep."
+description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes features, bug fixes, UI work, prototypes, skill evaluations, and verification setup or upkeep."
 
 disable-model-invocation: true
 ---
@@ -14,6 +14,7 @@ The Principles section below grounds every trigger. In your reply, name each pri
 Read the linked leaf skill in full for any principle you apply. Each entry names when it applies.
 
 **[Laziness Protocol](../principle-laziness-protocol/SKILL.md).** Refactoring, sizing a diff, or tempted to add abstractions, layers, or signal threading. Bias to deletion and the smallest change that solves the problem.
+**[Model the Domain](../principle-model-the-domain/SKILL.md).** Writing stateful logic, or code that branches a lot or repeats a shape assumption across files. Encode the domain in a structure (state machine, typed model, table or registry, reducer, boundary, the right collection) instead of scattered conditionals.
 **[Prove It Works](../principle-prove-it-works/SKILL.md).** After a task, before declaring done. Verify against the real artifact, not a proxy or "it compiles".
 **[Fix Root Causes](../principle-fix-root-causes/SKILL.md).** Debugging. Trace each symptom back to the first place the system went wrong and fix it there. A guard is a fix only when the state it handles is legitimate.
 **[Importance Is Obvious](../principle-importance-is-obvious/SKILL.md).** Project UI/UX: choose user delight and enjoyment over implementation convenience. Make what matters, what happened, and what to do next obvious, using the project's design system.
@@ -24,12 +25,13 @@ Read the linked leaf skill in full for any principle you apply. Each entry names
 
 
 ## Playbooks
-Choose the most specific intent below and read only the matching playbook or skill. Verification setup and upkeep are standalone skills; the other routes are playbooks inside this mode. A UI bug starts with Bug fix, and a request to evaluate a UI skill starts with Eval. Use UI-UX for UI implementation details when needed.
+Choose the most specific intent below and read only the matching playbook or skill. Verification setup and upkeep are standalone skills; the other routes are playbooks inside this mode. A UI bug starts with Bug fix, a mainly-UI feature starts with UI-UX, and a request to evaluate a UI skill starts with Eval. Use UI-UX for UI implementation details when needed.
 
 | Intent | Read |
 | --- | --- |
 | Create project verification or a control skill | [create-verification-skill](../create-verification-skill/SKILL.md) |
 | Audit or maintain an existing verification skill | [maintain-verification-skill](../maintain-verification-skill/SKILL.md) |
+| Build new or changed behavior | [Feature](playbooks/feature.md) |
 | Reproduce and fix a defect | [Bug fix](playbooks/bug-fix.md) |
 | Explore alternatives or settle an uncertain design | [Prototype](playbooks/prototype.md) |
 | Measure a skill or prompt change | [Eval](playbooks/eval.md) |
