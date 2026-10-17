@@ -34,6 +34,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 
 | Intent | Read |
 | --- | --- |
+| Configure which model each subagent role uses | [setup-tblock](../setup-tblock/SKILL.md) |
 | Create project verification or a control skill | [create-verification-skill](../create-verification-skill/SKILL.md) |
 | Audit or maintain an existing verification skill | [maintain-verification-skill](../maintain-verification-skill/SKILL.md) |
 | Build new or changed behavior | [Feature](playbooks/feature.md) |
@@ -49,4 +50,8 @@ For a playbook, open a todo list whose first items are its steps, copied verbati
 
 Find the project's named verification skill in its instructions or repository-local skill directory. Read its launch, doctor, drive, evidence, cleanup, and applicable feature-map entries before using it. If none exists, use the available tools to check the actual behavior and identify the gap; generate a new skill when setup is part of the task.
 
-Use the active environment's permitted tools and configured models. Work directly when delegation is unavailable or not allowed. Playbooks do not imply permission to publish, merge, or change unrelated configuration; follow the user's delivery scope.
+## Subagents
+
+Before spawning a subagent, read `$TBLOCK_HOME/roles.md` (default `~/.tblock/roles.md`) if it exists, and pick the role the work fits. In GitHub Copilot, delegate to that role's custom agent, `tblock-<role>` or `tblock-<role>-<n>` for a panel entry. In Claude Code, pass the role's model to the `Agent` tool. A role with no line, a `session` value, or no roles file runs on the session model; say so. Put this file's absolute path in every brief, so the subagent reads tblock-mode first.
+
+Use the active environment's permitted tools. Work directly when delegation is unavailable or not allowed. Playbooks do not imply permission to publish, merge, or change unrelated configuration; follow the user's delivery scope.
