@@ -5,6 +5,8 @@ require 'json'
 require 'pathname'
 require 'uri'
 
+Encoding.default_external = Encoding::UTF_8
+
 root = Pathname.new(ARGV.fetch(0, File.expand_path('..', __dir__))).expand_path
 errors = []
 names = {}
@@ -41,6 +43,9 @@ skills.each do |file|
     if data.key?('disable-model-invocation') && ![true, false].include?(data['disable-model-invocation'])
       errors << "#{relative}: disable-model-invocation must be boolean"
     end
+    if name.to_s.start_with?('principle-') && data['disable-model-invocation'] != true
+      errors << "#{relative}: principles load through tblock-mode and need disable-model-invocation: true"
+    end
   rescue Psych::Exception => e
     errors << "#{relative}: #{e.message}"
   end
@@ -76,11 +81,39 @@ documents.each do |file|
   end
 end
 
+mode = root.join('skills/tblock-mode/SKILL.md')
+if mode.file?
+  routed = mode.read.scan(%r{\]\(\.\./(principle-[a-z0-9-]+)/SKILL\.md\)}).flatten
+  (names.keys.grep(/\Aprinciple-/) - routed).sort.each do |name|
+    errors << "skills/#{name}/SKILL.md: not linked from tblock-mode, so nothing loads it"
+  end
+end
+
+manifests = {}
 Dir[root.join('{plugin.json,.claude-plugin/*.json}').to_s].sort.each do |file|
   begin
-    JSON.parse(File.read(file))
+    manifests[Pathname.new(file).relative_path_from(root).to_s] = JSON.parse(File.read(file))
   rescue JSON::ParserError => e
     errors << "#{Pathname.new(file).relative_path_from(root)}: #{e.message}"
+  end
+end
+
+reference = manifests['.claude-plugin/plugin.json']
+if reference
+  manifests.reject { |file, _| file == '.claude-plugin/plugin.json' }.each do |file, data|
+    %w[name version description].each do |key|
+      errors << "#{file}: #{key} differs from .claude-plugin/plugin.json" unless data[key] == reference[key]
+    end
+  end
+
+  marketplace = root.join('../.claude-plugin/marketplace.json')
+  if marketplace.file?
+    entry = JSON.parse(marketplace.read).fetch('plugins', []).find { |plugin| plugin['name'] == reference['name'] }
+    if entry.nil?
+      errors << "marketplace.json: no entry for #{reference['name']}"
+    elsif entry['version'] != reference['version']
+      errors << "marketplace.json: #{reference['name']} version #{entry['version']} differs from #{reference['version']}"
+    end
   end
 end
 
@@ -88,4 +121,4 @@ unless errors.empty?
   warn errors.join("\n")
   exit 1
 end
-puts "Validated #{skills.length} skills, #{documents.length} Markdown files, and #{link_count} local links; plugin JSON parses."
+puts "Validated #{skills.length} skills, #{documents.length} Markdown files, and #{link_count} local links; principles are routed and manifests agree."
