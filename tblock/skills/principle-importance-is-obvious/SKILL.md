@@ -6,13 +6,11 @@ disable-model-invocation: true
 
 # Importance Is Obvious
 
-The project's design system decides how things look. This principle decides how they behave. If there is no design system, default to restrained surfaces, clear type, and consistent spacing.
+Choose clarity and user experience over implementation convenience. Follow the project's design system; without one, use restrained surfaces, clear type, and consistent spacing.
 
-- **One primary action per view.** Everything else is visually quieter.
-- **Colour means status.** Never decoration. Always pair it with a word or icon.
-- **Feedback is explicit.** Every action shows that it worked, or why it didn't.
-- **Keyboard first.** Every primary action is reachable and focus is always visible.
+- **Make the priority clear.** Emphasize the main task or action. Keep secondary actions visually quieter.
+- **Give colour meaning.** Use it to reinforce hierarchy and status. Pair status colours with a label or icon; decoration must not compete with the main action.
+- **Show what happened.** Give actions clear progress, success, or failure feedback, with a recovery path when needed.
+- **Make keyboard use work.** Primary actions are reachable and focus is visible.
 
-**The test:** can someone tell what matters, what happened, and what to do next without explanation? Check it in the real UI, not in the code.
-
-**Why:** when everything looks equally important, people miss the one thing they needed, and every extra cue they must decode slows them down.
+Check the rendered UI in its relevant states: can someone tell what matters, what happened, and what to do next without explanation?

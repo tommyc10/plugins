@@ -6,17 +6,11 @@ disable-model-invocation: true
 
 # Prove It Works
 
-Verify every task output by checking the real thing directly. Do not infer from proxies, self-reports, or "it compiles."
+Before declaring done, check the requested outcome against the real artifact.
 
-**Why:** Unverified work has unknown correctness. Indirect verification (file mtimes, output freshness, agent self-reports, cached screenshots) feels cheaper than direct observation. Acting on a wrong inference costs far more than checking the source.
+- Run the changed behavior, read the stored value, or inspect the produced file, as the task requires. Compilation and passing checks prove only what they cover.
+- Confirm you are observing the current build, instance, or output. Investigate a surprising result before blaming either the system or the check.
+- For a mutation, verify the resulting state; an acknowledgement alone is insufficient.
+- Show the evidence and state what remains unverified. An unavailable check is a gap, not a pass.
 
-Check the real thing, not a proxy:
-- Check process liveness directly, not indirectly through derived state
-- Read the actual value, not a cached or derived representation
-- When verification fails, suspect the observation method before suspecting the system
-
-## Script the check when you can
-
-The strongest proof is a deterministic script that re-runs the same comparison, not a one-time eyeball. Write the script, run it, and keep its output as an artifact a reviewer can re-run instead of trusting your word.
-
-Keep the artifact visible for the human. Commit it only for large or complex work where the trail has to be auditable later, like a big port or migration (the **show-me-your-work** skill).
+Use the smallest rerunnable script when it makes the proof more reliable or reusable. Keep evidence reviewable and outside cleanup paths; commit it when the deliverable needs a lasting audit trail.
