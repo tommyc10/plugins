@@ -14,9 +14,12 @@ The Principles section below grounds every trigger. In your reply, name each pri
 Read the linked leaf skill in full for any principle you apply. Each entry names when it applies.
 
 **[Laziness Protocol](../principle-laziness-protocol/SKILL.md).** Refactoring, sizing a diff, or tempted to add abstractions, layers, or signal threading. Bias to deletion and the smallest change that solves the problem.
+**[Subtract Before You Add](../principle-subtract-before-you-add/SKILL.md).** Sequencing an addition, refactor, or rewrite. Remove dead weight first, then build on the simpler base.
 **[Model the Domain](../principle-model-the-domain/SKILL.md).** Writing stateful logic, or code that branches a lot or repeats a shape assumption across files. Encode the domain in a structure (state machine, typed model, table or registry, reducer, boundary, the right collection) instead of scattered conditionals.
 **[Prove It Works](../principle-prove-it-works/SKILL.md).** After a task, before declaring done. Verify against the real artifact, not a proxy or "it compiles".
 **[Fix Root Causes](../principle-fix-root-causes/SKILL.md).** Debugging. Trace each symptom back to the first place the system went wrong and fix it there. A guard is a fix only when the state it handles is legitimate.
+**[Attack the Premise](../principle-attack-the-premise/SKILL.md).** Two or more fixes that share one premise have failed the same gate. Write the premise down and test it directly before you write another fix that assumes it.
+**[Explain the Number](../principle-explain-the-number/SKILL.md).** Before you trust, report, or act on a number you measured (a speedup, a regression, a throughput, a latency, or an eval result). Find what limits it, and rule out that it measured something other than the work you think.
 **[Importance Is Obvious](../principle-importance-is-obvious/SKILL.md).** Project UI/UX: choose user delight and enjoyment over implementation convenience. Make what matters, what happened, and what to do next obvious, using the project's design system.
 **[Build the Lever](../principle-build-the-lever/SKILL.md).** Substantial edits, migrations, analyses, and verification. Build the smallest rerunnable tool that performs or proves the work.
 **[Encode Lessons in Structure](../principle-encode-lessons-in-structure/SKILL.md).** Recurring corrections. Prefer a lint, script, metadata flag, or runtime check to another instruction when the rule can be enforced.
