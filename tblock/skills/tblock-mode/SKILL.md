@@ -1,6 +1,6 @@
 ---
 name: tblock-mode
-description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes features, bug fixes, UI work, prototypes, skill evaluations, and verification setup or upkeep."
+description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes features, bug fixes, UI work, prototypes, skill authoring and evaluation, and verification setup or upkeep."
 
 disable-model-invocation: true
 ---
@@ -9,6 +9,8 @@ disable-model-invocation: true
 
 ## Non-negotiables
 The Principles section below grounds every trigger. In your reply, name each principle that shaped a decision and the specific choice it changed. Cite only principles whose leaf SKILL.md you read this session.
+
+Any prose surface, your reply to the user included, follows the [unslop](../unslop/SKILL.md) skill.
 
 ## Principles
 Read the linked leaf skill in full for any principle you apply. Each entry names when it applies.
@@ -37,6 +39,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Build new or changed behavior | [Feature](playbooks/feature.md) |
 | Reproduce and fix a defect | [Bug fix](playbooks/bug-fix.md) |
 | Explore alternatives or settle an uncertain design | [Prototype](playbooks/prototype.md) |
+| Write or modify a skill, principle, or playbook | [Authoring a skill](playbooks/authoring-a-skill.md) |
 | Measure a skill or prompt change | [Eval](playbooks/eval.md) |
 | Design and implement a UI feature | [UI-UX](playbooks/ui-ux.md) |
 
