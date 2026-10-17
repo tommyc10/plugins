@@ -1,0 +1,15 @@
+### Eval
+
+Evaluate whether a skill or prompt change improves observable work. Define the success criteria before running, isolate each attempt, and keep judging blind to the variant identity.
+
+**Blinding:** use an ordinary user task and neutral workspace labels. Keep the rubric, experiment instructions, variant names, model identities, and other outputs out of the workers' context. Do not expose competing attempts to one another. Do not ask workers to list skills or principles they used; judge behavior from artifacts and available execution records. Real project names and files need not be renamed merely because they contain words such as `test`.
+
+1. Frame the change and write 3–6 concrete criteria for correctness, verification quality, unnecessary complexity, or required interventions. Keep the rubric for judging only. To isolate a skill change, hold the task, starting files, tools, model, and budget constant where practical; disclose differences.
+2. Prepare separate scratch workspaces from the same baseline, with only the intended skill or prompt variation changed. Keep the coordinator's rubric and notes outside those workspaces. Use neutral labels and give each worker only its own task, workspace, and normal project instructions.
+3. Write one realistic user prompt and use it unchanged for each variant. Use independent fresh sessions through available, authorized agent tools. Parallel execution is optional; sequential isolated runs are valid. If independent sessions cannot be created, stop with a prepared experiment and that limitation rather than substituting self-review for a behavioral evaluation.
+4. Collect the actual artifacts and run the task's correctness checks. Preserve the same checks and observations across variants. Where results vary, repeat matched runs before making a strong claim.
+5. Have an independent judge assess all outputs together under neutral labels and the same rubric, without skill variant or model identities. A human may judge when no independent agent is available; report pending judgment until that review exists. Separate model families are optional, and changing models is a separate experimental factor.
+6. Inspect available records from these runs only to check instruction loading and execution. Use the active tool's returned transcript or documented run artifact; do not guess private transcript locations. Missing logs mean instruction-following is unobserved. Worker claims are not proof. Read every output and investigate disagreements with the judgment.
+7. Report the variant under examination, rubric, actual results, judgment, repeated-run coverage, confounders, and a recommendation to keep, revise, or reject the change. Evaluation does not automatically replace the user's current skills.
+
+**Reply:** concise results tied to observable artifacts, with the strength and limits of the evidence. The coordinator may explain its methods; do not add evaluation-only cues to candidate tasks.

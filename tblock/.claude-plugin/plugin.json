@@ -1,0 +1,10 @@
+{
+  "name": "tblock",
+  "version": "0.1.0",
+  "description": "Rigorous agent workflows for Claude Code, Codex, and GitHub Copilot. Go deep first, then go fast.",
+  "author": {
+    "name": "Tommy Clark"
+  },
+  "license": "MIT",
+  "keywords": ["tblock", "workflow", "principles", "subagents"]
+}

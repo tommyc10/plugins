@@ -1,0 +1,22 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tblock",
+  "version": "0.1.0",
+  "description": "Rigorous agent workflows for Claude Code, Codex, and GitHub Copilot. Go deep first, then go fast.",
+  "author": {
+    "name": "Tommy Clark"
+  },
+  "license": "MIT",
+  "keywords": ["tblock", "workflow", "principles", "subagents"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "tblock",
+        "shortDescription": "Rigorous agent workflows and principles",
+        "developerName": "Tommy Clark",
+        "category": "Productivity",
+        "defaultPrompt": ["Use tblock-mode for this task."]
+      }
+    }
+  }
+}
