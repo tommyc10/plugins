@@ -35,6 +35,27 @@ Run `/setup-tblock`. It asks which models you have, maps each role to one, and w
 | `swarm workers` | `swarm` workers and `how` explorers |
 | `shootout runners` and `shootout judges` | `shootout` attempts and their judges |
 
+`/setup-tblock` writes these files through tblock's CLI, so they come out the same every time.
+
+## CLI
+
+tblock ships a small Node CLI at `bin/tblock.mjs`, with no dependencies. Point an alias at your install:
+
+```bash
+alias tblock="node ~/.copilot/installed-plugins/_direct/tommyc10--plugins--tblock/bin/tblock.mjs"
+```
+
+For Claude Code, the folder is the `installPath` that `claude plugin list --json` shows for `tblock@plugins`.
+
+| Command | What it does |
+| --- | --- |
+| `tblock doctor` | Checks the install in each tool, the roles file, the Copilot role agents, and the git CLIs. Exits 1 on any FAIL. |
+| `tblock roles` | Shows which model each role uses |
+| `tblock roles set code=gpt-5 reviewers=claude-opus-5,gpt-5` | Sets roles, and rewrites the Copilot role agents when the harness is Copilot |
+| `tblock roles sync` | Rewrites the Copilot role agents from the roles file |
+
+Add `--json` for output a script or agent can read. Colour and the banner appear only in a terminal, and `NO_COLOR` turns colour off.
+
 Pick models from different families for the panel roles. Agreement across families is what makes a review or a shootout worth trusting. Without a roles file, every subagent runs on the session model.
 
 ## Use
@@ -79,6 +100,7 @@ Check every skill before you commit:
 
 ```bash
 ruby tblock/scripts/validate-skills.rb
+node --test tblock/bin/tblock.test.mjs
 ```
 
 It checks frontmatter, local links, that every principle is routed from tblock-mode, that every model role is used, that the Claude Code and Copilot copies of each agent match, and that the three manifests agree on name and version.
