@@ -89,6 +89,15 @@ if mode.file?
   end
 end
 
+setup = root.join('skills/setup-tblock/SKILL.md')
+if setup.file?
+  roles = setup.read.scan(/^\| `([a-z ]+)` \|/).flatten
+  users = (Dir[root.join('skills/**/*.md').to_s] + Dir[root.join('agents/*.md').to_s]).reject { |f| f == setup.to_s }.map { |f| File.read(f) }
+  roles.each do |role|
+    errors << "skills/setup-tblock/SKILL.md: role `#{role}` is configured but no skill or agent uses it" unless users.any? { |text| text.include?("`#{role}`") }
+  end
+end
+
 manifests = {}
 Dir[root.join('{plugin.json,.claude-plugin/*.json}').to_s].sort.each do |file|
   begin

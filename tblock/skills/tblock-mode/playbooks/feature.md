@@ -9,7 +9,7 @@
    - **Independent workstreams.** Disjoint files, services, or layers parallelize. Shared writes serialize.
    - **Shared mutable state.** Default to splitting the target. Serialize only for real invariants.
    - **Smallest safe decomposition.** If one worker is best, name why.
-4. Implement against the named shape. Do the work directly, or delegate a bounded scope (file paths, the named data shape and its structure, success criteria) when delegation is available and allowed. Remove what the new shape makes dead before building on it, per [Subtract Before You Add](../../principle-subtract-before-you-add/SKILL.md). Port shared-primitive improvements to all consumers and verify each.
+4. Implement against the named shape. Do the work directly, or delegate a bounded scope (file paths, the named data shape and its structure, success criteria) when delegation is available and allowed: to the `code` role, or the `hardest` role for cross-cutting design, concurrency, or subtle algorithms. Remove what the new shape makes dead before building on it, per [Subtract Before You Add](../../principle-subtract-before-you-add/SKILL.md). Port shared-primitive improvements to all consumers and verify each.
 5. Verify on the matching surface with the project's verification skill when available, per [Prove It Works](../../principle-prove-it-works/SKILL.md). "Inconclusive" or wrong-surface is not a pass. Flag it. Write or change tests per [Test Behavior, Not Implementation](../../principle-test-behavior-not-implementation/SKILL.md).
 6. Build, verify, and commit each small unit before the next, per [Sequence Verifiable Units](../../principle-sequence-verifiable-units/SKILL.md). Review the actual diff and follow the requested delivery scope for commits and PRs.
 

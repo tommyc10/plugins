@@ -5,20 +5,20 @@ description: "Configure which model each tblock role uses for subagents, in GitH
 
 # Setup tblock
 
-Write `$TBLOCK_HOME/roles.md` (default `~/.tblock/roles.md`). Every tblock skill that spawns a subagent reads it. In GitHub Copilot, also write one custom agent per role, because Copilot sets a subagent's model in its agent file, not per spawn.
+Write `~/.tblock/roles.md`. Resolve `~` to the home folder (`cd ~ && pwd`) before passing the path to a file tool. Every tblock skill that spawns a subagent reads it. In GitHub Copilot, also write one custom agent per role, because Copilot sets a subagent's model in its agent file, not per spawn.
 
 ## Roles
 
-| Role | Used for | Default |
+| Role | Used by | Default |
 | --- | --- | --- |
-| `code` | Delegated code changes in Feature, Bug fix, and refactors | session model |
-| `hardest` | Cross-cutting design, concurrency, subtle algorithms | strongest model available |
-| `judgment` | Prose, synthesis, and judging other agents' output | strongest model available |
-| `artist` | UI work, run by the artist agent through the UI-UX playbook | session model |
-| `reviewers` | A panel: one reviewer per entry, from different model families | one Anthropic and one OpenAI model |
-| `swarm workers` | Parallel fan-out workers | fastest capable model |
-| `shootout runners` | A panel: one competing attempt per entry | one Anthropic and one OpenAI model |
-| `shootout judges` | A panel: judges whose family differs from the runner they judge, where possible | one Anthropic and one OpenAI model |
+| `code` | Delegated changes in Feature, Bug fix, Perf issue, and Hillclimb | session model |
+| `hardest` | Feature and Bug fix work in cross-cutting design, concurrency, or subtle algorithms | strongest model available |
+| `judgment` | The `how` explainer, and judging delegated work in figure-it-out | strongest model available |
+| `artist` | The artist agent, for UI-UX work | session model |
+| `reviewers` | A panel for `interrogate`: one reviewer per entry, from different model families | one Anthropic and one OpenAI model |
+| `swarm workers` | `swarm` workers and `how` explorers | fastest capable model |
+| `shootout runners` | A panel for `shootout`, and for `swarm` model races: one attempt per entry | one Anthropic and one OpenAI model |
+| `shootout judges` | A panel for `shootout`: judges whose family differs from the runner they judge, where possible | one Anthropic and one OpenAI model |
 
 A panel's list length sets how many agents it runs. `session` as a value means the role runs on the parent chat model.
 

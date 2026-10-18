@@ -1,6 +1,6 @@
 ---
 name: tblock-mode
-description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes explanations, change risk, competing attempts, large open-ended work, features, bug fixes, performance work, UI work, prototypes, skill authoring and evaluation, and verification setup or upkeep."
+description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes explanations, change risk, competing attempts, parallel fan-out, multi-model review, large open-ended work, features, bug fixes, performance work, UI work, prototypes, skill authoring and evaluation, and verification setup or upkeep."
 
 disable-model-invocation: true
 ---
@@ -40,6 +40,8 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Explain how code works, or where something should live | [how](../how/SKILL.md) |
 | Find what a change could break beyond its diff | [blast-radius](../blast-radius/SKILL.md) |
 | Compare several attempts at one artifact and merge the best | [shootout](../shootout/SKILL.md) |
+| Fan out parallel workers for coverage, a race, or exploration | [swarm](../swarm/SKILL.md) |
+| Get an adversarial multi-model review of a change | [interrogate](../interrogate/SKILL.md) |
 | Large or ambitious work that no route below fits | [figure-it-out](../figure-it-out/SKILL.md) |
 | Build new or changed behavior | [Feature](playbooks/feature.md) |
 | Reproduce and fix a defect | [Bug fix](playbooks/bug-fix.md) |
@@ -58,7 +60,11 @@ Find the project's named verification skill in its instructions or repository-lo
 
 ## Subagents
 
-Before spawning a subagent, read `$TBLOCK_HOME/roles.md` (default `~/.tblock/roles.md`) if it exists, and pick the role the work fits. In GitHub Copilot, delegate to that role's custom agent, `tblock-<role>` or `tblock-<role>-<n>` for a panel entry. In Claude Code, pass the role's model to the `Agent` tool, with `subagent_type: "tblock:artist"` for the `artist` role. Hand UI-UX work to the artist when delegation is available. A role with no line, a `session` value, or no roles file runs on the session model; say so. Put this file's absolute path in every brief, so the subagent reads tblock-mode first.
+The roles file is `~/.tblock/roles.md`. Read it with the file tool at its absolute path, with `~` replaced by the user's home folder.
+
+At the start of a tblock-mode session, read the roles file once and say in one line which model each role in play will use. With no roles file, say that subagents run on the session model and offer `/setup-tblock` once. When the user names a model for a role in this session ("use GPT for code today"), use it for the rest of the session without editing the file.
+
+Before spawning a subagent, pick the role the work fits from the roles file. In GitHub Copilot, delegate to that role's custom agent, `tblock-<role>` or `tblock-<role>-<n>` for a panel entry. In Claude Code, pass the role's model to the `Agent` tool, with `subagent_type: "tblock:artist"` for the `artist` role. Hand UI-UX work to the artist when delegation is available. A role with no line, a `session` value, or no roles file runs on the session model; say so. Put this file's absolute path in every brief, so the subagent reads tblock-mode first.
 
 You own every subagent's result. Review its diff yourself, then carry its evidence into your reply: each state or case it checked, how it checked it, what it saw, and what it did not check. Never compress that into "it works". The user sees only your reply, so evidence left in the subagent's report is evidence the user never gets.
 
