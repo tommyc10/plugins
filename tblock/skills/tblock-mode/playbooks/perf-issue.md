@@ -13,7 +13,7 @@
    6. Do it concurrently.
    7. Do it cheaper.
 
-   When an earlier mantra meets the target, stop. In a React app, check the trace against the [vercel-react-best-practices](../../vercel-react-best-practices/SKILL.md) rules, highest impact first.
+   When an earlier mantra meets the target, stop. In a React app, check the trace against the [vercel-react-best-practices](../../vercel-react-best-practices/SKILL.md) rules, highest impact first. When the slowness is an animation dropping frames, use [animation-performance](../../animation-performance/SKILL.md).
 3. Plan the fix from the trace. If it crosses a function boundary, sketch the affected callers and data shape first, or run a [shootout](../../shootout/SKILL.md) when several designs are plausible. Do the change directly, or delegate it to the `code` role per tblock-mode's Subagents section.
    Apply [Sequence Verifiable Units](../../principle-sequence-verifiable-units/SKILL.md), verifying each attempt before trying the next.
 4. Parse and compare the artifacts (JSON to sqlite, diff). "Inconclusive" or wrong-surface is not a pass. Flag it.
