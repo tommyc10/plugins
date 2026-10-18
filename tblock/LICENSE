@@ -47,3 +47,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+skills/vercel-react-best-practices is Vercel's react-best-practices skill from
+https://github.com/vercel-labs/agent-skills (commit 063bee94, 2026-08-28). That
+repository declares the MIT license in its README and in the skill's frontmatter
+(license: MIT). Its files are included under that license, unchanged except three links in
+AGENTS.md repointed from ./<rule>.md to rules/<rule>.md, where the files are.
