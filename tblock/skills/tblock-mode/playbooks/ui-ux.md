@@ -6,7 +6,19 @@
 2. List every state the UI element can be in: empty, loading, populated, error, disabled, and any others the feature has.
 3. Name the primary action and the order of events.
 4. Build from existing tokens and components. Make the smallest change that delivers the experience, per the [Laziness Protocol](../../principle-laziness-protocol/SKILL.md).
-5. Apply the **emil-design-eng** skill for component details and polish. If the UI has scope for motion, also apply the **animate** skill.
+5. Apply every UI skill the change calls for, from the table below. Use each one that is installed. When one is missing, say so and apply its intent by hand. tblock ships **animate** and **emil-design-eng**. The rest come from the `emilkowalski/skills`, `jakubkrehel/skills`, and `transitions.dev` packs.
+
+   | When the change | Use |
+   | --- | --- |
+   | Makes anything move, appear, disappear, or redraw, including an existing transition it now triggers | **animate**, then **review-animations** on the result |
+   | Adds or changes how a component looks | **emil-design-eng**, **better-ui** |
+   | Shows data that can be long, missing, huge, or empty | **break-ui** |
+   | Has more than one plausible design | **variant** |
+   | Adds or changes a dropdown, modal, panel reveal, or page transition | **transitions-dev**, then **transitions-polish** |
+   | Starts from a Figma file or a design image | **build-design** |
+   | Is built and needs a review pass | **interface-review**, plus **better-accessibility** for keyboard, focus, and screen readers |
+
+   Skipping a row that applies needs a one-line reason in the todo list.
 6. Prove it in a real browser, in every state from step 2, per [Prove It Works](../../principle-prove-it-works/SKILL.md). Capture a screenshot or interaction record for each.
 7. Log each design decision and its reason as you make it, for the reply.
 

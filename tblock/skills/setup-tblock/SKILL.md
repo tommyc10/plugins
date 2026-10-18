@@ -14,6 +14,7 @@ Write `$TBLOCK_HOME/roles.md` (default `~/.tblock/roles.md`). Every tblock skill
 | `code` | Delegated code changes in Feature, Bug fix, and refactors | session model |
 | `hardest` | Cross-cutting design, concurrency, subtle algorithms | strongest model available |
 | `judgment` | Prose, synthesis, and judging other agents' output | strongest model available |
+| `artist` | UI work, run by the artist agent through the UI-UX playbook | session model |
 | `reviewers` | A panel: one reviewer per entry, from different model families | one Anthropic and one OpenAI model |
 | `swarm workers` | Parallel fan-out workers | fastest capable model |
 | `shootout runners` | A panel: one competing attempt per entry | one Anthropic and one OpenAI model |
@@ -37,6 +38,7 @@ A panel's list length sets how many agents it runs. `session` as a value means t
    code: <model>
    hardest: <model>
    judgment: <model>
+   artist: <model>
    reviewers: <model>, <model>
    swarm workers: <model>
    shootout runners: <model>, <model>
@@ -54,6 +56,8 @@ A panel's list length sets how many agents it runs. `session` as a value means t
    ---
    Read the tblock-mode SKILL.md at the path your brief gives, in full, before any work. Then do the brief.
    ```
+
+   For the `artist` role, the body is the body of tblock's `agents/artist.md` instead, with the same `name`, `description`, and `model` lines as above.
 
    Skip this step in Claude Code, where the spawning skill passes `model` to the `Agent` tool.
 8. **Confirm.** Tell the user which files were written and that new sessions pick them up. Rerunning this skill updates them.
