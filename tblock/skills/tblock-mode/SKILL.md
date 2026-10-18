@@ -58,4 +58,6 @@ Find the project's named verification skill in its instructions or repository-lo
 
 Before spawning a subagent, read `$TBLOCK_HOME/roles.md` (default `~/.tblock/roles.md`) if it exists, and pick the role the work fits. In GitHub Copilot, delegate to that role's custom agent, `tblock-<role>` or `tblock-<role>-<n>` for a panel entry. In Claude Code, pass the role's model to the `Agent` tool, with `subagent_type: "tblock:artist"` for the `artist` role. Hand UI-UX work to the artist when delegation is available. A role with no line, a `session` value, or no roles file runs on the session model; say so. Put this file's absolute path in every brief, so the subagent reads tblock-mode first.
 
+You own every subagent's result. Review its diff yourself, then carry its evidence into your reply: each state or case it checked, how it checked it, what it saw, and what it did not check. Never compress that into "it works". The user sees only your reply, so evidence left in the subagent's report is evidence the user never gets.
+
 Use the active environment's permitted tools. Work directly when delegation is unavailable or not allowed. Playbooks do not imply permission to publish, merge, or change unrelated configuration; follow the user's delivery scope.

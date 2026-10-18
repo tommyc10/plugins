@@ -6,6 +6,9 @@
 2. List every state the UI element can be in: empty, loading, populated, error, disabled, and any others the feature has.
 3. Name the primary action and the order of events.
 4. Build from existing tokens and components. Make the smallest change that delivers the experience, per the [Laziness Protocol](../../principle-laziness-protocol/SKILL.md).
+   - Keep everything the page already shows and does. When the change seems to need removing or rewording an existing number, label, or behavior, keep it unless the task asks for that, and list it in the reply as an open decision.
+   - Change shared code (hooks, components, or styles other pages use) only when the task cannot be done without it, and say why in the reply.
+   - Additions beyond the task, such as a palette command or a tour step, go in the reply as suggestions, not in the diff.
 5. Apply every UI skill the change calls for, from the table below. Use each one that is installed. When one is missing, say so and apply its intent by hand. tblock ships [animate](../../animate/SKILL.md) and [emil-design-eng](../../emil-design-eng/SKILL.md). The rest come from the `emilkowalski/skills`, `jakubkrehel/skills`, and `transitions.dev` packs.
 
    | When the change | Use |
