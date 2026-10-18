@@ -6,12 +6,12 @@
 2. List every state the UI element can be in: empty, loading, populated, error, disabled, and any others the feature has.
 3. Name the primary action and the order of events.
 4. Build from existing tokens and components. Make the smallest change that delivers the experience, per the [Laziness Protocol](../../principle-laziness-protocol/SKILL.md).
-5. Apply every UI skill the change calls for, from the table below. Use each one that is installed. When one is missing, say so and apply its intent by hand. tblock ships **animate** and **emil-design-eng**. The rest come from the `emilkowalski/skills`, `jakubkrehel/skills`, and `transitions.dev` packs.
+5. Apply every UI skill the change calls for, from the table below. Use each one that is installed. When one is missing, say so and apply its intent by hand. tblock ships [animate](../../animate/SKILL.md) and [emil-design-eng](../../emil-design-eng/SKILL.md). The rest come from the `emilkowalski/skills`, `jakubkrehel/skills`, and `transitions.dev` packs.
 
    | When the change | Use |
    | --- | --- |
-   | Makes anything move, appear, disappear, or redraw, including an existing transition it now triggers | **animate**, then **review-animations** on the result |
-   | Adds or changes how a component looks | **emil-design-eng**, **better-ui** |
+   | Makes anything move, appear, disappear, or redraw, including an existing transition it now triggers | [animate](../../animate/SKILL.md), then **review-animations** on the result |
+   | Adds or changes how a component looks | [emil-design-eng](../../emil-design-eng/SKILL.md), **better-ui** |
    | Shows data that can be long, missing, huge, or empty | **break-ui** |
    | Has more than one plausible design | **variant** |
    | Adds or changes a dropdown, modal, panel reveal, or page transition | **transitions-dev**, then **transitions-polish** |
