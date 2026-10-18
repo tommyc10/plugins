@@ -1,0 +1,357 @@
+diff --git a/src/pages/alerts/AlertsPage.tsx b/src/pages/alerts/AlertsPage.tsx
+index 05b4f7e..fc8978b 100644
+--- a/src/pages/alerts/AlertsPage.tsx
++++ b/src/pages/alerts/AlertsPage.tsx
+@@ -6,17 +6,19 @@
+  *   StreamBar     live or rewound, the preview switch, pause
+  *   Tally         the hour in four numbers
+  *   Waterline     the chart: one dot per alert, seen above the line, hidden below it
+- *   AlertTrace    the picked alert, and what happened to it
++ *   AlertTrace    the picked alert, and what happened to it; acknowledge a page from here
+  *   RulesAtWork   the rules behind the stream
+  *   AlertsPalette / Tour   on top when opened
+  *
+  * The state is small. `playhead` is where the stream is rewound to (null = live), `preview`
+  * shows what the proposed rules would hide, and the rest is what the reader picked: an
+  * alert, a tab, a search, a rule. Everything on the page is worked out from the last hour
+- * of alerts and those few choices. */
++ * of alerts and those few choices. Which pages a person has picked up lives in a store
++ * (useAcknowledged), so it outlasts the page. */
+ 
+ import { useEffect, useMemo, useRef, useState } from 'react';
+ import { createPortal } from 'react-dom';
++import { toast } from 'sonner';
+ import { PaneToggles } from '../../components/PaneToggles';
+ import { Sidebar } from '../../components/Sidebar/Sidebar';
+ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+@@ -26,6 +28,7 @@ import { navigate } from '../../lib/route';
+ import { ALERTS_TOUR } from '../../../tours/alerts';
+ import { Tour } from '../../../tours/Tour';
+ import { tourMode, useTour } from '../../../tours/useTour';
++import { SuggestionToast } from '../rule-management/components/common/SuggestionToast';
+ import { useRulesStore } from '../rule-management/hooks/useRulesStore';
+ import { AlertFeed } from './components/AlertFeed/AlertFeed';
+ import { AlertTrace } from './components/AlertTrace/AlertTrace';
+@@ -35,14 +38,16 @@ import { StreamBar } from './components/StreamBar/StreamBar';
+ import { Tally } from './components/Tally/Tally';
+ import { Waterline } from './components/Waterline/Waterline';
+ import { MINUTE, WINDOW } from './data/mockData';
++import { useAcknowledged } from './hooks/useAcknowledged';
+ import { clock, useAlertStream } from './hooks/useAlertStream';
+ import { rulesAtWork, tally } from './model/stream';
+-import type { FeedFilter } from './model/types';
++import type { FeedFilter, StreamAlert } from './model/types';
+ import './AlertsPage.css';
+ 
+ export function AlertsPage() {
+   const rules = useRulesStore((s) => s.rules);
+   const { now, alerts } = useAlertStream();
++  const acknowledged = useAcknowledged((s) => s.at);
+   const [playhead, setPlayhead] = useState<number | null>(null);
+   const [preview, setPreview] = useState(false);
+   const [selectedId, setSelectedId] = useState<string | null>(null);
+@@ -82,9 +87,12 @@ export function AlertsPage() {
+     return { tabs, shown };
+   }, [upTo, query, ruleId, filter]);
+ 
+-  // With nothing picked, follow the latest alert that reached a person: the one worth a look.
++  // With nothing picked, follow the latest page nobody has picked up yet: the one worth a look.
+   const picked = upTo.find((a) => a.id === selectedId) ?? null;
+-  const latest = useMemo(() => [...upTo].reverse().find((a) => a.outcome === 'paged') ?? null, [upTo]);
++  const latest = useMemo(
++    () => [...upTo].reverse().find((a) => a.outcome === 'paged' && !acknowledged[a.id]) ?? null,
++    [upTo, acknowledged],
++  );
+   const shownAlert = picked ?? latest;
+ 
+   // A picked alert that slides out of the hour is let go.
+@@ -105,6 +113,35 @@ export function AlertsPage() {
+     setPlayhead(to >= clock() ? null : Math.max(to, clock() - WINDOW + MINUTE));
+   };
+ 
++  /** Acknowledge a page, or take the acknowledgement back. Only pages can be picked up. */
++  const toggleAcknowledged = (alert: StreamAlert | null) => {
++    if (alert?.outcome !== 'paged') return;
++    const { acknowledge, undo } = useAcknowledged.getState();
++    const toastId = `ack-${alert.id}`;
++    if (acknowledged[alert.id]) {
++      undo(alert.id);
++      toast.dismiss(toastId);
++      return;
++    }
++    acknowledge(alert.id, clock());
++    // Stay on it: following moves on to the next page, and this one should keep its Undo in sight.
++    setSelectedId(alert.id);
++    toast.custom(
++      (id) => (
++        <SuggestionToast
++          title={`${alert.id} acknowledged`}
++          sub="It no longer stands out in the feed"
++          action="Undo"
++          onAction={() => {
++            undo(alert.id);
++            toast.dismiss(id);
++          }}
++        />
++      ),
++      { id: toastId },
++    );
++  };
++
+   const toggleLive = () => setPlayhead(live ? clock() : null);
+   const togglePreview = () => proposed > 0 && setPreview((on) => !on);
+   const openRule = (id: string) => navigate(`#/rules/${id}`);
+@@ -129,6 +166,7 @@ export function AlertsPage() {
+       ArrowRight: () => step(1),
+       ' ': toggleLive,
+       p: togglePreview,
++      a: () => toggleAcknowledged(shownAlert),
+       '/': () => searchRef.current?.focus(),
+       // Esc lets go, one thing at a time: the picked alert, then the rule, then the rewind.
+       Escape: () => (selectedId ? setSelectedId(null) : ruleId ? setRuleId(null) : setPlayhead(null)),
+@@ -161,6 +199,7 @@ export function AlertsPage() {
+         onClearRule={() => setRuleId(null)}
+         selectedId={shownAlert?.id ?? null}
+         onSelect={setSelectedId}
++        acknowledged={acknowledged}
+         preview={preview}
+         live={live}
+         searchRef={searchRef}
+@@ -234,6 +273,9 @@ export function AlertsPage() {
+               <AlertTrace
+                 alert={shownAlert}
+                 following={!picked}
++                acknowledgedAt={shownAlert ? acknowledged[shownAlert.id] : undefined}
++                pagedCount={counts.paged}
++                onToggleAcknowledged={() => toggleAcknowledged(shownAlert)}
+                 activeRules={rules.filter((r) => r.status === 'active').length}
+                 onOpenRule={openRule}
+               />
+diff --git a/src/pages/alerts/components/AlertFeed/AlertFeed.css b/src/pages/alerts/components/AlertFeed/AlertFeed.css
+index d508233..597e470 100644
+--- a/src/pages/alerts/components/AlertFeed/AlertFeed.css
++++ b/src/pages/alerts/components/AlertFeed/AlertFeed.css
+@@ -109,6 +109,12 @@
+   color: var(--fg);
+ }
+ 
++/* A page someone has picked up steps back to an ordinary row: it has been seen to. */
++.al-row[data-acknowledged]:not([data-selected]) .al-row-title {
++  font-weight: 400;
++  color: var(--row-name);
++}
++
+ .al-row-sub {
+   display: flex;
+   gap: 8px;
+diff --git a/src/pages/alerts/components/AlertFeed/AlertFeed.tsx b/src/pages/alerts/components/AlertFeed/AlertFeed.tsx
+index ac31d9a..11e0beb 100644
+--- a/src/pages/alerts/components/AlertFeed/AlertFeed.tsx
++++ b/src/pages/alerts/components/AlertFeed/AlertFeed.tsx
+@@ -28,6 +28,7 @@ export function AlertFeed({
+   onClearRule,
+   selectedId,
+   onSelect,
++  acknowledged,
+   preview,
+   live,
+   searchRef,
+@@ -46,6 +47,8 @@ export function AlertFeed({
+   onClearRule: () => void;
+   selectedId: string | null;
+   onSelect: (id: string) => void;
++  /** When each acknowledged page was picked up, by alert id. */
++  acknowledged: Record<string, number>;
+   preview: boolean;
+   live: boolean;
+   searchRef: RefObject<HTMLInputElement | null>;
+@@ -112,6 +115,7 @@ export function AlertFeed({
+       <div className="al-rows" ref={rowsRef} role="listbox" aria-label="Alerts">
+         {alerts.slice(0, limit).map((alert) => {
+           const sinking = preview && alert.wouldHide;
++          const seenTo = alert.id in acknowledged;
+           return (
+             <div
+               key={alert.id}
+@@ -120,6 +124,7 @@ export function AlertFeed({
+               className="al-row"
+               data-selected={alert.id === selectedId || undefined}
+               data-outcome={alert.outcome}
++              data-acknowledged={seenTo || undefined}
+               data-new={settled.current || undefined}
+               onClick={() => onSelect(alert.id)}
+             >
+@@ -128,7 +133,7 @@ export function AlertFeed({
+                 <div className="al-row-title mn-truncate">{alert.title}</div>
+                 <div className="al-row-sub mn-truncate">
+                   <span className="mn-mono">{alert.ci}</span>
+-                  <span>{sinking ? 'Would be hidden' : OUTCOME_SHORT[alert.outcome]}</span>
++                  <span>{sinking ? 'Would be hidden' : seenTo ? 'Acknowledged' : OUTCOME_SHORT[alert.outcome]}</span>
+                 </div>
+               </div>
+               <time className="mn-mono mn-subtle">{clockFace(alert.at)}</time>
+diff --git a/src/pages/alerts/components/AlertTrace/AlertTrace.css b/src/pages/alerts/components/AlertTrace/AlertTrace.css
+index ab30be2..020877c 100644
+--- a/src/pages/alerts/components/AlertTrace/AlertTrace.css
++++ b/src/pages/alerts/components/AlertTrace/AlertTrace.css
+@@ -204,3 +204,15 @@
+     text-decoration-color: var(--fg);
+   }
+ }
++
++/* Acknowledge, or Undo once it is: the one thing to do about a page. It keeps its place
++ * in both states, so the key and the pointer always find it in the same spot. */
++.al-ack {
++  flex: none;
++  align-self: flex-start;
++  margin-left: auto;
++}
++
++.al-ack[data-acknowledged] {
++  color: var(--fg-2);
++}
+diff --git a/src/pages/alerts/components/AlertTrace/AlertTrace.tsx b/src/pages/alerts/components/AlertTrace/AlertTrace.tsx
+index 6040bed..c063270 100644
+--- a/src/pages/alerts/components/AlertTrace/AlertTrace.tsx
++++ b/src/pages/alerts/components/AlertTrace/AlertTrace.tsx
+@@ -1,8 +1,11 @@
+ /* One alert, and what happened to it, in the order it happened: it arrived, the rules were
+  * checked, and it was hidden, folded or sent to a person. If a proposed rule fits it, this
+- * is where the page says what approving that rule would have done to this exact alert. */
++ * is where the page says what approving that rule would have done to this exact alert.
++ * A page is also where a person acknowledges it, once they've picked it up, and takes that
++ * back if it was a slip: the same button, and the same key, both ways. */
+ 
+ import { AlertTriangle, ArrowUpRight } from 'lucide-react';
++import { CURRENT_USER } from '../../../rule-management/data/mockData';
+ import { groupById } from '../../../rule-management/data/mockData';
+ import { statusLabel } from '../../../rule-management/model/labels';
+ import { OUTCOME_LABEL, SEVERITY_LABEL } from '../../model/labels';
+@@ -14,12 +17,20 @@ const clockFace = (ms: number) => new Date(ms).toLocaleTimeString('en-GB', { hou
+ export function AlertTrace({
+   alert,
+   following,
++  acknowledgedAt,
++  pagedCount,
++  onToggleAcknowledged,
+   activeRules,
+   onOpenRule,
+ }: {
+   alert: StreamAlert | null;
+-  /** Nothing is picked, so this is showing the latest alert to reach a person. */
++  /** Nothing is picked, so this is showing the latest page nobody has picked up. */
+   following: boolean;
++  /** When this alert was acknowledged, if it has been. */
++  acknowledgedAt: number | undefined;
++  /** How many alerts reached a person in this stretch, for the empty state. */
++  pagedCount: number;
++  onToggleAcknowledged: () => void;
+   /** How many rules are switched on, for "checked against 8 active rules". */
+   activeRules: number;
+   onOpenRule: (ruleId: string) => void;
+@@ -28,7 +39,14 @@ export function AlertTrace({
+     return (
+       <section className="al-trace" data-tour="al-trace">
+         <h2>Alert</h2>
+-        <p className="al-note">Nothing has reached a person in this stretch. Pick any alert to see what happened to it.</p>
++        <p className="al-note">
++          {pagedCount > 0
++            ? pagedCount === 1
++              ? 'The one page in this stretch has been acknowledged.'
++              : `All ${pagedCount} pages in this stretch have been acknowledged.`
++            : 'Nothing has reached a person in this stretch.'}{' '}
++          Pick any alert to see what happened to it.
++        </p>
+       </section>
+     );
+   }
+@@ -36,11 +54,12 @@ export function AlertTrace({
+   const group = groupById(alert.groupId);
+   const { rule } = alert;
+   const hidden = alert.outcome === 'hidden';
++  const paged = alert.outcome === 'paged';
+ 
+   return (
+     <section className="al-trace" data-tour="al-trace">
+       <h2>
+-        {following ? 'Latest to reach a person' : 'Alert'}
++        {following ? 'Latest page not yet acknowledged' : 'Alert'}
+         <span className="mn-mono mn-subtle">{alert.id}</span>
+       </h2>
+ 
+@@ -50,15 +69,21 @@ export function AlertTrace({
+           <div className="al-trace-title">{alert.title}</div>
+           <div className="al-trace-sub">
+             {OUTCOME_LABEL[alert.outcome]} · {SEVERITY_LABEL[alert.severity]} · {group.name}
++            {acknowledgedAt !== undefined && ' · Acknowledged'}
+           </div>
+         </div>
++        {paged && (
++          <button className="mn-btn al-ack" data-acknowledged={acknowledgedAt !== undefined || undefined} onClick={onToggleAcknowledged}>
++            {acknowledgedAt !== undefined ? 'Undo' : 'Acknowledge'} <kbd>A</kbd>
++          </button>
++        )}
+       </div>
+ 
+       {alert.wouldHide && rule && (
+-        <div className="al-callout" data-tone={alert.outcome === 'paged' ? 'bad' : undefined}>
++        <div className="al-callout" data-tone={paged ? 'bad' : undefined}>
+           <AlertTriangle size={14} />
+           <span>
+-            {alert.outcome === 'paged' ? (
++            {paged ? (
+               <>
+                 <strong>This one paged someone.</strong> <span className="mn-mono">{rule.id}</span> is proposed, and it fits. Approving it
+                 would have hidden this alert.
+@@ -115,13 +140,22 @@ export function AlertTrace({
+                 Added to <span className="mn-mono">{alert.incidentId}</span>, which was already open. Nobody was paged again.
+               </>
+             )}
+-            {alert.outcome === 'paged' && (
++            {paged && (
+               <>
+                 Opened <span className="mn-mono">{alert.incidentId}</span> for {group.name}. The on-call was paged.
+               </>
+             )}
+           </p>
+         </li>
++        {acknowledgedAt !== undefined && (
++          <li data-acknowledged>
++            <div className="al-step-head">
++              <strong>Acknowledged</strong>
++              <time className="mn-mono mn-subtle">{clockFace(acknowledgedAt)}</time>
++            </div>
++            <p>Picked up by {CURRENT_USER}.</p>
++          </li>
++        )}
+       </ol>
+     </section>
+   );
+diff --git a/src/pages/alerts/hooks/useAcknowledged.ts b/src/pages/alerts/hooks/useAcknowledged.ts
+new file mode 100644
+index 0000000..f08695e
+--- /dev/null
++++ b/src/pages/alerts/hooks/useAcknowledged.ts
+@@ -0,0 +1,22 @@
++/* Which paged alerts a person has picked up, and when. A store rather than page state, so
++ * an acknowledgement survives a trip to the Rules page and back. In the real app this is
++ * the incident's acknowledgement, read from and written to the API. */
++
++import { create } from 'zustand';
++
++interface AcknowledgedState {
++  /** When each acknowledged alert was picked up, in milliseconds, by alert id. */
++  at: Record<string, number>;
++  acknowledge: (id: string, at: number) => void;
++  undo: (id: string) => void;
++}
++
++export const useAcknowledged = create<AcknowledgedState>((set, get) => ({
++  at: {},
++  acknowledge: (id, at) => set({ at: { ...get().at, [id]: at } }),
++  undo: (id) => {
++    const at = { ...get().at };
++    delete at[id];
++    set({ at });
++  },
++}));

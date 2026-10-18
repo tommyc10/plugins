@@ -1,0 +1,704 @@
+diff --git a/src/hooks/useKeyboardShortcuts.ts b/src/hooks/useKeyboardShortcuts.ts
+index 12b214d..ad60e65 100644
+--- a/src/hooks/useKeyboardShortcuts.ts
++++ b/src/hooks/useKeyboardShortcuts.ts
+@@ -18,8 +18,9 @@ interface Shortcuts {
+   decisionOpen?: boolean;
+   onCancelDecision?: () => void;
+   onSubmitDecision?: () => void;
+-  /** Single-key shortcuts, e.g. `{ j: next, k: previous }`. */
+-  keys: Record<string, () => void>;
++  /** Single-key shortcuts, e.g. `{ j: next, k: previous }`. They get the event, so a key that
++   *  shouldn't repeat while held can check `e.repeat`. */
++  keys: Record<string, (e: KeyboardEvent) => void>;
+ }
+ 
+ export function useKeyboardShortcuts(shortcuts: Shortcuts) {
+@@ -61,7 +62,7 @@ export function useKeyboardShortcuts(shortcuts: Shortcuts) {
+       const run = s.keys[e.key];
+       if (run) {
+         e.preventDefault();
+-        run();
++        run(e);
+       }
+     };
+     // `true` = capture phase: the page hears the key before anything inside it.
+diff --git a/src/pages/alerts/AlertsPage.tsx b/src/pages/alerts/AlertsPage.tsx
+index 05b4f7e..282804c 100644
+--- a/src/pages/alerts/AlertsPage.tsx
++++ b/src/pages/alerts/AlertsPage.tsx
+@@ -12,11 +12,12 @@
+  *
+  * The state is small. `playhead` is where the stream is rewound to (null = live), `preview`
+  * shows what the proposed rules would hide, and the rest is what the reader picked: an
+- * alert, a tab, a search, a rule. Everything on the page is worked out from the last hour
+- * of alerts and those few choices. */
++ * alert, a tab, a search, a rule, and the pages they've acknowledged. Everything on the page
++ * is worked out from the last hour of alerts and those few choices. */
+ 
+ import { useEffect, useMemo, useRef, useState } from 'react';
+ import { createPortal } from 'react-dom';
++import { toast } from 'sonner';
+ import { PaneToggles } from '../../components/PaneToggles';
+ import { Sidebar } from '../../components/Sidebar/Sidebar';
+ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+@@ -26,6 +27,7 @@ import { navigate } from '../../lib/route';
+ import { ALERTS_TOUR } from '../../../tours/alerts';
+ import { Tour } from '../../../tours/Tour';
+ import { tourMode, useTour } from '../../../tours/useTour';
++import { SuggestionToast } from '../rule-management/components/common/SuggestionToast';
+ import { useRulesStore } from '../rule-management/hooks/useRulesStore';
+ import { AlertFeed } from './components/AlertFeed/AlertFeed';
+ import { AlertTrace } from './components/AlertTrace/AlertTrace';
+@@ -35,14 +37,18 @@ import { StreamBar } from './components/StreamBar/StreamBar';
+ import { Tally } from './components/Tally/Tally';
+ import { Waterline } from './components/Waterline/Waterline';
+ import { MINUTE, WINDOW } from './data/mockData';
++import { useAcknowledgements } from './hooks/useAcknowledgements';
+ import { clock, useAlertStream } from './hooks/useAlertStream';
+-import { rulesAtWork, tally } from './model/stream';
++import { rulesAtWork, tally, withAcknowledgements } from './model/stream';
+ import type { FeedFilter } from './model/types';
+ import './AlertsPage.css';
+ 
+ export function AlertsPage() {
+   const rules = useRulesStore((s) => s.rules);
+-  const { now, alerts } = useAlertStream();
++  const stream = useAlertStream();
++  const { acks, mark } = useAcknowledgements();
++  const { now } = stream;
++  const alerts = useMemo(() => withAcknowledgements(stream.alerts, acks), [stream.alerts, acks]);
+   const [playhead, setPlayhead] = useState<number | null>(null);
+   const [preview, setPreview] = useState(false);
+   const [selectedId, setSelectedId] = useState<string | null>(null);
+@@ -82,9 +88,10 @@ export function AlertsPage() {
+     return { tabs, shown };
+   }, [upTo, query, ruleId, filter]);
+ 
+-  // With nothing picked, follow the latest alert that reached a person: the one worth a look.
++  // With nothing picked, follow the latest alert that reached a person and nobody has picked
++  // up yet: the one worth a look. Acknowledging it moves on to the next one.
+   const picked = upTo.find((a) => a.id === selectedId) ?? null;
+-  const latest = useMemo(() => [...upTo].reverse().find((a) => a.outcome === 'paged') ?? null, [upTo]);
++  const latest = useMemo(() => [...upTo].reverse().find((a) => a.outcome === 'paged' && !a.acknowledgedAt) ?? null, [upTo]);
+   const shownAlert = picked ?? latest;
+ 
+   // A picked alert that slides out of the hour is let go.
+@@ -105,6 +112,37 @@ export function AlertsPage() {
+     setPlayhead(to >= clock() ? null : Math.max(to, clock() - WINDOW + MINUTE));
+   };
+ 
++  /** Acknowledge the alert on show, or take it back. Only an alert that reached a person can be. */
++  const toggleAcknowledged = () => {
++    const alert = shownAlert;
++    if (alert?.outcome !== 'paged') return;
++    // One toast per alert: acknowledging it again replaces the toast rather than stacking another.
++    const toastId = `ack-${alert.id}`;
++    if (alert.acknowledgedAt) {
++      mark(alert.id, null);
++      toast.dismiss(toastId); // its Undo would have nothing left to undo
++      return;
++    }
++    mark(alert.id, clock());
++    toast.custom(
++      (id) => (
++        <SuggestionToast
++          title={`${alert.id} acknowledged`}
++          sub={alert.title}
++          action="Undo"
++          onAction={() => {
++            mark(alert.id, null);
++            // Back on it, even if the trace had moved on to the next one.
++            setSelectedId(alert.id);
++            toast.dismiss(id);
++          }}
++        />
++      ),
++      // Longer than the default 4s: it's the way back from a mis-hit, so it waits to be read.
++      { id: toastId, duration: 8000 },
++    );
++  };
++
+   const toggleLive = () => setPlayhead(live ? clock() : null);
+   const togglePreview = () => proposed > 0 && setPreview((on) => !on);
+   const openRule = (id: string) => navigate(`#/rules/${id}`);
+@@ -129,6 +167,8 @@ export function AlertsPage() {
+       ArrowRight: () => step(1),
+       ' ': toggleLive,
+       p: togglePreview,
++      // One press, one acknowledgement: held down, it would work through every waiting page.
++      a: (e) => !e.repeat && toggleAcknowledged(),
+       '/': () => searchRef.current?.focus(),
+       // Esc lets go, one thing at a time: the picked alert, then the rule, then the rewind.
+       Escape: () => (selectedId ? setSelectedId(null) : ruleId ? setRuleId(null) : setPlayhead(null)),
+@@ -234,6 +274,8 @@ export function AlertsPage() {
+               <AlertTrace
+                 alert={shownAlert}
+                 following={!picked}
++                pagedCount={counts.paged}
++                onToggleAcknowledged={toggleAcknowledged}
+                 activeRules={rules.filter((r) => r.status === 'active').length}
+                 onOpenRule={openRule}
+               />
+@@ -256,6 +298,8 @@ export function AlertsPage() {
+         preview={preview}
+         onToggleLive={toggleLive}
+         onTogglePreview={togglePreview}
++        shownAlert={shownAlert}
++        onToggleAcknowledged={toggleAcknowledged}
+         onFilter={setFilter}
+         onNavigate={navigate}
+         theme={theme}
+diff --git a/src/pages/alerts/components/AlertFeed/AlertFeed.css b/src/pages/alerts/components/AlertFeed/AlertFeed.css
+index d508233..607f2b2 100644
+--- a/src/pages/alerts/components/AlertFeed/AlertFeed.css
++++ b/src/pages/alerts/components/AlertFeed/AlertFeed.css
+@@ -96,6 +96,7 @@
+   font-size: 13.5px;
+   font-weight: 500;
+   color: var(--row-name);
++  transition: color 150ms ease;
+ }
+ 
+ /* Hidden alerts sit back: nobody saw them, and most of the feed is them. */
+@@ -104,7 +105,13 @@
+   color: var(--fg-2);
+ }
+ 
+-.al-row[data-outcome='paged'] .al-row-title,
++/* Acknowledged pages sit back too: someone has them. Still weight 500, so they read as more
++ * than the hidden ones. */
++.al-row[data-acked] .al-row-title {
++  color: var(--fg-2);
++}
++
++.al-row[data-outcome='paged']:not([data-acked]) .al-row-title,
+ .al-row[data-selected] .al-row-title {
+   color: var(--fg);
+ }
+@@ -162,9 +169,12 @@
+   }
+ }
+ 
++/* Four keys don't fit the column in one line, so two by two, in columns. */
+ .al-list-foot {
+-  display: flex;
+-  gap: 16px;
++  display: grid;
++  grid-template-columns: auto auto;
++  justify-content: start;
++  gap: 6px 16px;
+   padding: 10px 16px 12px;
+   border-top: 1px solid var(--line);
+   font-size: 12px;
+diff --git a/src/pages/alerts/components/AlertFeed/AlertFeed.tsx b/src/pages/alerts/components/AlertFeed/AlertFeed.tsx
+index ac31d9a..5467d92 100644
+--- a/src/pages/alerts/components/AlertFeed/AlertFeed.tsx
++++ b/src/pages/alerts/components/AlertFeed/AlertFeed.tsx
+@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
+ import { Search, X } from 'lucide-react';
+ import type { Rule } from '../../../rule-management/model/types';
+ import { FEED_TABS, OUTCOME_SHORT } from '../../model/labels';
++import { markOf } from '../../model/stream';
+ import type { FeedFilter, StreamAlert } from '../../model/types';
+ import './AlertFeed.css';
+ 
+@@ -120,15 +121,16 @@ export function AlertFeed({
+               className="al-row"
+               data-selected={alert.id === selectedId || undefined}
+               data-outcome={alert.outcome}
++              data-acked={alert.acknowledgedAt !== undefined || undefined}
+               data-new={settled.current || undefined}
+               onClick={() => onSelect(alert.id)}
+             >
+-              <i data-kind={sinking ? (alert.outcome === 'paged' ? 'ring-paged' : 'ring') : alert.outcome} aria-hidden />
++              <i data-kind={markOf(alert, preview)} aria-hidden />
+               <div className="al-row-main">
+                 <div className="al-row-title mn-truncate">{alert.title}</div>
+                 <div className="al-row-sub mn-truncate">
+                   <span className="mn-mono">{alert.ci}</span>
+-                  <span>{sinking ? 'Would be hidden' : OUTCOME_SHORT[alert.outcome]}</span>
++                  <span>{sinking ? 'Would be hidden' : alert.acknowledgedAt ? 'Acknowledged' : OUTCOME_SHORT[alert.outcome]}</span>
+                 </div>
+               </div>
+               <time className="mn-mono mn-subtle">{clockFace(alert.at)}</time>
+@@ -147,6 +149,9 @@ export function AlertFeed({
+         <span>
+           <kbd>J</kbd> <kbd>K</kbd> Navigate
+         </span>
++        <span>
++          <kbd>A</kbd> Acknowledge
++        </span>
+         <span>
+           <kbd>←</kbd> <kbd>→</kbd> Rewind
+         </span>
+diff --git a/src/pages/alerts/components/AlertTrace/AlertTrace.css b/src/pages/alerts/components/AlertTrace/AlertTrace.css
+index ab30be2..7376f6e 100644
+--- a/src/pages/alerts/components/AlertTrace/AlertTrace.css
++++ b/src/pages/alerts/components/AlertTrace/AlertTrace.css
+@@ -35,6 +35,16 @@
+   margin-top: 8px;
+ }
+ 
++.al-trace-name {
++  flex: 1;
++  min-width: 0;
++}
++
++/* Acknowledge sits level with the title, at the end of the row. */
++.al-trace-head .mn-btn {
++  flex: none;
++}
++
+ .al-trace-title {
+   font-size: 18px;
+   font-weight: 600;
+@@ -151,6 +161,11 @@
+   background: var(--al-hidden);
+ }
+ 
++/* Acknowledged: the page's ink as a ring, as the list and the chart draw it. */
++.al-steps li[data-acked]::before {
++  box-shadow: inset 0 0 0 1.5px var(--al-paged);
++}
++
+ .al-step-head {
+   display: flex;
+   align-items: baseline;
+diff --git a/src/pages/alerts/components/AlertTrace/AlertTrace.tsx b/src/pages/alerts/components/AlertTrace/AlertTrace.tsx
+index 6040bed..782ca6c 100644
+--- a/src/pages/alerts/components/AlertTrace/AlertTrace.tsx
++++ b/src/pages/alerts/components/AlertTrace/AlertTrace.tsx
+@@ -1,11 +1,14 @@
+ /* One alert, and what happened to it, in the order it happened: it arrived, the rules were
+- * checked, and it was hidden, folded or sent to a person. If a proposed rule fits it, this
+- * is where the page says what approving that rule would have done to this exact alert. */
++ * checked, and it was hidden, folded or sent to a person, and then perhaps acknowledged. If
++ * a proposed rule fits it, this is where the page says what approving that rule would have
++ * done to this exact alert. An alert that reached a person can be acknowledged from here. */
+ 
+ import { AlertTriangle, ArrowUpRight } from 'lucide-react';
+ import { groupById } from '../../../rule-management/data/mockData';
+ import { statusLabel } from '../../../rule-management/model/labels';
++import { num } from '../../../../lib/format';
+ import { OUTCOME_LABEL, SEVERITY_LABEL } from '../../model/labels';
++import { markOf } from '../../model/stream';
+ import type { StreamAlert } from '../../model/types';
+ import './AlertTrace.css';
+ 
+@@ -14,21 +17,31 @@ const clockFace = (ms: number) => new Date(ms).toLocaleTimeString('en-GB', { hou
+ export function AlertTrace({
+   alert,
+   following,
++  pagedCount,
+   activeRules,
++  onToggleAcknowledged,
+   onOpenRule,
+ }: {
+   alert: StreamAlert | null;
+-  /** Nothing is picked, so this is showing the latest alert to reach a person. */
++  /** Nothing is picked, so this is showing the latest alert to reach a person that nobody has acknowledged. */
+   following: boolean;
++  /** How many reached a person in this stretch, for when every one is acknowledged. */
++  pagedCount: number;
+   /** How many rules are switched on, for "checked against 8 active rules". */
+   activeRules: number;
++  onToggleAcknowledged: () => void;
+   onOpenRule: (ruleId: string) => void;
+ }) {
+   if (!alert) {
+     return (
+       <section className="al-trace" data-tour="al-trace">
+         <h2>Alert</h2>
+-        <p className="al-note">Nothing has reached a person in this stretch. Pick any alert to see what happened to it.</p>
++        <p className="al-note">
++          {pagedCount === 0
++            ? 'Nothing has reached a person in this stretch.'
++            : `${num(pagedCount)} ${pagedCount === 1 ? 'alert' : 'alerts'} reached a person in this stretch, and you've acknowledged ${pagedCount === 1 ? 'it' : 'every one'}.`}{' '}
++          Pick any alert to see what happened to it.
++        </p>
+       </section>
+     );
+   }
+@@ -36,22 +49,31 @@ export function AlertTrace({
+   const group = groupById(alert.groupId);
+   const { rule } = alert;
+   const hidden = alert.outcome === 'hidden';
++  const acknowledged = alert.acknowledgedAt !== undefined;
+ 
+   return (
+     <section className="al-trace" data-tour="al-trace">
+       <h2>
+-        {following ? 'Latest to reach a person' : 'Alert'}
++        {following ? 'Latest not yet acknowledged' : 'Alert'}
+         <span className="mn-mono mn-subtle">{alert.id}</span>
+       </h2>
+ 
+       <div className="al-trace-head">
+-        <i data-kind={alert.outcome} aria-hidden />
+-        <div>
++        <i data-kind={markOf(alert, false)} aria-hidden />
++        <div className="al-trace-name">
+           <div className="al-trace-title">{alert.title}</div>
+           <div className="al-trace-sub">
+-            {OUTCOME_LABEL[alert.outcome]} · {SEVERITY_LABEL[alert.severity]} · {group.name}
++            {OUTCOME_LABEL[alert.outcome]}
++            {acknowledged && ', acknowledged'} · {SEVERITY_LABEL[alert.severity]} · {group.name}
+           </div>
+         </div>
++        {/* Grey, not white: the page is for watching the stream, and the chart is its main thing. */}
++        {alert.outcome === 'paged' && (
++          <button className="mn-btn" onClick={onToggleAcknowledged}>
++            {acknowledged ? 'Unacknowledge' : 'Acknowledge'}
++            <kbd>A</kbd>
++          </button>
++        )}
+       </div>
+ 
+       {alert.wouldHide && rule && (
+@@ -122,6 +144,15 @@ export function AlertTrace({
+             )}
+           </p>
+         </li>
++        {acknowledged && (
++          <li data-acked>
++            <div className="al-step-head">
++              <strong>Acknowledged</strong>
++              <time className="mn-mono mn-subtle">{clockFace(alert.acknowledgedAt!)}</time>
++            </div>
++            <p>You picked it up, so it no longer stands out in the list or on the chart.</p>
++          </li>
++        )}
+       </ol>
+     </section>
+   );
+diff --git a/src/pages/alerts/components/Palette/AlertsPalette.tsx b/src/pages/alerts/components/Palette/AlertsPalette.tsx
+index 2512577..71d1c97 100644
+--- a/src/pages/alerts/components/Palette/AlertsPalette.tsx
++++ b/src/pages/alerts/components/Palette/AlertsPalette.tsx
+@@ -1,12 +1,12 @@
+-/* The ⌘K command menu on this page: the stream's controls, the feed's tabs and the way to
+- * the other pages, without the mouse. cmdk handles the search and arrow keys; the look is
+- * shared with the other pages' menus (styles/palette.css). */
++/* The ⌘K command menu on this page: the stream's controls, acknowledging the alert on show,
++ * the feed's tabs and the way to the other pages, without the mouse. cmdk handles the search
++ * and arrow keys; the look is shared with the other pages' menus (styles/palette.css). */
+ 
+ import { Command } from 'cmdk';
+ import { CalendarClock, CircleHelp, Filter, History, Moon, Search, Sun, Siren } from 'lucide-react';
+ import type { Theme } from '../../../../hooks/useTheme';
+ import { FEED_TABS } from '../../model/labels';
+-import type { FeedFilter } from '../../model/types';
++import type { FeedFilter, StreamAlert } from '../../model/types';
+ 
+ export function AlertsPalette({
+   open,
+@@ -15,6 +15,8 @@ export function AlertsPalette({
+   preview,
+   onToggleLive,
+   onTogglePreview,
++  shownAlert,
++  onToggleAcknowledged,
+   onFilter,
+   onNavigate,
+   theme,
+@@ -27,6 +29,9 @@ export function AlertsPalette({
+   preview: boolean;
+   onToggleLive: () => void;
+   onTogglePreview: () => void;
++  /** The alert in the trace: picked, or the latest one waiting for a person. */
++  shownAlert: StreamAlert | null;
++  onToggleAcknowledged: () => void;
+   onFilter: (filter: FeedFilter) => void;
+   /** Go to another page, e.g. '#/rules'. */
+   onNavigate: (to: string) => void;
+@@ -67,6 +72,15 @@ export function AlertsPalette({
+           </Command.Item>
+         </Command.Group>
+ 
++        {shownAlert?.outcome === 'paged' && (
++          <Command.Group heading="Alert">
++            <Command.Item value={`acknowledge alert picked up unacknowledge ${shownAlert.id}`} onSelect={run(onToggleAcknowledged)}>
++              {shownAlert.acknowledgedAt ? 'Unacknowledge' : 'Acknowledge'} <span className="mn-mono">{shownAlert.id}</span>
++              <kbd>A</kbd>
++            </Command.Item>
++          </Command.Group>
++        )}
++
+         <Command.Group heading="Show">
+           {FEED_TABS.map((tab) => (
+             <Command.Item key={tab.key} value={`show alerts ${tab.label}`} onSelect={run(() => onFilter(tab.key))}>
+diff --git a/src/pages/alerts/components/Tally/Tally.tsx b/src/pages/alerts/components/Tally/Tally.tsx
+index be8233f..bdcb61d 100644
+--- a/src/pages/alerts/components/Tally/Tally.tsx
++++ b/src/pages/alerts/components/Tally/Tally.tsx
+@@ -1,6 +1,7 @@
+ /* The hour in four numbers, in the order they happened to an alert: it arrived, a rule hid
+  * it, or it was folded into an incident, or it reached a person. The last one is the one
+- * that costs someone's attention, so it's the one that's lit. */
++ * that costs someone's attention, so it's the one that's lit, and it says how many of those
++ * nobody has acknowledged yet. */
+ 
+ import { num, pct } from '../../../../lib/format';
+ import type { Tally as Counts } from '../../model/types';
+@@ -8,6 +9,7 @@ import './Tally.css';
+ 
+ export function Tally({ counts, rewound }: { counts: Counts; /** The stream is rewound: these are the totals up to then. */ rewound: boolean }) {
+   const share = (n: number) => (counts.total ? pct(n / counts.total) : '0%');
++  const waiting = counts.paged - counts.acknowledged;
+   return (
+     <dl className="al-tally" data-tour="al-tally">
+       <div>
+@@ -28,7 +30,9 @@ export function Tally({ counts, rewound }: { counts: Counts; /** The stream is r
+       <div data-lit>
+         <dt>Reached a person</dt>
+         <dd>{num(counts.paged)}</dd>
+-        <span className="mn-subtle">{share(counts.paged)} opened an incident</span>
++        <span className="mn-subtle">
++          {waiting > 0 ? `${num(waiting)} not yet acknowledged` : counts.paged > 0 ? 'All acknowledged' : `${share(0)} opened an incident`}
++        </span>
+       </div>
+     </dl>
+   );
+diff --git a/src/pages/alerts/components/Waterline/Waterline.css b/src/pages/alerts/components/Waterline/Waterline.css
+index 5c79775..95b51fb 100644
+--- a/src/pages/alerts/components/Waterline/Waterline.css
++++ b/src/pages/alerts/components/Waterline/Waterline.css
+@@ -96,6 +96,9 @@
+ .al i[data-kind='hidden'] {
+   background: var(--al-hidden);
+ }
++.al i[data-kind='acked'] {
++  box-shadow: inset 0 0 0 1.2px var(--al-paged);
++}
+ .al i[data-kind='ring'] {
+   box-shadow: inset 0 0 0 1.2px var(--al-folded);
+ }
+diff --git a/src/pages/alerts/components/Waterline/Waterline.tsx b/src/pages/alerts/components/Waterline/Waterline.tsx
+index 1fce37c..629b004 100644
+--- a/src/pages/alerts/components/Waterline/Waterline.tsx
++++ b/src/pages/alerts/components/Waterline/Waterline.tsx
+@@ -1,7 +1,8 @@
+ /* The waterline: the last hour of alerts, one dot each.
+  *
+  *   above the line   alerts people saw: the ones that reached a person nearest the line
+- *                    (bright), then the ones folded into an open incident (grey)
++ *                    (bright, or a ring once acknowledged), then the ones folded into an
++ *                    open incident (grey)
+  *   below the line   alerts a rule hid (dim)
+  *
+  * Time runs left to right and "now" is the right edge. A new alert appears in the gutter
+@@ -21,8 +22,8 @@
+ import { useEffect, useMemo, useRef, useState } from 'react';
+ import { MINUTE, WINDOW, WINDOW_MINUTES } from '../../data/mockData';
+ import { OUTCOME_LABEL } from '../../model/labels';
+-import { isSunk } from '../../model/stream';
+-import type { StreamAlert, Tally } from '../../model/types';
++import { isSunk, markOf } from '../../model/stream';
++import type { Mark, StreamAlert, Tally } from '../../model/types';
+ import './Waterline.css';
+ 
+ /** Room on the right, past "now", where new alerts appear. */
+@@ -35,11 +36,9 @@ const LINE_GAP = 7;
+ /** How long a new alert waits in the gutter before it moves. */
+ const HOLD = 320;
+ 
+-type Kind = 'paged' | 'folded' | 'hidden' | 'ring' | 'ring-paged';
+-
+ interface Slot {
+   alert: StreamAlert;
+-  kind: Kind;
++  kind: Mark;
+   up: boolean;
+   /** Its place in its minute's stack: 0 is nearest the line. */
+   index: number;
+@@ -68,13 +67,12 @@ function plan(alerts: StreamAlert[], preview: boolean): Plan {
+ 
+   for (const [minute, group] of minutes) {
+     const sunk = (a: StreamAlert) => isSunk(a, preview);
+-    const ring = (a: StreamAlert): Kind => (a.outcome === 'paged' ? 'ring-paged' : 'ring');
+     // Above: reached a person first (nearest the line), then folded.
+     const up = [...group.filter((a) => !sunk(a) && a.outcome === 'paged'), ...group.filter((a) => !sunk(a) && a.outcome === 'folded')];
+     // Below: what the preview would newly hide (nearest the line, where it's seen), then the hidden.
+     const down = [...group.filter((a) => sunk(a) && a.outcome !== 'hidden'), ...group.filter((a) => a.outcome === 'hidden')];
+-    up.forEach((alert, index) => slots.push({ alert, kind: alert.outcome, up: true, index }));
+-    down.forEach((alert, index) => slots.push({ alert, kind: alert.outcome === 'hidden' ? 'hidden' : ring(alert), up: false, index }));
++    up.forEach((alert, index) => slots.push({ alert, kind: markOf(alert, preview), up: true, index }));
++    down.forEach((alert, index) => slots.push({ alert, kind: markOf(alert, preview), up: false, index }));
+ 
+     const count = { paged: 0, folded: 0, hidden: 0 };
+     for (const alert of group) count[alert.outcome]++;
+@@ -142,6 +140,7 @@ export function Waterline({
+     const colour = (name: string) => css.getPropertyValue(name).trim();
+     const ink = {
+       paged: colour('--al-paged'),
++      acked: colour('--al-paged'),
+       folded: colour('--al-folded'),
+       hidden: colour('--al-hidden'),
+       ring: colour('--al-folded'),
+@@ -292,7 +291,7 @@ export function Waterline({
+ 
+         ctx.globalAlpha = alpha;
+         ctx.beginPath();
+-        if (slot.kind === 'ring' || slot.kind === 'ring-paged') {
++        if (slot.kind === 'ring' || slot.kind === 'ring-paged' || slot.kind === 'acked') {
+           ctx.arc(dot.x, dot.y, radius - 0.6, 0, Math.PI * 2);
+           ctx.lineWidth = 1.2;
+           ctx.strokeStyle = ink[slot.kind];
+@@ -428,6 +427,11 @@ export function Waterline({
+           <span>
+             <i data-kind="paged" /> Reached a person <b>{counts.paged - (preview ? counts.wouldHidePaged : 0)}</b>
+           </span>
++          {counts.acknowledged > 0 && (
++            <span>
++              <i data-kind="acked" /> Acknowledged <b>{counts.acknowledged - (preview ? counts.wouldHideAcknowledged : 0)}</b>
++            </span>
++          )}
+           <span>
+             <i data-kind="folded" /> Folded into an incident{' '}
+             <b>{counts.folded - (preview ? counts.wouldHide - counts.wouldHidePaged : 0)}</b>
+@@ -457,7 +461,9 @@ export function Waterline({
+             <div className="al-tip-title">{tip.alert.title}</div>
+             <div className="al-tip-meta">
+               <span className="mn-mono">{time(tip.alert.at, true)}</span>
+-              {tip.sunk && tip.alert.outcome !== 'hidden' ? 'Would be hidden' : OUTCOME_LABEL[tip.alert.outcome]}
++              {tip.sunk && tip.alert.outcome !== 'hidden'
++                ? 'Would be hidden'
++                : `${OUTCOME_LABEL[tip.alert.outcome]}${tip.alert.acknowledgedAt ? ', acknowledged' : ''}`}
+               {tip.alert.rule && (tip.sunk || tip.alert.wouldHide) && <span className="mn-mono">{tip.alert.rule.id}</span>}
+             </div>
+           </div>
+diff --git a/src/pages/alerts/hooks/useAcknowledgements.ts b/src/pages/alerts/hooks/useAcknowledgements.ts
+new file mode 100644
+index 0000000..9a521bd
+--- /dev/null
++++ b/src/pages/alerts/hooks/useAcknowledgements.ts
+@@ -0,0 +1,25 @@
++/* Which alerts that reached a person the reader has acknowledged, and when. It's the reader's
++ * own state, not the stream's, so it's kept here and laid over the alerts by the page (see
++ * withAcknowledgements in model/stream.ts). A store rather than page state, so it's still
++ * there after a visit to the Rules page. In the real app this is a call to the paging
++ * service, and the stream sends the acknowledgement back. */
++
++import { create } from 'zustand';
++
++interface AcknowledgementsState {
++  /** Alert id → when it was acknowledged. */
++  acks: ReadonlyMap<string, number>;
++  /** Acknowledge an alert at a time, or take it back with null. */
++  mark: (id: string, at: number | null) => void;
++}
++
++export const useAcknowledgements = create<AcknowledgementsState>((set, get) => ({
++  acks: new Map(),
++  mark: (id, at) => {
++    // A new map, never an edit of the old one: that's how React notices the change.
++    const acks = new Map(get().acks);
++    if (at === null) acks.delete(id);
++    else acks.set(id, at);
++    set({ acks });
++  },
++}));
+diff --git a/src/pages/alerts/model/stream.ts b/src/pages/alerts/model/stream.ts
+index 9fa1935..779a07f 100644
+--- a/src/pages/alerts/model/stream.ts
++++ b/src/pages/alerts/model/stream.ts
+@@ -3,7 +3,7 @@
+  * changes this page too. */
+ 
+ import type { Rule } from '../../rule-management/model/types';
+-import type { Alert, RuleAtWork, StreamAlert, Tally } from './types';
++import type { Alert, Mark, RuleAtWork, StreamAlert, Tally } from './types';
+ 
+ /** Work out what became of each alert, given the rules as they stand. */
+ export function resolve(alerts: Alert[], rules: Rule[]): StreamAlert[] {
+@@ -19,13 +19,23 @@ export function resolve(alerts: Alert[], rules: Rule[]): StreamAlert[] {
+   });
+ }
+ 
++/** Mark the alerts the reader has acknowledged. Only a page counts: if a rule now hides one,
++ * its acknowledgement waits, in case the rule is switched off again. Untouched alerts stay
++ * the same objects. */
++export function withAcknowledgements(alerts: StreamAlert[], acks: ReadonlyMap<string, number>): StreamAlert[] {
++  if (!acks.size) return alerts;
++  return alerts.map((alert) => (alert.outcome === 'paged' && acks.has(alert.id) ? { ...alert, acknowledgedAt: acks.get(alert.id) } : alert));
++}
++
+ export function tally(alerts: StreamAlert[]): Tally {
+-  const t: Tally = { total: alerts.length, paged: 0, folded: 0, hidden: 0, wouldHide: 0, wouldHidePaged: 0 };
++  const t: Tally = { total: alerts.length, paged: 0, folded: 0, hidden: 0, wouldHide: 0, wouldHidePaged: 0, acknowledged: 0, wouldHideAcknowledged: 0 };
+   for (const alert of alerts) {
+     t[alert.outcome]++;
++    if (alert.acknowledgedAt) t.acknowledged++;
+     if (alert.wouldHide) {
+       t.wouldHide++;
+       if (alert.outcome === 'paged') t.wouldHidePaged++;
++      if (alert.acknowledgedAt) t.wouldHideAcknowledged++;
+     }
+   }
+   return t;
+@@ -47,3 +57,10 @@ export function rulesAtWork(alerts: StreamAlert[]): RuleAtWork[] {
+ 
+ /** Below the waterline: hidden, or (while previewing) about to be. */
+ export const isSunk = (alert: StreamAlert, preview: boolean) => alert.outcome === 'hidden' || (preview && alert.wouldHide);
++
++/** How an alert is drawn, decided once for the list, the trace and the chart. What the
++ * preview would hide wins over an acknowledgement: that's a question about the rule. */
++export function markOf(alert: StreamAlert, preview: boolean): Mark {
++  if (preview && alert.wouldHide) return alert.outcome === 'paged' ? 'ring-paged' : 'ring';
++  return alert.acknowledgedAt ? 'acked' : alert.outcome;
++}
+diff --git a/src/pages/alerts/model/types.ts b/src/pages/alerts/model/types.ts
+index 868be6e..b2e456b 100644
+--- a/src/pages/alerts/model/types.ts
++++ b/src/pages/alerts/model/types.ts
+@@ -36,6 +36,10 @@ export interface StreamAlert extends Alert {
+   rule?: Rule;
+   /** A proposed rule fits it: approving that rule would hide alerts like this one. */
+   wouldHide: boolean;
++  /** When the reader acknowledged it, if they have: they've picked it up, so it stops standing
++   *  out. Only an alert that reached a person can be acknowledged. This is the reader's state,
++   *  not the stream's: resolve() never sets it, the page adds it (see withAcknowledgements). */
++  acknowledgedAt?: number;
+ }
+ 
+ /** The counts for a stretch of the stream. */
+@@ -48,6 +52,10 @@ export interface Tally {
+   wouldHide: number;
+   /** …and of those, how many opened an incident: pages that would stop arriving. */
+   wouldHidePaged: number;
++  /** Reached a person, and the reader has acknowledged it. */
++  acknowledged: number;
++  /** …and of those, how many a proposed rule would hide. */
++  wouldHideAcknowledged: number;
+ }
+ 
+ /** One rule's part in the stream. */
+@@ -60,3 +68,9 @@ export interface RuleAtWork {
+ }
+ 
+ export type FeedFilter = 'all' | Outcome;
++
++/** How an alert is drawn: the same in the list, the trace and on the chart.
++ *    paged / folded / hidden   its outcome, filled
++ *    acked                     reached a person and acknowledged: a ring in the same ink
++ *    ring / ring-paged         previewing, a proposed rule would hide it (red: it was a page) */
++export type Mark = Outcome | 'acked' | 'ring' | 'ring-paged';
+diff --git a/tours/alerts.tsx b/tours/alerts.tsx
+index 0ba2e2e..6c0b33b 100644
+--- a/tours/alerts.tsx
++++ b/tours/alerts.tsx
+@@ -51,7 +51,12 @@ export const ALERTS_TOUR: TourStep[] = [
+     target: 'al-trace',
+     side: 'top',
+     title: 'What happened to this one',
+-    body: <>Where it came from, which rule it fits, and where it ended up. With nothing picked, it follows the latest alert to reach a person.</>,
++    body: (
++      <>
++        Where it came from, which rule it fits, and where it ended up. With nothing picked, it follows the latest alert to
++        reach a person that nobody has acknowledged. Press <kbd>A</kbd> once you've picked it up, and it moves on to the next.
++      </>
++    ),
+   },
+   {
+     target: 'al-rules',

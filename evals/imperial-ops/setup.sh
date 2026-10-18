@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Create one standalone copy of imperial-ops per arm, all from the same ref,
 # under neutral names, and write the prompt each one gets.
-# Usage: setup.sh [ref] [arm...]   arms: tblock baseline pstack (default: tblock baseline)
+# Usage: setup.sh [ref] [arm...]   arms: tblock artist baseline pstack (default: tblock baseline)
 set -euo pipefail
 
 kit="$(cd "$(dirname "$0")" && pwd)"
@@ -32,6 +32,7 @@ for arm in $(printf '%s\n' "${arms[@]}" | sort -R); do
   (cd "$ws" && npm ci --silent)
   case "$arm" in
     tblock) prompt="/tblock:tblock-mode $task" ;;
+    artist) prompt="/tblock:tblock-mode $task Use the tblock:artist agent for the UI work." ;;
     pstack) prompt="/pstack:poteto-mode $task" ;;
     baseline) prompt="$task" ;;
     *) echo "Unknown arm $arm" >&2; exit 1 ;;
