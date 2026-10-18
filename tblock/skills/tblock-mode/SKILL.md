@@ -1,6 +1,6 @@
 ---
 name: tblock-mode
-description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes features, bug fixes, UI work, prototypes, skill authoring and evaluation, and verification setup or upkeep."
+description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes explanations, change risk, competing attempts, large open-ended work, features, bug fixes, UI work, prototypes, skill authoring and evaluation, and verification setup or upkeep."
 
 disable-model-invocation: true
 ---
@@ -37,6 +37,10 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Configure which model each subagent role uses | [setup-tblock](../setup-tblock/SKILL.md) |
 | Create project verification or a control skill | [create-verification-skill](../create-verification-skill/SKILL.md) |
 | Audit or maintain an existing verification skill | [maintain-verification-skill](../maintain-verification-skill/SKILL.md) |
+| Explain how code works, or where something should live | [how](../how/SKILL.md) |
+| Find what a change could break beyond its diff | [blast-radius](../blast-radius/SKILL.md) |
+| Compare several attempts at one artifact and merge the best | [shootout](../shootout/SKILL.md) |
+| Large or ambitious work that no route below fits | [figure-it-out](../figure-it-out/SKILL.md) |
 | Build new or changed behavior | [Feature](playbooks/feature.md) |
 | Reproduce and fix a defect | [Bug fix](playbooks/bug-fix.md) |
 | Explore alternatives or settle an uncertain design | [Prototype](playbooks/prototype.md) |
@@ -44,7 +48,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Measure a skill or prompt change | [Eval](playbooks/eval.md) |
 | Design and implement a UI feature | [UI-UX](playbooks/ui-ux.md) |
 
-For a playbook, open a todo list whose first items are its steps, copied verbatim, before task-specific items. Use a short checklist when no todo tool is available. Keep skipped steps with a one-line reason. For a standalone skill, follow its own workflow. If no route fits, apply the relevant principles directly without inventing a missing playbook.
+For a playbook, open a todo list whose first items are its steps, copied verbatim, before task-specific items. Use a short checklist when no todo tool is available. Keep skipped steps with a one-line reason. For a standalone skill, follow its own workflow. If no route fits and the work is small, apply the relevant principles directly without inventing a missing playbook.
 
 ## Runtime verification
 
