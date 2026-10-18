@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create one detached worktree of imperial-ops per arm, all from the same ref,
+# Create one standalone copy of imperial-ops per arm, all from the same ref,
 # under neutral names, and write the prompt each one gets.
 # Usage: setup.sh [ref] [arm...]   arms: tblock baseline pstack (default: tblock baseline)
 set -euo pipefail
@@ -25,7 +25,10 @@ i=0
 for arm in $(printf '%s\n' "${arms[@]}" | sort -R); do
   label="${labels[$i]}"
   ws="$workspaces/imperial-ops-$label"
-  git -C "$repo" worktree add --detach "$ws" "$base" >/dev/null
+  # A standalone repo holding only the base commit, so no arm sees another's branches.
+  git init -q "$ws"
+  git -C "$ws" fetch -q "$repo" "$base"
+  git -C "$ws" checkout -q --detach FETCH_HEAD
   (cd "$ws" && npm ci --silent)
   case "$arm" in
     tblock) prompt="/tblock:tblock-mode $task" ;;
