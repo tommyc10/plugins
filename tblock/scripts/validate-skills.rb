@@ -98,6 +98,28 @@ if setup.file?
   end
 end
 
+split_agent = lambda do |file|
+  match = File.read(file).match(/\A---\r?\n(.*?)\r?\n---\r?\n(.*)\z/m)
+  match ? [YAML.safe_load(match[1]), match[2]] : [nil, nil]
+end
+claude_agents = Dir[root.join('agents/*.md').to_s].map { |f| File.basename(f, '.md') }
+copilot_agents = Dir[root.join('com.github.copilot/agents/*.agent.md').to_s].map { |f| File.basename(f, '.agent.md') }
+(claude_agents | copilot_agents).sort.each do |name|
+  claude = root.join("agents/#{name}.md")
+  copilot = root.join("com.github.copilot/agents/#{name}.agent.md")
+  unless claude.file? && copilot.file?
+    errors << "agent #{name}: needs both agents/#{name}.md (Claude Code) and com.github.copilot/agents/#{name}.agent.md (Copilot)"
+    next
+  end
+  claude_head, claude_body = split_agent.call(claude)
+  copilot_head, copilot_body = split_agent.call(copilot)
+  if claude_head.nil? || copilot_head.nil?
+    errors << "agent #{name}: missing YAML frontmatter"
+  elsif claude_body != copilot_body || %w[name description].any? { |key| claude_head[key] != copilot_head[key] }
+    errors << "agent #{name}: Claude Code and Copilot copies differ in name, description, or body"
+  end
+end
+
 manifests = {}
 Dir[root.join('{plugin.json,.claude-plugin/*.json}').to_s].sort.each do |file|
   begin
