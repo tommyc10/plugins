@@ -1,6 +1,6 @@
 ---
 name: tblock-mode
-description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes explanations, change risk, competing attempts, large open-ended work, features, bug fixes, UI work, prototypes, skill authoring and evaluation, and verification setup or upkeep."
+description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes explanations, change risk, competing attempts, large open-ended work, features, bug fixes, performance work, UI work, prototypes, skill authoring and evaluation, and verification setup or upkeep."
 
 disable-model-invocation: true
 ---
@@ -43,6 +43,8 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Large or ambitious work that no route below fits | [figure-it-out](../figure-it-out/SKILL.md) |
 | Build new or changed behavior | [Feature](playbooks/feature.md) |
 | Reproduce and fix a defect | [Bug fix](playbooks/bug-fix.md) |
+| Fix a measured slowness against a baseline | [Perf issue](playbooks/perf-issue.md) |
+| Improve one metric over many keep-or-revert iterations | [Hillclimb](playbooks/hillclimb.md) |
 | Explore alternatives or settle an uncertain design | [Prototype](playbooks/prototype.md) |
 | Write or modify a skill, principle, or playbook | [Authoring a skill](playbooks/authoring-a-skill.md) |
 | Measure a skill or prompt change | [Eval](playbooks/eval.md) |
