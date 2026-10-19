@@ -113,7 +113,7 @@ tblock works without asking on reversible, local work: reading, editing, builds,
 - **Run long work:** [show-me-your-work](skills/show-me-your-work/SKILL.md)
 - **Improve tblock itself:** [reflect](skills/reflect/SKILL.md), [correct](skills/correct/SKILL.md), [automate-me](skills/automate-me/SKILL.md)
 - **Verify a project:** [create-verification-skill](skills/create-verification-skill/SKILL.md), [maintain-verification-skill](skills/maintain-verification-skill/SKILL.md)
-- **Set up:** [setup-tblock](skills/setup-tblock/SKILL.md)
+- **Set up and help:** [setup-tblock](skills/setup-tblock/SKILL.md), [tblock-help](skills/tblock-help/SKILL.md)
 - **Type these yourself:** [sharpen](skills/sharpen/SKILL.md), [in-your-own-words](skills/in-your-own-words/SKILL.md), [bro](skills/bro/SKILL.md)
 
 **Principles:** 24 short rules, such as [Prove It Works](skills/principle-prove-it-works/SKILL.md) and [Laziness Protocol](skills/principle-laziness-protocol/SKILL.md). tblock-mode lists them all, with when each applies.

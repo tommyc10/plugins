@@ -150,6 +150,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Turn this session's lessons into skill edits | [reflect](../reflect/SKILL.md) |
 | Make a mistake agents keep repeating impossible | [correct](../correct/SKILL.md) |
 | Create or refresh a personal -mode skill | [automate-me](../automate-me/SKILL.md) |
+| Questions about tblock itself: setup, presets, which skill to use, a run that went wrong | [tblock-help](../tblock-help/SKILL.md) |
 | Configure which model and effort each subagent role uses, or switch preset | [setup-tblock](../setup-tblock/SKILL.md) |
 | Create project verification or a control skill | [create-verification-skill](../create-verification-skill/SKILL.md) |
 | Audit or maintain an existing verification skill | [maintain-verification-skill](../maintain-verification-skill/SKILL.md) |

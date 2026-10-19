@@ -89,6 +89,14 @@ if mode.file?
   end
 end
 
+help = root.join('skills/tblock-help/SKILL.md')
+if help.file?
+  mapped = help.read.scan(%r{\]\(\.\./([a-z0-9-]+)/SKILL\.md\)}).flatten
+  (names.keys.reject { |n| n.start_with?('principle-') || n == 'tblock-help' } - mapped).sort.each do |name|
+    errors << "skills/#{name}/SKILL.md: not in tblock-help's map, so help can't point anyone to it"
+  end
+end
+
 setup = root.join('skills/setup-tblock/SKILL.md')
 if setup.file?
   roles = setup.read.split(/^## /).find { |s| s.start_with?('Roles') }.to_s.scan(/^\| `([a-z ]+)` \|/).flatten
