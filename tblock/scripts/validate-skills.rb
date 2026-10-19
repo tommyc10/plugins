@@ -91,7 +91,7 @@ end
 
 setup = root.join('skills/setup-tblock/SKILL.md')
 if setup.file?
-  roles = setup.read.scan(/^\| `([a-z ]+)` \|/).flatten
+  roles = setup.read.split(/^## /).find { |s| s.start_with?('Roles') }.to_s.scan(/^\| `([a-z ]+)` \|/).flatten
   users = (Dir[root.join('skills/**/*.md').to_s] + Dir[root.join('agents/*.md').to_s]).reject { |f| f == setup.to_s }.map { |f| File.read(f) }
   roles.each do |role|
     errors << "skills/setup-tblock/SKILL.md: role `#{role}` is configured but no skill or agent uses it" unless users.any? { |text| text.include?("`#{role}`") }
@@ -117,6 +117,24 @@ copilot_agents = Dir[root.join('com.github.copilot/agents/*.agent.md').to_s].map
     errors << "agent #{name}: missing YAML frontmatter"
   elsif claude_body != copilot_body || %w[name description].any? { |key| claude_head[key] != copilot_head[key] }
     errors << "agent #{name}: Claude Code and Copilot copies differ in name, description, or body"
+  end
+end
+
+presets_file = root.join('presets.json')
+if presets_file.file? && setup.file?
+  roles = setup.read.split(/^## /).find { |s| s.start_with?('Roles') }.to_s.scan(/^\| `([a-z ]+)` \|/).flatten
+  data = JSON.parse(presets_file.read)
+  tiers = data.fetch('tiers', []) + ['session']
+  (data['presets'] || {}).each do |preset, spec|
+    errors << "presets.json: #{preset} misses #{(roles - spec.keys).join(', ')}" unless (roles - spec.keys).empty?
+    errors << "presets.json: #{preset} has unknown roles #{(spec.keys - roles).join(', ')}" unless (spec.keys - roles).empty?
+    spec.each do |role, want|
+      errors << "presets.json: #{preset}.#{role} effort #{want['effort']} is not a known effort" unless data['efforts'].include?(want['effort'])
+      errors << "presets.json: #{preset}.#{role} tier #{want['tier']} is not a known tier" unless tiers.include?(want['tier'])
+      if want['tier'] != 'session' && !want['panel'] && !data['families'].include?(want['family'])
+        errors << "presets.json: #{preset}.#{role} needs a family from #{data['families'].join(', ')}"
+      end
+    end
   end
 end
 

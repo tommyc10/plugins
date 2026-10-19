@@ -94,7 +94,7 @@ At the start of a tblock-mode session, read the roles file once and say in one l
 
 Invoking tblock-mode is the user's request for the subagents its skills and playbooks call for, so spawn them without asking again. Before spawning a subagent, pick the role the work fits from the roles file. In GitHub Copilot, delegate to that role's custom agent, `tblock-<role>` or `tblock-<role>-<n>` for a panel entry. For the `artist` role with no `tblock-artist` agent, use the plugin's own `artist` agent. In Claude Code, pass the role's model to the `Agent` tool, with `subagent_type: "tblock:artist"` for the `artist` role. A role with no line, a `session` value, or no roles file runs on the session model; say so. Put this file's absolute path in every brief, so the subagent reads tblock-mode first. Give each brief file pointers, not pasted context.
 
-**Match the effort to the job.** Where the harness lets you set reasoning effort per spawn, raise it for the hardest or subtlest work and lower it for routine work. Keep the model family the role names, so a diverse panel stays diverse.
+**Match the effort to the job.** A role entry may carry a reasoning effort, written `model @ effort`. In Copilot, the role agent already runs at that effort, because the CLI wrote it to Copilot's settings. In Claude Code, pass it as the `Agent` tool's `effort`, with `none` and `minimal` becoming `low`, and raise it one step for the hardest or subtlest work or lower it for routine work. Keep the model family the role names, so a diverse panel stays diverse. The user switches every role at once with `tblock preset extreme`, `high`, or `efficient`; new sessions pick it up.
 
 **Fresh subagents by default.** Give new work to a fresh subagent with consolidated scope: the original brief, every later directive, and the prior agent's report and branch. This holds for a fix round, a follow-up, a retry, and the next queue item. Resume an existing subagent only when the new work needs state that lives in it and is costly to move: its uncommitted changes or a process it still runs, such as a dev server.
 
@@ -148,7 +148,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Turn this session's lessons into skill edits | [reflect](../reflect/SKILL.md) |
 | Make a mistake agents keep repeating impossible | [correct](../correct/SKILL.md) |
 | Create or refresh a personal -mode skill | [automate-me](../automate-me/SKILL.md) |
-| Configure which model each subagent role uses | [setup-tblock](../setup-tblock/SKILL.md) |
+| Configure which model and effort each subagent role uses, or switch preset | [setup-tblock](../setup-tblock/SKILL.md) |
 | Create project verification or a control skill | [create-verification-skill](../create-verification-skill/SKILL.md) |
 | Audit or maintain an existing verification skill | [maintain-verification-skill](../maintain-verification-skill/SKILL.md) |
 

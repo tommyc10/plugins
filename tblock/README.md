@@ -23,7 +23,7 @@ Copilot caches installed plugins. After an update, reinstall tblock to pick up t
 
 ## Set up once
 
-Run `/setup-tblock`. It asks which models you have, maps each role to one, and writes `~/.tblock/roles.md`. In Copilot it also writes one custom agent per role to `~/.copilot/agents/`, because Copilot sets a subagent's model in its agent file.
+Run `/setup-tblock`. It asks which models you have, sorts them into tiers (top, strong, and fast for each family), applies a preset, and writes `~/.tblock/roles.md`. In Copilot it also writes one custom agent per role to `~/.copilot/agents/`, because Copilot sets a subagent's model in its agent file, and each agent's reasoning effort to `~/.copilot/settings.json`, touching only `tblock-` agents.
 
 | Role | Used by |
 | --- | --- |
@@ -35,28 +35,50 @@ Run `/setup-tblock`. It asks which models you have, maps each role to one, and w
 | `swarm workers` | `swarm` workers and `how` explorers |
 | `shootout runners` and `shootout judges` | `shootout` attempts and their judges |
 
-`/setup-tblock` writes these files through tblock's CLI, so they come out the same every time.
+### Presets
+
+A preset sets every role's model and reasoning effort at once. Switch any time with `tblock preset <name>`; new sessions pick it up.
+
+| Preset | Use for | Shape |
+| --- | --- | --- |
+| `extreme` | Hard design, risky changes | Top models at high to max effort, three-family panels |
+| `high` | Features and reviews (the default) | Top models on `hardest` and `judgment`, strong models elsewhere, two-family panels |
+| `efficient` | Everyday bugs and small changes | Strong models on the thinking roles, the session model for `code` and `artist`, medium effort |
+
+The presets are data in [presets.json](presets.json). After a preset, change any single role with `tblock roles set "hardest=<model> @ max"`.
+
+### Choosing models
+
+- Put your strongest model on `hardest` and `judgment`. They run rarely, so their cost matters least.
+- Give `judgment` a different family from `code`, so a second family checks the code agent's work.
+- Use a fast, cheap model for `swarm workers`. Many run at once, reading and searching.
+- Fill every panel role with two or more families. Agreement across families is what makes a review or a shootout worth trusting, and `tblock doctor` warns when a panel has one family.
+
+Without a roles file, every subagent runs on the session model.
 
 ## CLI
 
-tblock ships a small Node CLI at `bin/tblock.mjs`, with no dependencies. Point an alias at your install:
+tblock ships a small Node CLI at `bin/tblock.mjs`, with no dependencies. Point an alias at it inside your install folder:
 
 ```bash
-alias tblock="node ~/.copilot/installed-plugins/_direct/tommyc10--plugins--tblock/bin/tblock.mjs"
+alias tblock="node <install folder>/bin/tblock.mjs"
 ```
 
-For Claude Code, the folder is the `installPath` that `claude plugin list --json` shows for `tblock@plugins`.
+To find the install folder:
+
+- **Copilot CLI:** run `find ~/.copilot ~/.copilot-local-plugins -path '*bin/tblock.mjs' 2>/dev/null`. Use the path under `installed-plugins` or `.copilot-local-plugins`, not the one under `Library/Caches`, and drop the `/bin/tblock.mjs` end.
+- **Claude Code:** the `installPath` that `claude plugin list --json` shows for `tblock@plugins`.
 
 | Command | What it does |
 | --- | --- |
-| `tblock doctor` | Checks the install in each tool, the roles file, the Copilot role agents, and the git CLIs. Exits 1 on any FAIL. |
-| `tblock roles` | Shows which model each role uses |
-| `tblock roles set code=gpt-5 reviewers=claude-opus-5,gpt-5` | Sets roles, and rewrites the Copilot role agents when the harness is Copilot |
-| `tblock roles sync` | Rewrites the Copilot role agents from the roles file |
+| `tblock doctor` | Checks the install in each tool, the roles file, the Copilot role agents and their efforts, and the git CLIs. Exits 1 on any FAIL. |
+| `tblock roles` | Shows which model and effort each role uses |
+| `tblock roles set "code=gpt-5 @ medium" reviewers=claude-opus-5,gpt-5` | Sets roles, and in Copilot rewrites the role agents and their efforts |
+| `tblock roles sync` | Rewrites the Copilot role agents and efforts from the roles file |
+| `tblock tiers` and `tblock tiers set claude-top=<model> gpt-fast=<model>` | Show or map which of your models fills each tier |
+| `tblock preset` and `tblock preset <name>` | List the presets, or apply one |
 
 Add `--json` for output a script or agent can read. Colour and the banner appear only in a terminal, and `NO_COLOR` turns colour off.
-
-Pick models from different families for the panel roles. Agreement across families is what makes a review or a shootout worth trusting. Without a roles file, every subagent runs on the session model.
 
 ## Use
 

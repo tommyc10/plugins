@@ -109,3 +109,88 @@ test('piped output is plain text', () => {
   assert.doesNotMatch(r.out + cli('doctor').out, /\x1b\[/);
   assert.match(r.out, /tblock doctor/);
 });
+
+const settingsOf = (home) => JSON.parse(readFileSync(join(home, '.copilot', 'settings.json'), 'utf8'));
+
+test('an effort level reaches Copilot settings without touching anything else there', () => {
+  const { home, cli } = sandbox();
+  mkdirSync(join(home, '.copilot'), { recursive: true });
+  writeFileSync(join(home, '.copilot', 'settings.json'), JSON.stringify({ enabledPlugins: { other: true }, subagents: { agents: { explore: { effortLevel: 'low' } } } }));
+
+  const r = cli('roles', 'set', '--harness=copilot', 'code=gpt-5 @ high', 'reviewers=claude-opus-5@high,gpt-5@xhigh');
+  assert.equal(r.code, 0, r.err);
+  assert.match(readFileSync(join(home, '.tblock', 'roles.md'), 'utf8'), /^code: gpt-5 @ high$/m);
+
+  const settings = settingsOf(home);
+  assert.deepEqual(settings.enabledPlugins, { other: true });
+  assert.equal(settings.subagents.agents.explore.effortLevel, 'low');
+  assert.equal(settings.subagents.agents['tblock-code'].effortLevel, 'high');
+  assert.equal(settings.subagents.agents['tblock-reviewers-2'].effortLevel, 'xhigh');
+});
+
+test('an unknown effort is rejected', () => {
+  const { home, cli } = sandbox();
+  const r = cli('roles', 'set', 'code=gpt-5@turbo');
+  assert.equal(r.code, 2);
+  assert.match(r.err, /effort "turbo" is not one of/);
+  assert.equal(existsSync(join(home, '.tblock', 'roles.md')), false);
+});
+
+test('a preset maps tiers to models and reports what it had to fall back on', () => {
+  const { home, cli } = sandbox();
+  cli('tiers', 'set', 'claude-top=opus', 'claude-strong=sonnet', 'gpt-strong=sol', 'gpt-fast=luna');
+
+  assert.equal(cli('preset', 'high').code, 0);
+  let roles = readFileSync(join(home, '.tblock', 'roles.md'), 'utf8');
+  assert.match(roles, /^# preset: high$/m);
+  assert.match(roles, /^hardest: opus @ high$/m);
+  assert.match(roles, /^code: sol @ medium$/m);
+  assert.match(roles, /^swarm workers: luna @ low$/m);
+  assert.match(roles, /^reviewers: sonnet @ high, sol @ high$/m);
+  const roleLines = roles.split('\n').filter((l) => l && !l.startsWith('#')).map((l) => l.split(':')[0]);
+  assert.deepEqual(roleLines, ['code', 'hardest', 'judgment', 'artist', 'reviewers', 'swarm workers', 'shootout runners', 'shootout judges']);
+
+  const extreme = cli('preset', 'extreme');
+  assert.equal(extreme.code, 0, extreme.err);
+  assert.match(extreme.out, /reviewers: 2 of 3 families have models/);
+  assert.match(extreme.out, /code: no gpt-top, used gpt-strong/);
+  roles = readFileSync(join(home, '.tblock', 'roles.md'), 'utf8');
+  assert.match(roles, /^code: sol @ high$/m);
+
+  cli('roles', 'set', 'code=gpt-6');
+  assert.match(readFileSync(join(home, '.tblock', 'roles.md'), 'utf8'), /^# preset: extreme \(edited\)$/m);
+});
+
+test('a preset without tiers says how to set them', () => {
+  const { cli } = sandbox();
+  const r = cli('preset', 'high');
+  assert.equal(r.code, 2);
+  assert.match(r.err, /tblock tiers set/);
+});
+
+test('doctor fails when a Copilot effort drifts, and sync repairs it', () => {
+  const { home, cli } = sandbox();
+  cli('roles', 'set', '--harness=copilot', 'code=gpt-5@high');
+  assert.equal(find(doctorJson(cli), 'Copilot efforts')[0].level, 'PASS');
+
+  const settings = settingsOf(home);
+  settings.subagents.agents['tblock-code'].effortLevel = 'low';
+  writeFileSync(join(home, '.copilot', 'settings.json'), JSON.stringify(settings));
+  const drift = find(doctorJson(cli), 'Copilot efforts')[0];
+  assert.equal(drift.level, 'FAIL');
+  assert.match(drift.detail, /tblock-code is low, should be high/);
+
+  cli('roles', 'sync');
+  assert.equal(find(doctorJson(cli), 'Copilot efforts')[0].level, 'PASS');
+});
+
+test('a settings file that is not plain JSON is left alone', () => {
+  const { home, cli } = sandbox();
+  mkdirSync(join(home, '.copilot'), { recursive: true });
+  const original = '// comments\n{ "enabledPlugins": {} }\n';
+  writeFileSync(join(home, '.copilot', 'settings.json'), original);
+  const r = cli('roles', 'set', '--harness=copilot', 'code=gpt-5@high');
+  assert.equal(r.code, 2);
+  assert.match(r.err, /not plain JSON/);
+  assert.equal(readFileSync(join(home, '.copilot', 'settings.json'), 'utf8'), original);
+});

@@ -1,0 +1,37 @@
+{
+  "efforts": ["none", "minimal", "low", "medium", "high", "xhigh", "max"],
+  "families": ["claude", "gpt", "gemini"],
+  "tiers": ["top", "strong", "fast"],
+  "presets": {
+    "extreme": {
+      "hardest": { "family": "claude", "tier": "top", "effort": "max" },
+      "judgment": { "family": "claude", "tier": "top", "effort": "max" },
+      "code": { "family": "gpt", "tier": "top", "effort": "high" },
+      "artist": { "family": "claude", "tier": "top", "effort": "high" },
+      "swarm workers": { "family": "gpt", "tier": "strong", "effort": "medium" },
+      "reviewers": { "panel": 3, "tier": "top", "effort": "xhigh" },
+      "shootout runners": { "panel": 3, "tier": "top", "effort": "xhigh" },
+      "shootout judges": { "panel": 3, "tier": "top", "effort": "xhigh" }
+    },
+    "high": {
+      "hardest": { "family": "claude", "tier": "top", "effort": "high" },
+      "judgment": { "family": "claude", "tier": "top", "effort": "high" },
+      "code": { "family": "gpt", "tier": "strong", "effort": "medium" },
+      "artist": { "family": "claude", "tier": "strong", "effort": "medium" },
+      "swarm workers": { "family": "gpt", "tier": "fast", "effort": "low" },
+      "reviewers": { "panel": 2, "tier": "strong", "effort": "high" },
+      "shootout runners": { "panel": 2, "tier": "strong", "effort": "high" },
+      "shootout judges": { "panel": 2, "tier": "strong", "effort": "high" }
+    },
+    "efficient": {
+      "hardest": { "family": "claude", "tier": "strong", "effort": "medium" },
+      "judgment": { "family": "claude", "tier": "strong", "effort": "medium" },
+      "code": { "tier": "session", "effort": "medium" },
+      "artist": { "tier": "session", "effort": "medium" },
+      "swarm workers": { "family": "gpt", "tier": "fast", "effort": "low" },
+      "reviewers": { "panel": 2, "tier": "strong", "effort": "medium" },
+      "shootout runners": { "panel": 2, "tier": "strong", "effort": "medium" },
+      "shootout judges": { "panel": 2, "tier": "strong", "effort": "medium" }
+    }
+  }
+}

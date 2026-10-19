@@ -1,11 +1,11 @@
 ---
 name: setup-tblock
-description: "Configure which model each tblock role uses for subagents, in GitHub Copilot or Claude Code, and record which git host tools are connected. Writes one roles file every tblock skill reads, plus a custom agent per role in Copilot. Use for /setup-tblock, configuring tblock models, or changing them."
+description: "Configure which model and reasoning effort each tblock role uses for subagents, in GitHub Copilot or Claude Code, from a preset (extreme, high, efficient) or role by role, and record which git host tools are connected. Writes one roles file every tblock skill reads, plus a custom agent and effort level per role in Copilot. Use for /setup-tblock, configuring tblock models or effort, switching presets, or changing them."
 ---
 
 # Setup tblock
 
-Write `~/.tblock/roles.md`. Resolve `~` to the home folder (`cd ~ && pwd`) before passing the path to a file tool. Every tblock skill that spawns a subagent reads it. In GitHub Copilot, also write one custom agent per role, because Copilot sets a subagent's model in its agent file, not per spawn.
+Write `~/.tblock/roles.md` through tblock's CLI, `bin/tblock.mjs`, two folders above this skill's folder. Every tblock skill that spawns a subagent reads it. In GitHub Copilot, the CLI also writes one custom agent per role, because Copilot sets a subagent's model in its agent file, and each agent's effort level in `~/.copilot/settings.json`, because Copilot reads per-subagent effort there.
 
 ## Roles
 
@@ -20,44 +20,53 @@ Write `~/.tblock/roles.md`. Resolve `~` to the home folder (`cd ~ && pwd`) befor
 | `shootout runners` | A panel for `shootout`, and for `swarm` model races: one attempt per entry | one Anthropic and one OpenAI model |
 | `shootout judges` | A panel for `shootout`: judges whose family differs from the runner they judge, where possible | one Anthropic and one OpenAI model |
 
-A panel's list length sets how many agents it runs. `session` as a value means the role runs on the parent chat model.
+A panel's list length sets how many agents it runs. `session` as a model means the role runs on the parent chat model. Each entry may carry an effort, written `model @ effort`, from `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`.
+
+## Presets
+
+A preset sets every role's model and effort at once, from tiers (top, strong, fast) per model family (claude, gpt, gemini), so it works whatever the models are called. They live in `presets.json` at the plugin root.
+
+| Preset | Use for | Shape |
+| --- | --- | --- |
+| `extreme` | Hard design, risky changes | Top models, high to max effort, three-family panels |
+| `high` | Features and reviews (the default) | Top models on `hardest` and `judgment`, strong elsewhere, two-family panels |
+| `efficient` | Everyday bugs and small changes | Strong models on thinking roles, the session model for `code` and `artist`, medium effort |
 
 ## Steps
 
 1. **Detect the harness.** Copilot if you have its custom agent tools or are running in `copilot` or VS Code Copilot Chat. Claude Code if you have the `Agent` tool. Otherwise ask.
-2. **Detect the models.** In Claude Code, the `Agent` tool's `model` takes `opus`, `sonnet`, `haiku`, or `fable`. Claude Code cannot run OpenAI models, so a panel entry from another family becomes `session`; say so. In Copilot, list the model names you can see this session. If you cannot list them, ask the user to paste the names from Copilot's model picker (`/model` in the CLI). Never write a model you have not confirmed exists.
+2. **Detect the models.** In Claude Code, the `Agent` tool's `model` takes `opus`, `sonnet`, `haiku`, or `fable`. Claude Code cannot run OpenAI or Gemini models, so map only the claude tiers; panels then fill from one family, and say so. In Copilot, list the model names you can see this session. If you cannot list them, ask the user to paste the names from Copilot's model picker (`/model` in the CLI). Never write a model you have not confirmed exists.
 3. **Detect the git host tools.** Record which of these are available: a GitLab MCP server, the `glab` CLI, the `gh` CLI. Check with the tool list and `command -v`. Record names only, never hosts, tokens, or project paths.
-4. **Load the current state.** If `roles.md` exists, read it and keep the user's earlier choices. Drop any role not in the table above.
-5. **Propose and confirm.** Fill each role from the defaults and the detected models. Show every role with its model, mark any that need a choice, and ask the user to accept or change specific roles. Prefer the harness's question tool over free text.
-6. **Write the files with tblock's CLI.** It is `bin/tblock.mjs`, two folders above this skill's folder. Pass every role in one call, with a comma-separated list for a panel:
+4. **Load the current state.** Run `node <tblock>/bin/tblock.mjs roles` and `node <tblock>/bin/tblock.mjs tiers` to see the earlier choices, and keep them unless the user changes them.
+5. **Map the tiers.** For each family with models, propose its top, strong, and fast model from step 2, confirm with the user, and record them. A tier left out falls back to the nearest one in the same family:
 
    ```
-   node <tblock>/bin/tblock.mjs roles set --harness=copilot --tools=gitlab-mcp,glab \
-     code=<model> hardest=<model> judgment=<model> artist=<model> \
-     reviewers=<model>,<model> "swarm workers=<model>" \
-     "shootout runners=<model>,<model>" "shootout judges=<model>,<model>"
+   node <tblock>/bin/tblock.mjs roles set --harness=copilot --tools=gitlab-mcp,glab
+   node <tblock>/bin/tblock.mjs tiers set claude-top=<model> claude-strong=<model> claude-fast=<model> \
+     gpt-top=<model> gpt-strong=<model> gpt-fast=<model>
    ```
 
-   It writes `~/.tblock/roles.md`. With `--harness=copilot` it also writes one custom agent per role entry to `~/.copilot/agents/` (or `$COPILOT_HOME/agents/`): `tblock-<role>.agent.md`, or `tblock-<role>-<n>.agent.md` for a panel entry, with the artist role carrying the artist's instructions. It removes `tblock-*.agent.md` files no role needs. In Claude Code, pass `--harness=claude-code`, and no agent files are written, because the spawning skill passes `model` to the `Agent` tool.
-7. **Without Node, write the files by hand** in the shapes the CLI uses. The roles file:
+6. **Pick a preset.** Show the three presets, recommend `high`, ask the user, and apply it. Show any `note:` lines the CLI prints about tiers it had to fall back on:
 
    ```
-   # tblock roles. One line per role. Delete a line to use the session model.
+   node <tblock>/bin/tblock.mjs preset high
+   ```
+
+7. **Adjust single roles if asked.** Run `node <tblock>/bin/tblock.mjs roles` to show the result, and change any role the user wants, with a comma-separated list for a panel:
+
+   ```
+   node <tblock>/bin/tblock.mjs roles set "hardest=<model> @ max" "reviewers=<model> @ high,<model> @ high"
+   ```
+
+   In Copilot, every `roles set` and `preset` call also rewrites the role agents in `~/.copilot/agents/` and their effort levels in `~/.copilot/settings.json`, touching only `tblock-` agents and leaving every other setting as it was. In Claude Code, pass `--harness=claude-code` in step 5; no agent or settings files are written, because the spawning skill passes `model` and `effort` to the `Agent` tool.
+8. **Without Node, write the roles file by hand** in the shape the CLI uses, and tell the user that Copilot effort levels need `/subagents` set by hand:
+
+   ```
+   # tblock roles. One line per role, as "model" or "model @ effort". Delete a line to use the session model.
    # harness: copilot
    # git host tools: gitlab-mcp, glab
-   code: <model>
-   reviewers: <model>, <model>
+   code: <model> @ medium
+   reviewers: <model> @ high, <model> @ high
    ```
 
-   Each Copilot agent file, leaving out the `model` line for a `session` role:
-
-   ```
-   ---
-   name: tblock-<role>[-<n>]
-   description: tblock <role> subagent. Spawned by tblock skills, not chosen by hand.
-   model: <model>
-   user-invocable: false
-   ---
-   Read the tblock-mode SKILL.md at the path your brief gives, in full, before any work. Then do the brief.
-   ```
-8. **Confirm.** Run `node <tblock>/bin/tblock.mjs doctor` and show its output. Tell the user which files were written and that new sessions pick them up. Rerunning this skill updates them.
+9. **Confirm.** Run `node <tblock>/bin/tblock.mjs doctor` and show its output. Tell the user which files were written, that new sessions pick them up, and that `tblock preset <name>` switches presets later.
