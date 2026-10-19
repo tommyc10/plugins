@@ -22,6 +22,7 @@ Remaining triggers:
 - Nontrivial multi-step work → write the throughput checkpoint ([Feature](playbooks/feature.md) step 3).
 - UI work → the UI-UX playbook, handed to the `artist` subagent when delegation is available.
 - Any prose surface, your reply to the user included → the [unslop](../unslop/SKILL.md) skill. Write the reply per **Writing the reply** below.
+- Asked to open an MR or PR, or to push a finished change for review → the [Opening an MR](playbooks/opening-an-mr.md) playbook.
 - Docs, RFCs, READMEs, PR or MR descriptions, and commit messages → the [technical-writing](../technical-writing/SKILL.md) skill.
 - Before review → apply **Comments** below to the whole diff, delegated work included.
 - Shipping UI or CLI behavior → the project's verification skill. If none exists and setup is in scope, create one with [create-verification-skill](../create-verification-skill/SKILL.md). For bug fixes, reproduce first on the same surface yourself.
@@ -100,7 +101,7 @@ Invoking tblock-mode is the user's request for the subagents its skills and play
 
 **You own every subagent's result.** Review its diff yourself, then carry its evidence into your reply: each state or case it checked, how it checked it, what it saw, and what it did not check. Never compress that into "it works". The user sees only your reply, so evidence left in the subagent's report is evidence the user never gets. A second opinion is the same prompt against a different model. Agreement is high-signal.
 
-Use the active environment's permitted tools. Work directly when delegation is unavailable. Playbooks do not imply permission to publish, merge, or change unrelated configuration; follow the user's delivery scope.
+Use the active environment's permitted tools. Work directly when delegation is unavailable. Playbooks do not imply permission to publish, merge, or change unrelated configuration; follow the user's delivery scope, and when it includes an MR, finish with [Opening an MR](playbooks/opening-an-mr.md).
 
 ## Writing the reply
 
@@ -133,6 +134,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Explore alternatives or settle an uncertain design | [Prototype](playbooks/prototype.md) |
 | Design and implement a UI feature | [UI-UX](playbooks/ui-ux.md) |
 | Write or modify a skill, principle, or playbook | [Authoring a skill](playbooks/authoring-a-skill.md) |
+| Prepare and open a merge request or pull request | [Opening an MR](playbooks/opening-an-mr.md) |
 | Measure a skill or prompt change | [Eval](playbooks/eval.md) |
 | Large or ambitious work that no route above fits | [figure-it-out](../figure-it-out/SKILL.md) |
 | Sketch types and module shape before implementing | [architect](../architect/SKILL.md) |
