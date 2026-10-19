@@ -307,8 +307,8 @@ function doctor() {
     const known = new Set(specs.map((s) => s.name));
     Object.keys(roles).filter((r) => !known.has(r)).forEach((r) => add('WARN', 'Roles', `unknown role "${r}" is ignored`));
     const unset = specs.filter((s) => !roles[s.name]).map((s) => s.name);
-    const families = new Set(Object.values(roles).flat().map((e) => family(e.model)));
-    add(unset.length ? 'WARN' : 'PASS', 'Roles', `${Object.keys(roles).length} roles, models from ${families.size} families` +
+    const families = new Set(Object.values(roles).flat().filter((e) => e.model !== 'session').map((e) => family(e.model)));
+    add(unset.length ? 'WARN' : 'PASS', 'Roles', `${Object.keys(roles).length} roles, models from ${families.size} ${families.size === 1 ? 'family' : 'families'}` +
       (meta.preset ? `, preset ${meta.preset}` : '') + (unset.length ? `; on the session model: ${unset.join(', ')}` : ''));
     for (const { name, panel } of specs) {
       const models = (roles[name] || []).map((e) => e.model);

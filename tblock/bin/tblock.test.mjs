@@ -194,3 +194,9 @@ test('a settings file that is not plain JSON is left alone', () => {
   assert.match(r.err, /not plain JSON/);
   assert.equal(readFileSync(join(home, '.copilot', 'settings.json'), 'utf8'), original);
 });
+
+test('the session model does not count as a model family', () => {
+  const { cli } = sandbox();
+  cli('roles', 'set', 'code=session', 'hardest=opus', 'reviewers=sonnet');
+  assert.match(find(doctorJson(cli), 'Roles')[0].detail, /models from 1 family\b/);
+});
