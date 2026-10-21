@@ -33,7 +33,7 @@ Check the state that changes the answer, and mention it only when it does. Run `
 
 1. Install. Copilot CLI: `copilot plugin install tommyc10/plugins:tblock`. Claude Code: `claude plugin marketplace add tommyc10/plugins` then `claude plugin install tblock@plugins`. After an update, reinstall in Copilot, because it caches plugins by version.
 2. Point a `tblock` alias at `bin/tblock.mjs` in the install folder. The [README](../../README.md) shows how to find it.
-3. Run [setup-tblock](../setup-tblock/SKILL.md). It maps the user's models to tiers (top, strong, and fast for each family), applies a preset, and writes `~/.tblock/roles.md`. In Copilot it also writes one agent per role and each agent's effort level.
+3. Run [setup-tblock](../setup-tblock/SKILL.md). It either maps the user's models to tiers (top, strong, and fast for each family) and applies a preset, or asks for each role's model and effort one at a time, and writes `~/.tblock/roles.md`. In Copilot it also writes one agent per role and each agent's effort level.
 4. Run `tblock doctor`, then start a real task with tblock-mode, a goal, and a check that can pass or fail.
 
 Presets set every role's model and effort at once: `extreme` for hard or risky changes, `high` for features and reviews, `efficient` for everyday bugs. `tblock preset <name>` switches, and new sessions pick it up. `tblock roles set "artist=opus @ high"` changes one role.

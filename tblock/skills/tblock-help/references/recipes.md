@@ -36,7 +36,7 @@ Swap in the real names and done checks. In Claude Code, write `/tblock:tblock-mo
 
 ## Setup and tuning
 
-- `/setup-tblock` maps models to tiers and applies a preset.
+- `/setup-tblock` maps models to tiers and applies a preset, or sets each role's model and effort one at a time.
 - `tblock preset efficient` before everyday bugs. `tblock preset extreme` before a hard or risky change.
 - `tblock roles set "artist=opus @ high"` changes one role.
 - `tblock doctor` checks it all.
