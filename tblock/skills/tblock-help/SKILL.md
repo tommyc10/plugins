@@ -59,6 +59,7 @@ The default answer is tblock-mode, which runs most of the others when its steps 
 | Know why code is shaped this way, or where a number came from | [why](../why/SKILL.md) |
 | Understand a change or subsystem, explained plainly | [teach](../teach/SKILL.md) |
 | Read the app's logs, or set up log reading for a project | [probe](../probe/SKILL.md) |
+| Build a Grafana dashboard from the metrics a project's code emits | [grafana-dashboard](../grafana-dashboard/SKILL.md) |
 | Know what a change could break outside its diff | [blast-radius](../blast-radius/SKILL.md) |
 | Settle types and module shape before code that crosses a function boundary | [architect](../architect/SKILL.md) |
 | Get several attempts at one brief, merged into the best | [shootout](../shootout/SKILL.md) |

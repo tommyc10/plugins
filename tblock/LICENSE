@@ -84,3 +84,24 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+skills/grafana-dashboard/references/grafana holds files from two Grafana Labs
+repositories, both under the Apache License 2.0, whose text is in
+skills/grafana-dashboard/references/grafana/LICENSE:
+
+- gcx-create-dashboard.md, gcx-manage-dashboards.md, gcx-resource-operations.md, and
+  gcx-resource-model.md are claude-plugin/skills/create-dashboard/SKILL.md,
+  claude-plugin/skills/manage-dashboards/SKILL.md, and that skill's
+  references/resource-operations.md and references/resource-model.md from
+  https://github.com/grafana/gcx (commit 41df57a4, 2026-10-22). Changes: the two links
+  in gcx-manage-dashboards.md point to the renamed reference files beside it.
+- dashboarding.md, dashboard-json-schema.md, promql.md, promql-patterns.md, and loki.md
+  are skills/grafana-core/dashboarding/SKILL.md and references/json-schema.md,
+  skills/grafana-core/promql/SKILL.md and references/patterns.md, and
+  skills/grafana-lgtm/loki/SKILL.md from https://github.com/grafana/skills
+  (commit cc33318b, 2026-10-16). Changes: links to references/json-schema.md and
+  references/patterns.md now point to the renamed files beside them, and loki.md
+  drops its closing References section, whose three links point to files that
+  repository doesn't include.

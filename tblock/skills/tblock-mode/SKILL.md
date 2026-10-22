@@ -26,6 +26,7 @@ Remaining triggers:
 - Docs, RFCs, READMEs, PR or MR descriptions, and commit messages → the [technical-writing](../technical-writing/SKILL.md) skill.
 - Before review → apply **Comments** below to the whole diff, delegated work included.
 - Debugging or investigating behavior at runtime → read the app's logs with the [probe](../probe/SKILL.md) skill, and set it up for the project when `.tblock/probe.json` is missing.
+- A change that adds or renames metrics in a project with `.tblock/grafana.json` → update its dashboard with the [grafana-dashboard](../grafana-dashboard/SKILL.md) skill in the same change.
 - Shipping UI or CLI behavior → the project's verification skill. If none exists and setup is in scope, create one with [create-verification-skill](../create-verification-skill/SKILL.md). For bug fixes, reproduce first on the same surface yourself.
 - Running a benchmark, or reporting a speedup or regression you measured → the [benchmark-checklist](../benchmark-checklist/SKILL.md) skill before you report or act on the number.
 - Long, autonomous, or multi-phase work, or any task the user steps away from ("going to bed", "trust it when I'm back") → a decision trail via the [show-me-your-work](../show-me-your-work/SKILL.md) skill. Commit it when the stakes need an auditable record. Keep it local otherwise.
@@ -140,6 +141,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Large or ambitious work that no route above fits | [figure-it-out](../figure-it-out/SKILL.md) |
 | Sketch types and module shape before implementing | [architect](../architect/SKILL.md) |
 | Read the app's logs, or set up log reading for a project | [probe](../probe/SKILL.md) |
+| Build or update a project's Grafana dashboard | [grafana-dashboard](../grafana-dashboard/SKILL.md) |
 | Explain how code works, or where something should live | [how](../how/SKILL.md) |
 | Why code is this way: rationale, regressions, history | [why](../why/SKILL.md) |
 | Explain a body of work so a person understands it | [teach](../teach/SKILL.md) |
