@@ -15,6 +15,7 @@ Write `~/.tblock/roles.md` through tblock's CLI, `bin/tblock.mjs`, two folders a
 | `hardest` | Feature and Bug fix work in cross-cutting design, concurrency, or subtle algorithms | strongest model available |
 | `judgment` | The `how` explainer, and judging delegated work in figure-it-out | strongest model available |
 | `artist` | The artist agent, for UI-UX work | session model |
+| `verifier` | The truthsayer agent, which checks a change before the reply | a strong model from a different family than `code` |
 | `reviewers` | A panel for `interrogate`: one reviewer per entry, from different model families | one Anthropic and one OpenAI model |
 | `swarm workers` | `swarm` workers and `how` explorers | fastest capable model |
 | `shootout runners` | A panel for `shootout`, and for `swarm` model races: one attempt per entry | one Anthropic and one OpenAI model |

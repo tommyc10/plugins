@@ -31,6 +31,7 @@ Run `/setup-tblock`. It asks which models you have, then either sorts them into 
 | `hardest` | Cross-cutting design, concurrency, and subtle algorithms |
 | `judgment` | Explanations and judging other agents' work |
 | `artist` | UI work, through the artist agent |
+| `verifier` | The truthsayer agent, which checks a change independently before the reply says it's done |
 | `reviewers` | The `interrogate` panel, one reviewer per model |
 | `swarm workers` | `swarm` workers and `how` explorers |
 | `shootout runners` and `shootout judges` | `shootout` attempts and their judges |
@@ -106,7 +107,7 @@ tblock works without asking on reversible, local work: reading, editing, builds,
 - **Understand:** [how](skills/how/SKILL.md), [why](skills/why/SKILL.md), [teach](skills/teach/SKILL.md), [blast-radius](skills/blast-radius/SKILL.md)
 - **Observe:** [probe](skills/probe/SKILL.md), [grafana-dashboard](skills/grafana-dashboard/SKILL.md)
 - **Design and build:** [architect](skills/architect/SKILL.md), [shootout](skills/shootout/SKILL.md), [swarm](skills/swarm/SKILL.md), [figure-it-out](skills/figure-it-out/SKILL.md), [tdd](skills/tdd/SKILL.md)
-- **Review and measure:** [interrogate](skills/interrogate/SKILL.md), [benchmark-checklist](skills/benchmark-checklist/SKILL.md)
+- **Review and measure:** the truthsayer agent, [interrogate](skills/interrogate/SKILL.md), [benchmark-checklist](skills/benchmark-checklist/SKILL.md)
 - **UI:** the artist agent, [emil-design-eng](skills/emil-design-eng/SKILL.md), [prototype](skills/prototype/SKILL.md), [break-ui](skills/break-ui/SKILL.md)
 - **Motion:** [animate](skills/animate/SKILL.md), [review-animations](skills/review-animations/SKILL.md), [animation-performance](skills/animation-performance/SKILL.md), [find-animation-opportunities](skills/find-animation-opportunities/SKILL.md), [improve-animations](skills/improve-animations/SKILL.md)
 - **TypeScript and React:** [typescript-best-practices](skills/typescript-best-practices/SKILL.md), [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)

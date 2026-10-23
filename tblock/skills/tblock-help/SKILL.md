@@ -64,6 +64,7 @@ The default answer is tblock-mode, which runs most of the others when its steps 
 | Settle types and module shape before code that crosses a function boundary | [architect](../architect/SKILL.md) |
 | Get several attempts at one brief, merged into the best | [shootout](../shootout/SKILL.md) |
 | Run parallel checks over slices, or race workers | [swarm](../swarm/SKILL.md) |
+| Check a change is really done, locally or on a deployed environment, before telling the user | the truthsayer agent on the `verifier` role |
 | Have different models review a change and try to break it | [interrogate](../interrogate/SKILL.md) |
 | Fix a bug test-first when a cheap local test exists | [tdd](../tdd/SKILL.md) |
 | Vet a performance number before reporting it | [benchmark-checklist](../benchmark-checklist/SKILL.md) |

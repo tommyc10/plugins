@@ -32,7 +32,7 @@ const find = (checks, name) => checks.filter((c) => c.check === name);
 
 test('roles set writes the roles file and one Copilot agent per entry', () => {
   const { home, cli, agents } = sandbox();
-  const r = cli('roles', 'set', '--harness=copilot', '--tools=gitlab-mcp,glab', 'code=gpt-5', 'reviewers=claude-opus-5,gpt-5', 'artist=session', 'swarm workers=gpt-5-mini');
+  const r = cli('roles', 'set', '--harness=copilot', '--tools=gitlab-mcp,glab', 'code=gpt-5', 'reviewers=claude-opus-5,gpt-5', 'artist=session', 'verifier=claude-opus-5', 'swarm workers=gpt-5-mini');
   assert.equal(r.code, 0, r.err);
 
   const roles = readFileSync(join(home, '.tblock', 'roles.md'), 'utf8');
@@ -42,7 +42,7 @@ test('roles set writes the roles file and one Copilot agent per entry', () => {
   assert.match(roles, /^reviewers: claude-opus-5, gpt-5$/m);
 
   assert.match(roles, /^swarm workers: gpt-5-mini$/m);
-  assert.deepEqual(agents(), ['tblock-artist.agent.md', 'tblock-code.agent.md', 'tblock-reviewers-1.agent.md', 'tblock-reviewers-2.agent.md', 'tblock-swarm-workers.agent.md']);
+  assert.deepEqual(agents(), ['tblock-artist.agent.md', 'tblock-code.agent.md', 'tblock-reviewers-1.agent.md', 'tblock-reviewers-2.agent.md', 'tblock-swarm-workers.agent.md', 'tblock-verifier.agent.md']);
   const reviewer = readFileSync(join(home, '.copilot', 'agents', 'tblock-reviewers-2.agent.md'), 'utf8');
   assert.match(reviewer, /^name: tblock-reviewers-2$/m);
   assert.match(reviewer, /^model: gpt-5$/m);
@@ -51,6 +51,10 @@ test('roles set writes the roles file and one Copilot agent per entry', () => {
   assert.doesNotMatch(artist, /^model:/m, 'a session role leaves the model to Copilot');
   const shipped = readFileSync(join(PLUGIN, 'com.github.copilot', 'agents', 'artist.agent.md'), 'utf8');
   assert.ok(artist.endsWith(shipped.replace(/^---\n[\s\S]*?\n---\n/, '')), 'the artist role agent carries the shipped artist instructions');
+
+  const verifier = readFileSync(join(home, '.copilot', 'agents', 'tblock-verifier.agent.md'), 'utf8');
+  const truthsayer = readFileSync(join(PLUGIN, 'com.github.copilot', 'agents', 'truthsayer.agent.md'), 'utf8');
+  assert.ok(verifier.endsWith(truthsayer.replace(/^---\n[\s\S]*?\n---\n/, '')), 'the verifier role agent carries the truthsayer instructions');
 });
 
 test('shrinking a panel removes the agent it no longer needs', () => {
@@ -148,7 +152,7 @@ test('a preset maps tiers to models and reports what it had to fall back on', ()
   assert.match(roles, /^swarm workers: luna @ low$/m);
   assert.match(roles, /^reviewers: sonnet @ high, sol @ high$/m);
   const roleLines = roles.split('\n').filter((l) => l && !l.startsWith('#')).map((l) => l.split(':')[0]);
-  assert.deepEqual(roleLines, ['code', 'hardest', 'judgment', 'artist', 'reviewers', 'swarm workers', 'shootout runners', 'shootout judges']);
+  assert.deepEqual(roleLines, ['code', 'hardest', 'judgment', 'artist', 'verifier', 'reviewers', 'swarm workers', 'shootout runners', 'shootout judges']);
 
   const extreme = cli('preset', 'extreme');
   assert.equal(extreme.code, 0, extreme.err);

@@ -116,10 +116,13 @@ const family = (model) =>
 
 const agentName = (role, index, panel) => `tblock-${role.replace(/ /g, '-')}${panel ? `-${index + 1}` : ''}`;
 
+// Roles backed by an agent tblock ships carry that agent's instructions; the rest get the generic brief.
+const SHIPPED_AGENTS = { artist: 'artist', verifier: 'truthsayer' };
+
 function agentBody(role) {
-  if (role === 'artist') {
-    const artist = readFileSync(join(PLUGIN, 'com.github.copilot', 'agents', 'artist.agent.md'), 'utf8');
-    return artist.replace(/^---\n[\s\S]*?\n---\n/, '');
+  if (SHIPPED_AGENTS[role]) {
+    const shipped = readFileSync(join(PLUGIN, 'com.github.copilot', 'agents', `${SHIPPED_AGENTS[role]}.agent.md`), 'utf8');
+    return shipped.replace(/^---\n[\s\S]*?\n---\n/, '');
   }
   return 'Read the tblock-mode SKILL.md at the path your brief gives, in full, before any work. Then do the brief.\n';
 }
