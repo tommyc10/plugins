@@ -46,6 +46,8 @@ test('roles set writes the roles file and one Copilot agent per entry', () => {
   const reviewer = readFileSync(join(home, '.copilot', 'agents', 'tblock-reviewers-2.agent.md'), 'utf8');
   assert.match(reviewer, /^name: tblock-reviewers-2$/m);
   assert.match(reviewer, /^model: gpt-5$/m);
+  const delegate = readFileSync(join(PLUGIN, 'com.github.copilot', 'agents', 'delegate.agent.md'), 'utf8');
+  assert.ok(reviewer.endsWith(delegate.replace(/^---\n[\s\S]*?\n---\n/, '')), 'a role without its own agent carries the delegate instructions');
 
   const artist = readFileSync(join(home, '.copilot', 'agents', 'tblock-artist.agent.md'), 'utf8');
   assert.doesNotMatch(artist, /^model:/m, 'a session role leaves the model to Copilot');

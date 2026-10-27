@@ -57,6 +57,8 @@ The presets are data in [presets.json](presets.json). After a preset, change any
 
 Without a roles file, every subagent runs on the session model.
 
+Subagents that do one job inside a playbook, such as a code change or a fix, are delegates. They read a short [delegate brief](skills/tblock-mode/delegate.md) instead of the whole of tblock-mode, stay inside the files they're given, never push or post, and end with a fixed report of what they changed, checked, and left unchecked, which the main agent carries into its reply. UI work goes to the artist agent and verification to truthsayer instead.
+
 ## CLI
 
 tblock ships a small Node CLI at `bin/tblock.mjs`, with no dependencies. Point an alias at it inside your install folder:

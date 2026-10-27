@@ -121,6 +121,7 @@ Principles are one-rule skills that tblock-mode reads and cites in its replies. 
 |---|---|
 | It wrote its own plan instead of the playbook's steps | Say "follow the playbook steps". |
 | It didn't use the artist or other subagents | Some harnesses only spawn subagents the user asks for. Add "use the artist" or name the skill. |
+| A subagent changed files outside its job, pushed, or came back with only "done" | It ran as a generic agent instead of the tblock delegate. In Copilot, run `tblock roles sync` so each role agent carries the delegate instructions; in Claude Code, say "use the tblock delegate". |
 | A new role, preset, or effort had no effect | Start a new session. In Copilot, exit and restart so it reloads the agents, and check `tblock doctor`. |
 | `tblock doctor` shows FAIL on Copilot agents or efforts | Run `tblock roles sync`. |
 | Runs cost more than expected | `tblock preset efficient`, or `session` for `code` and `artist`. See Get set up. |
