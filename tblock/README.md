@@ -23,7 +23,7 @@ Copilot caches installed plugins. After an update, reinstall tblock to pick up t
 
 ## Set up once
 
-Run `/setup-tblock`. It asks which models you have, then either sorts them into tiers (top, strong, and fast for each family) and applies a preset, or walks you through each role's model and effort one at a time, and writes `~/.tblock/roles.md`. In Copilot it also writes one custom agent per role to `~/.copilot/agents/`, because Copilot sets a subagent's model in its agent file, and each agent's reasoning effort to `~/.copilot/settings.json`, touching only `tblock-` agents.
+Run `/setup-tblock`. It asks for a preset, maps your models to tiers, shows the roles, lets you change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one custom agent per role to `~/.copilot/agents/`, because Copilot sets a subagent's model in its agent file, and each agent's reasoning effort to `~/.copilot/settings.json`, touching only `tblock-` agents.
 
 | Role | Used by |
 | --- | --- |
