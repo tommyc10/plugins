@@ -117,7 +117,7 @@ const family = (model) =>
 const agentName = (role, index, panel) => `tblock-${role.replace(/ /g, '-')}${panel ? `-${index + 1}` : ''}`;
 
 // Each role agent carries the instructions of the agent tblock ships for it; roles without their own get the delegate's.
-const SHIPPED_AGENTS = { artist: 'artist', verifier: 'truthsayer' };
+const SHIPPED_AGENTS = { artist: 'artist' };
 
 function agentBody(role) {
   const shipped = readFileSync(join(PLUGIN, 'com.github.copilot', 'agents', `${SHIPPED_AGENTS[role] ?? 'delegate'}.agent.md`), 'utf8');

@@ -23,7 +23,7 @@
    For motion across a whole page or codebase rather than one change, [find-animation-opportunities](../../find-animation-opportunities/SKILL.md) proposes where motion belongs, and [improve-animations](../../improve-animations/SKILL.md) audits what is there and plans fixes. Both are read-only.
 
    Skipping a row that applies needs a one-line reason in the todo list.
-6. Prove it in a real browser, in every state from step 2, per [Prove It Works](../../principle-prove-it-works/SKILL.md). Capture a screenshot or interaction record for each. Then hand the change, the claim, and what done means to the **truthsayer** agent on the `verifier` role, which checks every state independently, and put its "For the user" section in your reply. Skip it only for a one-line fix whose proof you already showed, and say so.
+6. Prove it in a real browser, in every state from step 2, per [Prove It Works](../../principle-prove-it-works/SKILL.md). Capture a screenshot or interaction record for each.
 7. Log each design decision and its reason as you make it, for the reply.
 
 **Reply:** what each state looks like and its evidence, the choices made and why, and anything left open.
