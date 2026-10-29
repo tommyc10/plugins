@@ -15,7 +15,7 @@ Write `~/.tblock/roles.md`, the file every tblock skill that spawns a subagent r
 | `hardest` | Feature and Bug fix work in cross-cutting design, concurrency, or subtle algorithms | strongest model available |
 | `judgment` | The `how` explainer, and judging delegated work in figure-it-out | strongest model available |
 | `artist` | The artist agent, for UI-UX work | session model |
-| `reviewers` | A panel for `interrogate`: one reviewer per entry, from different model families | one Anthropic and one OpenAI model |
+| `reviewers` | A panel for `interrogate`: one adversary per entry, from different model families | one Anthropic and one OpenAI model |
 | `swarm workers` | `swarm` workers and `how` explorers | fastest capable model |
 | `shootout runners` | A panel for `shootout`, and for `swarm` model races: one attempt per entry | one Anthropic and one OpenAI model |
 | `shootout judges` | A panel for `shootout`: judges whose family differs from the runner they judge, where possible | one Anthropic and one OpenAI model |
@@ -120,3 +120,7 @@ Run `node <tblock>/bin/tblock.mjs doctor` and show its output. Tell the user whi
 ### 8. Offer a verification skill (optional)
 
 Check whether the project has a way to drive the real app for proof (a `verify-*` skill, or an existing harness). If not, offer once: "want a project-local verification skill, so agents can drive the app the way a user does and prove changes work? I can generate one with /create-verification-skill." On yes, run [create-verification-skill](../create-verification-skill/SKILL.md). On no, move on without pushing.
+
+### 9. Offer a formal verification skill (optional)
+
+Check whether the project already has a formal verification skill, a project skill that runs a model checker, a prover, or another verifier against the code. If not, offer once: "want a formal verification skill, so agents can prove a key property of your code holds in every case in scope, not only the cases tests reach? I can generate one with /create-formal-verification-skill." On yes, run [create-formal-verification-skill](../create-formal-verification-skill/SKILL.md). On no, move on without pushing.

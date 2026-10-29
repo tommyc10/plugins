@@ -7,7 +7,7 @@
 3. Tidy the branch. Work on a branch off the main branch made for this change. Rebase into small, ordered commits, each one landable and ordered to tell the story. Amend when a fix belongs in the commit you just made, and make a new commit when it is separable. Commit bodies don't restate the subject.
 4. Check the diff before a reviewer does. Apply tblock-mode's **Comments** rules to the whole diff. For a fix you don't fully trust or a contested design, run [interrogate](../../interrogate/SKILL.md). For a change that touches shared code, run [blast-radius](../../blast-radius/SKILL.md).
 5. Write the title, description, and commit bodies with [technical-writing](../../technical-writing/SKILL.md), then [unslop](../../unslop/SKILL.md). Unless the project says otherwise, the title is Conventional Commits, `type(scope): subject`, with no trailing period: the type is `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, or `perf`, the scope is the area, and the subject is short, imperative, and names a real symbol when one carries the change. The description is a one-minute briefing for a reviewer who has the diff. Use `##` headings in this order, and drop a section with nothing to say:
-   - `## Why`: the problem and the approach, in 1 to 3 short sentences.
+   - `## Why`: opens with the user's goal, then the problem and the approach, in 1 to 3 short sentences.
    - `## What changed`: 1 to 3 short bullets. Name a real symbol or path only when it carries the change, and both sides of a rename.
    - `## Scope`: always. What it covers and what it deliberately leaves out, such as a follow-up or a known gap.
    - `## Tradeoffs`: only rejected alternatives a reviewer would otherwise ask about.

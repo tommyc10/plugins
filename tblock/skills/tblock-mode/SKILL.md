@@ -1,6 +1,6 @@
 ---
 name: tblock-mode
-description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes investigations, refactors, design, explanations, change risk, competing attempts, parallel fan-out, multi-model review, large open-ended work, features, bug fixes, performance work, UI work, prototypes, writing, skill authoring and evaluation, and verification setup or upkeep."
+description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes investigations, refactors, design, explanations, change risk, competing attempts, parallel fan-out, multi-model review, large open-ended work, features, bug fixes, performance work, runtime and trace diagnosis, UI work, prototypes, babysitting a PR or MR to merge-ready, writing, skill authoring and evaluation, and verification or formal verification setup or upkeep."
 disable-model-invocation: true
 ---
 
@@ -12,6 +12,7 @@ The Principles section below grounds every trigger. In your reply, name each pri
 
 Remaining triggers:
 
+- Your first message on a task → tell the user, in your own words, their goal, the problem they are solving, and, if the task ships a change, the smallest change you expect to meet it. Don't wait for confirmation. If the evidence rules out the change the user asked for, show it and stop. Restate the goal in each subagent brief, open each MR or PR's `## Why` with it, and open each final report with it, your final reply included, except after a fully specified one-line edit.
 - Nontrivial change, architecture decision, or "are we sure?" → the [how](../how/SKILL.md) skill, and the [why](../why/SKILL.md) skill when the question is about motivation or history.
 - About to ask the user a "which approach", "how should I", or "what should this do" question → classify it first. If the answer is a fact you could observe by running something (behavior, timing, layout, output, perf), it is not the user's to answer. Sketch it with the [Prototype](playbooks/prototype.md) playbook and let the result decide. A read-only Investigation answers from the evidence instead. Reserve the question for a real product or preference call no experiment can settle, and ask it in plain words, never with a shorthand token to type back.
 - Any code → name the data shape first, and choose its organizing structure per [Model the Domain](../principle-model-the-domain/SKILL.md).
@@ -23,9 +24,13 @@ Remaining triggers:
 - UI work → the UI-UX playbook, handed to the `artist` subagent when delegation is available.
 - Any prose surface, your reply to the user included → the [unslop](../unslop/SKILL.md) skill. Write the reply per **Writing the reply** below.
 - Asked to open an MR or PR, or to push a finished change for review → the [Opening an MR](playbooks/opening-an-mr.md) playbook.
+- Any PR or MR status request ("babysit this", "get it green", "address the review comments", "check on X", "anything outstanding on X") → the [Babysit](playbooks/babysit.md) playbook. Never triggered by merely opening one. Declare its mode before polling.
+- A review bot commented (Copilot code review, Bugbot, CodeRabbit, GitLab Duo, a security scanner) → sceptical posture. Bots catch real bugs and also file non-issues, so judge each on its merits and dismiss noise with a concrete reason instead of churning code, per [review-bot triage](references/review-bot-triage.md).
 - Docs, RFCs, READMEs, PR or MR descriptions, and commit messages → the [technical-writing](../technical-writing/SKILL.md) skill.
 - Before review → apply **Comments** below to the whole diff, delegated work included.
 - Debugging or investigating behavior at runtime → read the app's logs with the [probe](../probe/SKILL.md) skill, and set it up for the project when `.tblock/probe.json` is missing.
+- A live symptom to diagnose, such as a leak, a spinning CPU, a hang, or a glitch → the [Runtime forensics](playbooks/runtime-forensics.md) playbook. A capture handed to you after the fact, such as a profile, trace, spindump, or heap snapshot → [Trace forensics](playbooks/trace-forensics.md).
+- A change to code that a project's formal verification skill covers → run that skill before you call the change done. Concurrency, retries, state machines, or parsers whose failures tests rarely reach → offer [create-formal-verification-skill](../create-formal-verification-skill/SKILL.md) once.
 - A change that adds or renames metrics in a project with `.tblock/grafana.json` → update its dashboard with the [grafana-dashboard](../grafana-dashboard/SKILL.md) skill in the same change.
 - Shipping UI or CLI behavior → the project's verification skill. If none exists and setup is in scope, create one with [create-verification-skill](../create-verification-skill/SKILL.md). For bug fixes, reproduce first on the same surface yourself.
 - Running a benchmark, or reporting a speedup or regression you measured → the [benchmark-checklist](../benchmark-checklist/SKILL.md) skill before you report or act on the number.
@@ -112,10 +117,14 @@ Use the active environment's permitted tools. Work directly when delegation is u
 Write the reply clean as you draft it. A cleanup pass after drafting does not remove these patterns.
 
 - **Short declarative sentences.** One thought per sentence, ended with a period.
+- **No long-dash character anywhere.** Write a file-list bullet as a sentence ("`main.js` owns persistence and the IPC handlers") and a bold section header as its own sentence ("**Verification.** End to end in the browser").
+- **No colon as a mid-sentence connector.** A colon before a list is fine.
 - **Terse is not an excuse to drop content.** Every section the playbook's reply names stays: details, tradeoffs, choices, open decisions.
 - **Frame impact for the consumer and the maintainer.** Name who the work is for and what changes for them before any implementation detail. Then say what the next engineer who owns this code inherits.
 - **Never fabricate a link, citation, or transcript reference.** Link only artifacts you produced or read this session.
 - **Every claim carries its evidence or its label in the same sentence.** Measured, inferred, or guess. A prediction or an unseen cause is a guess. Never hand the user a check you could run.
+
+**End every reply with a bro version.** After the normal reply, add a section headed "**Bro version.**" that says the same thing again in plain words, with no jargon, like one person talking to another, in a few short sentences. Keep every decision or question the user needs to act on. The normal reply above it stays complete; the bro version never replaces it. The user can still type `/bro` to have any reply restated.
 
 Every playbook ends with a reply written this way. Each playbook's own reply line names only the content unique to that playbook.
 
@@ -139,6 +148,9 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Design and implement a UI feature | [UI-UX](playbooks/ui-ux.md) |
 | Write or modify a skill, principle, or playbook | [Authoring a skill](playbooks/authoring-a-skill.md) |
 | Prepare and open a merge request or pull request | [Opening an MR](playbooks/opening-an-mr.md) |
+| Drive a PR or MR to merge-ready: conflicts, review threads, CI | [Babysit](playbooks/babysit.md) |
+| Diagnose a live symptom (leak, spin, hang, glitch) from instrumentation | [Runtime forensics](playbooks/runtime-forensics.md) |
+| Diagnose a captured profile, trace, spindump, or heap snapshot | [Trace forensics](playbooks/trace-forensics.md) |
 | Measure a skill or prompt change | [Eval](playbooks/eval.md) |
 | Large or ambitious work that no route above fits | [figure-it-out](../figure-it-out/SKILL.md) |
 | Sketch types and module shape before implementing | [architect](../architect/SKILL.md) |
@@ -160,6 +172,8 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Configure which model and effort each subagent role uses, or switch preset | [setup-tblock](../setup-tblock/SKILL.md) |
 | Create project verification or a control skill | [create-verification-skill](../create-verification-skill/SKILL.md) |
 | Audit or maintain an existing verification skill | [maintain-verification-skill](../maintain-verification-skill/SKILL.md) |
+| Formally verify a key property of the code, such as a race or retry invariant | [create-formal-verification-skill](../create-formal-verification-skill/SKILL.md) |
+| Bring formal verification back in line after the code changed | [maintain-formal-verification-skill](../maintain-formal-verification-skill/SKILL.md) |
 
 The user invokes [sharpen](../sharpen/SKILL.md), [in-your-own-words](../in-your-own-words/SKILL.md), and [bro](../bro/SKILL.md) by name. Don't route to them.
 

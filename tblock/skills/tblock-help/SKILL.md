@@ -54,7 +54,7 @@ The default answer is tblock-mode, which runs most of the others when its steps 
 |---|---|
 | Do any non-trivial task with rigor | [tblock-mode](../tblock-mode/SKILL.md) |
 | Check the agent understood the goal before it starts | [in-your-own-words](../in-your-own-words/SKILL.md) |
-| Aim a task higher before starting, then have it done | [sharpen](../sharpen/SKILL.md) |
+| Make a task deeper, not bigger, and get the rewritten prompt back | [sharpen](../sharpen/SKILL.md) |
 | Know how code works now, or where new code should live | [how](../how/SKILL.md) |
 | Know why code is shaped this way, or where a number came from | [why](../why/SKILL.md) |
 | Understand a change or subsystem, explained plainly | [teach](../teach/SKILL.md) |
@@ -82,6 +82,8 @@ The default answer is tblock-mode, which runs most of the others when its steps 
 | Hear the last reply again in plain words | [bro](../bro/SKILL.md) |
 | Give agents a scripted way to drive the app | [create-verification-skill](../create-verification-skill/SKILL.md) |
 | Bring a verification skill back in line with the app | [maintain-verification-skill](../maintain-verification-skill/SKILL.md) |
+| Prove a key property holds in every case, such as a race or retry invariant | [create-formal-verification-skill](../create-formal-verification-skill/SKILL.md) |
+| Bring formal verification back in line after the code changed | [maintain-formal-verification-skill](../maintain-formal-verification-skill/SKILL.md) |
 | Run a large or cross-cutting change, or one to review after stepping away | [figure-it-out](../figure-it-out/SKILL.md) |
 | Keep a decision log during a long run | [show-me-your-work](../show-me-your-work/SKILL.md) |
 | Pick models, efforts, or a preset | [setup-tblock](../setup-tblock/SKILL.md) |
@@ -97,7 +99,7 @@ Close calls:
 - how explains what the code does. why explains the reasons. teach runs one or both and explains the result plainly.
 - shootout gives every attempt the same brief and merges the best parts. swarm splits work into slices or a race and returns one report.
 - interrogate reviews the diff. blast-radius looks for breakage outside the diff and proves the one fact that makes the change safe.
-- sharpen improves its own framing and then does the task; it does not hand back a rewritten prompt. To get one, add "don't do the task, give me the rewritten prompt only".
+- sharpen names what an expert would do, then hands back a rewritten prompt and stops. Send that prompt, usually to tblock-mode, to do the work.
 - prototype builds UI variants behind a picker. The Prototype playbook settles any design or behavior question with a throwaway sketch, and uses prototype for UI.
 
 ## Playbooks and principles
@@ -107,6 +109,8 @@ Playbooks are step lists inside tblock-mode, not skills, so they have no slash c
 - "how does X work", "why is Y like this", "are we sure" run Investigation.
 - A symptom with a repro runs Bug fix. "without changing behavior" runs Refactoring. A number that's too slow runs Perf issue; "keep improving <metric>" runs Hillclimb.
 - "open an MR" or "open a PR" runs Opening an MR. It asks before pushing and before opening.
+- "babysit this", "get it green", "address the review comments", or "check on PR X" runs Babysit. It asks once before pushing fixes or replying to threads, and stops at merge-ready; merging stays yours.
+- "why is this leaking", "it spins the CPU", or "it hangs" on a running app runs Runtime forensics. A profile, trace, or heap snapshot you hand over runs Trace forensics. Both diagnose, they don't fix.
 - "prototype a few options" runs Prototype. UI work runs UI-UX.
 - "write a skill for <workflow>" runs Authoring a skill. "run the eval playbook" runs Eval.
 
