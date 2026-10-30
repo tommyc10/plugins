@@ -7,6 +7,8 @@ description: "Write the GitLab or GitHub tickets for finished work: one for the 
 
 Record finished work as tickets, written from what actually happened in the task. Skip it for a one-line fix, a question, or a task that changed nothing.
 
+Set up the project yourself, because it needs the user. When delegation is available, hand the Draft section to the **threepio** agent with this file's absolute path, the goal, the branch or diff, and the checks that ran with their results. Run Create yourself, and show the user its drafts unchanged. Pass on its remark too, if you like.
+
 ## Set up a project
 
 Look for `.tblock/tickets.json` in the project root. If it is missing, ask the user which labels their tickets need and what each weight means on their team, then write it:
