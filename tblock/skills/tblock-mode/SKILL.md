@@ -24,6 +24,7 @@ Remaining triggers:
 - UI work → the UI-UX playbook, handed to the `artist` subagent when delegation is available.
 - Any prose surface, your reply to the user included → the [unslop](../unslop/SKILL.md) skill. Write the reply per **Writing the reply** below.
 - Asked to open an MR or PR, or to push a finished change for review → the [Opening an MR](playbooks/opening-an-mr.md) playbook.
+- Finishing a task that changed code in a project with `.tblock/tickets.json` → the [ticket-up](../ticket-up/SKILL.md) skill, inside the Opening an MR playbook when one is being opened.
 - Any PR or MR status request ("babysit this", "get it green", "address the review comments", "check on X", "anything outstanding on X") → the [Babysit](playbooks/babysit.md) playbook. Never triggered by merely opening one. Declare its mode before polling.
 - A review bot commented (Copilot code review, Bugbot, CodeRabbit, GitLab Duo, a security scanner) → sceptical posture. Bots catch real bugs and also file non-issues, so judge each on its merits and dismiss noise with a concrete reason instead of churning code, per [review-bot triage](references/review-bot-triage.md).
 - Docs, RFCs, READMEs, PR or MR descriptions, and commit messages → the [technical-writing](../technical-writing/SKILL.md) skill.

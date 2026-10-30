@@ -15,8 +15,8 @@
    - `## Verification`: 1 to 3 bullets, each a real check you ran and its outcome. For a speedup, one number with its unit, before and after.
 
    Attach screenshots or a recording when they prove a claim. Full SHAs, run logs, and file-by-file checklists go in a linked artifact, not the description.
-6. Ask before it leaves the machine. Show the user the branch, the commits, the title, and the description, and name both actions, pushing the branch and opening the MR, in one question, per tblock-mode's **Always pause**. Wait for a clear yes. A yes covers what it names, nothing more.
-7. Push and open it with the resolved forge, ready for review unless the project or the user wants a draft:
+6. Ask before it leaves the machine. Show the user the branch, the commits, the title, and the description, and name both actions, pushing the branch and opening the MR, in one question, per tblock-mode's **Always pause**. In a project with `.tblock/tickets.json`, draft the tickets with [ticket-up](../../ticket-up/SKILL.md) first and name them in the same question. Wait for a clear yes. A yes covers what it names, nothing more.
+7. Create any approved tickets first and end the description with `Closes #<task ticket>`. Then push and open the MR with the resolved forge, ready for review unless the project or the user wants a draft:
 
    ```
    git push -u origin <branch>

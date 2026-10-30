@@ -60,6 +60,7 @@ The default answer is tblock-mode, which runs most of the others when its steps 
 | Understand a change or subsystem, explained plainly | [teach](../teach/SKILL.md) |
 | Read the app's logs, or set up log reading for a project | [probe](../probe/SKILL.md) |
 | Build a Grafana dashboard from the metrics a project's code emits | [grafana-dashboard](../grafana-dashboard/SKILL.md) |
+| Create GitLab or GitHub tickets for finished work and its follow-ups | [ticket-up](../ticket-up/SKILL.md) |
 | Know what a change could break outside its diff | [blast-radius](../blast-radius/SKILL.md) |
 | Settle types and module shape before code that crosses a function boundary | [architect](../architect/SKILL.md) |
 | Get several attempts at one brief, merged into the best | [shootout](../shootout/SKILL.md) |
