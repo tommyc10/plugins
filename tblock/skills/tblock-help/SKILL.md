@@ -36,9 +36,9 @@ Check the state that changes the answer, and mention it only when it does. Run `
 3. Run [setup-tblock](../setup-tblock/SKILL.md). It asks for a preset (extreme, high, or efficient), applies it, shows the roles, lets the user change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one agent per role and each agent's effort level.
 4. Run `tblock doctor`, then start a real task with tblock-mode, a goal, and a check that can pass or fail.
 
-Presets set every role's model and effort at once: `extreme` for hard or risky changes, `high` for features and reviews, `efficient` for everyday bugs. `tblock preset <name>` switches, and new sessions pick it up. `tblock roles set "artist=opus @ high"` changes one role.
+Presets set every role's model and effort at once: `extreme` for hard or risky changes, `high` for features and reviews, `efficient` for everyday bugs. `tblock preset <name>` switches, and new sessions pick it up. `tblock roles set "code=sonnet @ high"` changes one role.
 
-If cost is the worry, say where the credits go: subagents and review panels. Switch to `tblock preset efficient`, put `code` and `artist` on `session`, or save tblock-mode for work that needs rigor. In Claude Code, only Claude models run, so panels hold one family; two different Claude models still give two opinions.
+If cost is the worry, say where the credits go: subagents and review panels. Switch to `tblock preset efficient`, put `code` on `session`, or save tblock-mode for work that needs rigor. In Claude Code, only Claude models run, so panels hold one family; two different Claude models still give two opinions.
 
 ## Start a task with tblock-mode
 
@@ -70,7 +70,7 @@ The default answer is tblock-mode, which runs most of the others when its steps 
 | Vet a performance number before reporting it | [benchmark-checklist](../benchmark-checklist/SKILL.md) |
 | Apply TypeScript rules to `.ts` or `.tsx` work | [typescript-best-practices](../typescript-best-practices/SKILL.md) |
 | Speed up React components, hooks, or data fetching | [vercel-react-best-practices](../vercel-react-best-practices/SKILL.md) |
-| Do UI work in its own context with the UI skills | the artist agent, through the [UI-UX](../tblock-mode/playbooks/ui-ux.md) playbook |
+| Build or change UI, proving every state in the browser | the [UI-UX](../tblock-mode/playbooks/ui-ux.md) playbook |
 | Polish how a component looks | [emil-design-eng](../emil-design-eng/SKILL.md) |
 | Build an animation | [animate](../animate/SKILL.md) |
 | Review motion code | [review-animations](../review-animations/SKILL.md) |
@@ -124,11 +124,11 @@ Principles are one-rule skills that tblock-mode reads and cites in its replies. 
 | Symptom | Fix |
 |---|---|
 | It wrote its own plan instead of the playbook's steps | Say "follow the playbook steps". |
-| It didn't use the artist or other subagents | Some harnesses only spawn subagents the user asks for. Add "use the artist" or name the skill. |
+| It didn't use subagents | Some harnesses only spawn subagents the user asks for. Say "use the tblock delegate" or name the skill. |
 | A subagent changed files outside its job, pushed, or came back with only "done" | It ran as a generic agent instead of the tblock delegate. In Copilot, run `tblock roles sync` so each role agent carries the delegate instructions; in Claude Code, say "use the tblock delegate". |
 | A new role, preset, or effort had no effect | Start a new session. In Copilot, exit and restart so it reloads the agents, and check `tblock doctor`. |
 | `tblock doctor` shows FAIL on Copilot agents or efforts | Run `tblock roles sync`. |
-| Runs cost more than expected | `tblock preset efficient`, or `session` for `code` and `artist`. See Get set up. |
+| Runs cost more than expected | `tblock preset efficient`, or `session` for `code`. See Get set up. |
 | A fix took two or more rounds of corrections | Run `/reflect` in that session, and `/correct` if it was a repo convention it missed. |
 | A question got treated as the next step of the last task | Say "new task". |
 | The reply claims success from a green build | Ask for the real command, flow, stored value, or screenshot. That's Prove It Works. |

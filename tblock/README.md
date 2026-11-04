@@ -30,7 +30,6 @@ Run `/setup-tblock`. It asks for a preset, maps your models to tiers, shows the 
 | `code` | Delegated changes in Feature, Bug fix, Perf issue, and Hillclimb |
 | `hardest` | Cross-cutting design, concurrency, and subtle algorithms |
 | `judgment` | Explanations and judging other agents' work |
-| `artist` | UI work, through the artist agent |
 | `reviewers` | The `interrogate` panel, one reviewer per model |
 | `swarm workers` | `swarm` workers and `how` explorers |
 | `shootout runners` and `shootout judges` | `shootout` attempts and their judges |
@@ -43,7 +42,7 @@ A preset sets every role's model and reasoning effort at once. Switch any time w
 | --- | --- | --- |
 | `extreme` | Hard design, risky changes | Top models at high to max effort, three-family panels |
 | `high` | Features and reviews (the default) | Top models on `hardest` and `judgment`, strong models elsewhere, two-family panels |
-| `efficient` | Everyday bugs and small changes | Strong models on the thinking roles, the session model for `code` and `artist`, medium effort |
+| `efficient` | Everyday bugs and small changes | Strong models on the thinking roles, the session model for `code`, medium effort |
 
 The presets are data in [presets.json](presets.json). After a preset, change any single role with `tblock roles set "hardest=<model> @ max"`.
 
@@ -56,7 +55,7 @@ The presets are data in [presets.json](presets.json). After a preset, change any
 
 Without a roles file, every subagent runs on the session model.
 
-Subagents that do one job inside a playbook, such as a code change or a fix, are delegates. They read a short [delegate brief](skills/tblock-mode/delegate.md) instead of the whole of tblock-mode, stay inside the files they're given, never push or post, and end with a fixed report of what they changed, checked, and left unchecked, which the main agent carries into its reply. UI work goes to the artist agent instead, and ticket drafts to the threepio agent, a grumbling protocol droid that drafts with [ticket-up](skills/ticket-up/SKILL.md) and never posts.
+Subagents that do one job inside a playbook, such as a code change or a fix, are delegates. They read a short [delegate brief](skills/tblock-mode/delegate.md) instead of the whole of tblock-mode, stay inside the files they're given, never push or post, and end with a fixed report of what they changed, checked, and left unchecked, which the main agent carries into its reply. Ticket drafts go to the threepio agent instead, a grumbling protocol droid that drafts with [ticket-up](skills/ticket-up/SKILL.md) and never posts.
 
 ## CLI
 
@@ -111,7 +110,7 @@ tblock works without asking on reversible, local work: reading, editing, builds,
 - **Observe:** [probe](skills/probe/SKILL.md), [grafana-dashboard](skills/grafana-dashboard/SKILL.md)
 - **Design and build:** [architect](skills/architect/SKILL.md), [shootout](skills/shootout/SKILL.md), [swarm](skills/swarm/SKILL.md), [figure-it-out](skills/figure-it-out/SKILL.md), [tdd](skills/tdd/SKILL.md)
 - **Review and measure:** [interrogate](skills/interrogate/SKILL.md), [benchmark-checklist](skills/benchmark-checklist/SKILL.md)
-- **UI:** the artist agent, [emil-design-eng](skills/emil-design-eng/SKILL.md), [prototype](skills/prototype/SKILL.md), [break-ui](skills/break-ui/SKILL.md)
+- **UI:** [emil-design-eng](skills/emil-design-eng/SKILL.md), [prototype](skills/prototype/SKILL.md), [break-ui](skills/break-ui/SKILL.md)
 - **Motion:** [animate](skills/animate/SKILL.md), [review-animations](skills/review-animations/SKILL.md), [animation-performance](skills/animation-performance/SKILL.md), [find-animation-opportunities](skills/find-animation-opportunities/SKILL.md), [improve-animations](skills/improve-animations/SKILL.md)
 - **TypeScript and React:** [typescript-best-practices](skills/typescript-best-practices/SKILL.md), [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)
 - **Write:** [technical-writing](skills/technical-writing/SKILL.md), [unslop](skills/unslop/SKILL.md), [ticket-up](skills/ticket-up/SKILL.md), the threepio agent

@@ -116,11 +116,9 @@ const family = (model) =>
 
 const agentName = (role, index, panel) => `tblock-${role.replace(/ /g, '-')}${panel ? `-${index + 1}` : ''}`;
 
-// Each role agent carries the instructions of the agent tblock ships for it; roles without their own get the delegate's.
-const SHIPPED_AGENTS = { artist: 'artist' };
-
-function agentBody(role) {
-  const shipped = readFileSync(join(PLUGIN, 'com.github.copilot', 'agents', `${SHIPPED_AGENTS[role] ?? 'delegate'}.agent.md`), 'utf8');
+// Every role agent carries the delegate's instructions.
+function agentBody() {
+  const shipped = readFileSync(join(PLUGIN, 'com.github.copilot', 'agents', 'delegate.agent.md'), 'utf8');
   return shipped.replace(/^---\n[\s\S]*?\n---\n/, '');
 }
 
@@ -132,7 +130,7 @@ function expectedAgents(roles, specs) {
       const front = ['---', `name: ${id}`, `description: tblock ${name} subagent. Spawned by tblock skills, not chosen by hand.`];
       if (model !== 'session') front.push(`model: ${model}`);
       front.push('user-invocable: false', '---');
-      files[`${id}.agent.md`] = `${front.join('\n')}\n${agentBody(name)}`;
+      files[`${id}.agent.md`] = `${front.join('\n')}\n${agentBody()}`;
     });
   }
   return files;

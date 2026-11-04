@@ -14,7 +14,6 @@ Write `~/.tblock/roles.md`, the file every tblock skill that spawns a subagent r
 | `code` | Delegated changes in Feature, Bug fix, Perf issue, and Hillclimb | session model |
 | `hardest` | Feature and Bug fix work in cross-cutting design, concurrency, or subtle algorithms | strongest model available |
 | `judgment` | The `how` explainer, and judging delegated work in figure-it-out | strongest model available |
-| `artist` | The artist agent, for UI-UX work | session model |
 | `reviewers` | A panel for `interrogate`: one adversary per entry, from different model families | one Anthropic and one OpenAI model |
 | `swarm workers` | `swarm` workers and `how` explorers | fastest capable model |
 | `shootout runners` | A panel for `shootout`, and for `swarm` model races: one attempt per entry | one Anthropic and one OpenAI model |
@@ -30,7 +29,7 @@ A preset sets every role's model and effort at once, from tiers (top, strong, fa
 | --- | --- | --- |
 | `extreme` | Hard design, risky changes | Top models, high to max effort, three-family panels |
 | `high` | Features and reviews (the default) | Top models on `hardest` and `judgment`, strong elsewhere, two-family panels |
-| `efficient` | Everyday bugs and small changes | Strong models on thinking roles, the session model for `code` and `artist`, medium effort |
+| `efficient` | Everyday bugs and small changes | Strong models on thinking roles, the session model for `code`, medium effort |
 
 ## Steps
 
@@ -100,7 +99,6 @@ The CLI writes `~/.tblock/roles.md` on every `preset` and `roles set` call, over
 code: sonnet @ medium
 hardest: opus @ high
 judgment: opus @ high
-artist: sonnet @ medium
 reviewers: opus @ high, sonnet @ high
 swarm workers: haiku @ low
 shootout runners: opus @ high, sonnet @ high

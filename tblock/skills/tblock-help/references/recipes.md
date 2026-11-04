@@ -16,7 +16,7 @@ Swap in the real names and done checks. In Claude Code, write `/tblock:tblock-mo
 - Bug with a cheap test: `/tblock-mode repro <bug> first. if there's a cheap test path, tdd it. then fix and rerun.`
 - Bug only seen in prod: `/tblock-mode bug: in prod, <symptom>. find why, using mock data shaped like the prod response, not prod itself.`
 - Feature: `/tblock-mode add <behavior>. <current output> stays the same. verify both.`
-- UI: `/tblock-mode <UI change>. use the artist.`
+- UI: `/tblock-mode <UI change>. prove every state in the browser.`
 - Refactor: `/tblock-mode move <code> into one module, zero behavior change. record the current output first and prove it's unchanged after.`
 - Perf: `/tblock-mode <operation> takes <time> on <data>. trace it, fix the measured cause, show me before and after.`
 
@@ -38,7 +38,7 @@ Swap in the real names and done checks. In Claude Code, write `/tblock:tblock-mo
 
 - `/setup-tblock` applies a preset, then lets you change any role's model and effort.
 - `tblock preset efficient` before everyday bugs. `tblock preset extreme` before a hard or risky change.
-- `tblock roles set "artist=opus @ high"` changes one role.
+- `tblock roles set "code=sonnet @ high"` changes one role.
 - `tblock doctor` checks it all.
 
 ## After a session
