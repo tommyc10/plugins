@@ -46,6 +46,8 @@ Move any Accepted item that a lint rule, script, metadata flag, or runtime check
 
 Present the synthesizer's full Accepted / Rejected / Backlog output and wait for explicit approval before applying any Accepted edit. The user picks the subset and may redirect routings. Skill changes affect every future agent in the org. Do not auto-apply.
 
+Never edit a skill inside an installed plugin copy, such as `~/.claude/plugins/cache/` or `~/.copilot/installed-plugins/`, because the next plugin update replaces it and drops the edit. Before approval, show each edit's destination. When the plugin's source repo is checked out in this workspace, edit the skill there. Otherwise copy the skill folder into the project's or user's own skills folder, such as `.claude/skills/<skill>/` or `~/.claude/skills/<skill>/`, and edit the copy. Never open a PR or push.
+
 File each Backlog item to your team's devex or backlog tracker without waiting. Only the Accepted list waits for approval.
 
 Follow each approved row's Routing exactly:
