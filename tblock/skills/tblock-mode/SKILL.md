@@ -21,7 +21,7 @@ Remaining triggers:
 - Parallel fan-out → the [swarm](../swarm/SKILL.md) skill for coverage, races, and exploration. Use [shootout](../shootout/SKILL.md) for design or code bakeoffs with a picked base and grafts.
 - Contested design, or a fix you don't fully trust → the [interrogate](../interrogate/SKILL.md) skill before shipping. A change whose effects reach past its diff → [blast-radius](../blast-radius/SKILL.md).
 - Nontrivial multi-step work → write the throughput checkpoint ([Feature](playbooks/feature.md) step 3).
-- UI work → the UI-UX playbook. Do it yourself in the main session, not in a subagent, so you can show the user each state and adjust.
+- UI work → the UI-UX playbook. Do it yourself in the main session, not in a subagent, so you can show the user each state and adjust. A change a user will notice gets the [ui-council](../ui-council/SKILL.md) skill after your own proof. A restyle or migration that must look the same → the [Visual parity](playbooks/visual-parity.md) playbook.
 - Any prose surface, your reply to the user included → the [unslop](../unslop/SKILL.md) skill. Write the reply per **Writing the reply** below.
 - Asked to open an MR or PR, or to push a finished change for review → the [Opening an MR](playbooks/opening-an-mr.md) playbook.
 - Finishing a task that changed code in a project with `.tblock/tickets.json` → the [ticket-up](../ticket-up/SKILL.md) skill, inside the Opening an MR playbook when one is being opened.
@@ -70,7 +70,7 @@ Read the linked leaf skill in full for any principle you apply. Each entry names
 - **[Fix Root Causes](../principle-fix-root-causes/SKILL.md).** Debugging. Trace each symptom back to the first place the system went wrong and fix it there. A guard is a fix only when the state it handles is legitimate.
 - **[Sequence Verifiable Units](../principle-sequence-verifiable-units/SKILL.md).** Multi-step work and how you stack commits and PRs. Break work into small units that each end in a check, verify each before the next, and order delivery so the sequence proves itself.
 - **[Test Behavior, Not Implementation](../principle-test-behavior-not-implementation/SKILL.md).** Writing, changing, or keeping a test. Assert what the code's users can observe, so the test fails when that behavior breaks and keeps passing when only the internals change.
-- **[Explain the Number](../principle-explain-the-number/SKILL.md).** Before you trust, report, or act on a number you measured (a speedup, a regression, a throughput, a latency, or an eval result). Find what limits it, and rule out that it measured something other than the work you think.
+- **[Explain the Number](../principle-explain-the-number/SKILL.md).** Before you measure, and before you trust, report, or act on a number you measured (a speedup, a regression, a throughput, a latency, or an eval result). Find what limits it, and rule out that it measured something other than the work you think.
 
 **UI**
 
@@ -147,6 +147,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Improve one metric over many keep-or-revert iterations | [Hillclimb](playbooks/hillclimb.md) |
 | Explore alternatives or settle an uncertain design | [Prototype](playbooks/prototype.md) |
 | Design and implement a UI feature | [UI-UX](playbooks/ui-ux.md) |
+| Prove a restyle, migration, or refactor of UI looks exactly the same | [Visual parity](playbooks/visual-parity.md) |
 | Write or modify a skill, principle, or playbook | [Authoring a skill](playbooks/authoring-a-skill.md) |
 | Prepare and open a merge request or pull request | [Opening an MR](playbooks/opening-an-mr.md) |
 | Drive a PR or MR to merge-ready: conflicts, review threads, CI | [Babysit](playbooks/babysit.md) |
@@ -164,6 +165,8 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Compare several attempts at one artifact and merge the best | [shootout](../shootout/SKILL.md) |
 | Fan out parallel workers for coverage, a race, or exploration | [swarm](../swarm/SKILL.md) |
 | Get an adversarial multi-model review of a change | [interrogate](../interrogate/SKILL.md) |
+| Have reviewers on different models judge the running UI | [ui-council](../ui-council/SKILL.md) |
+| Review a change for the interface problems it introduced | [interface-review](../interface-review/SKILL.md) |
 | Docs, READMEs, RFCs, PR or MR text, commit messages | [technical-writing](../technical-writing/SKILL.md) |
 | Keep a decision trail for long or unattended work | [show-me-your-work](../show-me-your-work/SKILL.md) |
 | Turn this session's lessons into skill edits | [reflect](../reflect/SKILL.md) |

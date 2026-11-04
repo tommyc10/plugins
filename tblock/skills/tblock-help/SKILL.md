@@ -71,7 +71,16 @@ The default answer is tblock-mode, which runs most of the others when its steps 
 | Apply TypeScript rules to `.ts` or `.tsx` work | [typescript-best-practices](../typescript-best-practices/SKILL.md) |
 | Speed up React components, hooks, or data fetching | [vercel-react-best-practices](../vercel-react-best-practices/SKILL.md) |
 | Build or change UI, proving every state in the browser | the [UI-UX](../tblock-mode/playbooks/ui-ux.md) playbook |
-| Polish how a component looks | [emil-design-eng](../emil-design-eng/SKILL.md) |
+| Restructure a page: grouping, alignment, reading order, responsive layout | [better-layout](../better-layout/SKILL.md) |
+| Polish how a component looks and feels | [emil-design-eng](../emil-design-eng/SKILL.md), [better-ui](../better-ui/SKILL.md) |
+| Write or review interface copy | [better-writing](../better-writing/SKILL.md) |
+| Set or review type, or build and check colours | [better-typography](../better-typography/SKILL.md), [better-colors](../better-colors/SKILL.md) |
+| Check keyboard, focus, ARIA, and screen readers against WCAG 2.2 | [better-accessibility](../better-accessibility/SKILL.md) |
+| Review a whole screen or flow across all of those at once | [better-interface](../better-interface/SKILL.md) |
+| Review a branch or diff for the UI problems it introduced | [interface-review](../interface-review/SKILL.md) |
+| Have reviewers on different models judge the running UI | [ui-council](../ui-council/SKILL.md) |
+| Work on every state of one component, on a throwaway page | [state-machine](../state-machine/SKILL.md) |
+| Prove a restyle or migration looks exactly the same | the [Visual parity](../tblock-mode/playbooks/visual-parity.md) playbook |
 | Build an animation | [animate](../animate/SKILL.md) |
 | Review motion code | [review-animations](../review-animations/SKILL.md) |
 | Fix motion that drops frames | [animation-performance](../animation-performance/SKILL.md) |
@@ -101,6 +110,9 @@ Close calls:
 - shootout gives every attempt the same brief and merges the best parts. swarm splits work into slices or a race and returns one report.
 - interrogate reviews the diff. blast-radius looks for breakage outside the diff and proves the one fact that makes the change safe.
 - sharpen names what an expert would do, then hands back a rewritten prompt and stops. Send that prompt, usually to tblock-mode, to do the work.
+- interface-review is one agent reviewing the diff against the `better-*` rules. ui-council is several models each opening the running UI through one lens, and it runs interface-review as part of its design system lens.
+- better-layout is for structure: grouping, order, responsive. emil-design-eng and better-ui are for polish: how a component looks, feels, and moves.
+- state-machine is a workbench for every state of one component. break-ui stacks worst-case data to find what breaks.
 - prototype builds UI variants behind a picker. The Prototype playbook settles any design or behavior question with a throwaway sketch, and uses prototype for UI.
 
 ## Playbooks and principles
@@ -112,7 +124,7 @@ Playbooks are step lists inside tblock-mode, not skills, so they have no slash c
 - "open an MR" or "open a PR" runs Opening an MR. It asks before pushing and before opening.
 - "babysit this", "get it green", "address the review comments", or "check on PR X" runs Babysit. It asks once before pushing fixes or replying to threads, and stops at merge-ready; merging stays yours.
 - "why is this leaking", "it spins the CPU", or "it hangs" on a running app runs Runtime forensics. A profile, trace, or heap snapshot you hand over runs Trace forensics. Both diagnose, they don't fix.
-- "prototype a few options" runs Prototype. UI work runs UI-UX.
+- "prototype a few options" runs Prototype. UI work runs UI-UX. "restyle it, it must look the same" or "migrate the styling" runs Visual parity.
 - "write a skill for <workflow>" runs Authoring a skill. "run the eval playbook" runs Eval.
 
 The Playbooks section of [tblock-mode](../tblock-mode/SKILL.md) lists every playbook and when it applies.

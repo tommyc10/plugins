@@ -30,7 +30,7 @@ Run `/setup-tblock`. It asks for a preset, maps your models to tiers, shows the 
 | `code` | Delegated changes in Feature, Bug fix, Perf issue, and Hillclimb |
 | `hardest` | Cross-cutting design, concurrency, and subtle algorithms |
 | `judgment` | Explanations and judging other agents' work |
-| `reviewers` | The `interrogate` panel, one reviewer per model |
+| `reviewers` | The `interrogate` and `ui-council` panels, one reviewer per model |
 | `swarm workers` | `swarm` workers and `how` explorers |
 | `shootout runners` and `shootout judges` | `shootout` attempts and their judges |
 
@@ -98,7 +98,8 @@ tblock works without asking on reversible, local work: reading, editing, builds,
 | [Bug fix](skills/tblock-mode/playbooks/bug-fix.md) | Reproduce, find the root cause, fix, prove |
 | [Refactoring](skills/tblock-mode/playbooks/refactoring.md) | Structure changes, behavior doesn't |
 | [Perf issue](skills/tblock-mode/playbooks/perf-issue.md) and [Hillclimb](skills/tblock-mode/playbooks/hillclimb.md) | Measured speedups, one-off or iterative |
-| [UI-UX](skills/tblock-mode/playbooks/ui-ux.md) | UI work, every state proved in the browser |
+| [UI-UX](skills/tblock-mode/playbooks/ui-ux.md) | UI work, every state proved in the browser, then a UI council review |
+| [Visual parity](skills/tblock-mode/playbooks/visual-parity.md) | A restyle or migration proved pixel-identical by image diff |
 | [Prototype](skills/tblock-mode/playbooks/prototype.md) | Settle a design question with a throwaway sketch |
 | [Babysit](skills/tblock-mode/playbooks/babysit.md) | Drive a PR or MR to merge-ready: conflicts, review threads, CI |
 | [Runtime forensics](skills/tblock-mode/playbooks/runtime-forensics.md) and [Trace forensics](skills/tblock-mode/playbooks/trace-forensics.md) | Diagnose a live symptom, or a captured profile or trace |
@@ -109,8 +110,8 @@ tblock works without asking on reversible, local work: reading, editing, builds,
 - **Understand:** [how](skills/how/SKILL.md), [why](skills/why/SKILL.md), [teach](skills/teach/SKILL.md), [blast-radius](skills/blast-radius/SKILL.md)
 - **Observe:** [probe](skills/probe/SKILL.md), [grafana-dashboard](skills/grafana-dashboard/SKILL.md)
 - **Design and build:** [architect](skills/architect/SKILL.md), [shootout](skills/shootout/SKILL.md), [swarm](skills/swarm/SKILL.md), [figure-it-out](skills/figure-it-out/SKILL.md), [tdd](skills/tdd/SKILL.md)
-- **Review and measure:** [interrogate](skills/interrogate/SKILL.md), [benchmark-checklist](skills/benchmark-checklist/SKILL.md)
-- **UI:** [emil-design-eng](skills/emil-design-eng/SKILL.md), [prototype](skills/prototype/SKILL.md), [break-ui](skills/break-ui/SKILL.md)
+- **Review and measure:** [interrogate](skills/interrogate/SKILL.md), [ui-council](skills/ui-council/SKILL.md), [interface-review](skills/interface-review/SKILL.md), [benchmark-checklist](skills/benchmark-checklist/SKILL.md)
+- **UI:** [better-layout](skills/better-layout/SKILL.md), [better-ui](skills/better-ui/SKILL.md), [better-writing](skills/better-writing/SKILL.md), [better-typography](skills/better-typography/SKILL.md), [better-colors](skills/better-colors/SKILL.md), [better-accessibility](skills/better-accessibility/SKILL.md), [better-interface](skills/better-interface/SKILL.md), [emil-design-eng](skills/emil-design-eng/SKILL.md), [state-machine](skills/state-machine/SKILL.md), [prototype](skills/prototype/SKILL.md), [break-ui](skills/break-ui/SKILL.md)
 - **Motion:** [animate](skills/animate/SKILL.md), [review-animations](skills/review-animations/SKILL.md), [animation-performance](skills/animation-performance/SKILL.md), [find-animation-opportunities](skills/find-animation-opportunities/SKILL.md), [improve-animations](skills/improve-animations/SKILL.md)
 - **TypeScript and React:** [typescript-best-practices](skills/typescript-best-practices/SKILL.md), [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)
 - **Write:** [technical-writing](skills/technical-writing/SKILL.md), [unslop](skills/unslop/SKILL.md), [ticket-up](skills/ticket-up/SKILL.md), the threepio agent
@@ -137,4 +138,4 @@ To test whether a change makes agents do better work, the [Imperial Ops eval kit
 
 ## Credits
 
-Much of tblock is adapted from [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan, under the MIT license. See [LICENSE](LICENSE).
+Much of tblock is adapted from [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan. The animation and polish skills are [Emil Kowalski's](https://github.com/emilkowalski/skills), and the `better-*`, `interface-review`, and `state-machine` skills are [Jakub Krehel's](https://github.com/jakubkrehel/skills). All are used under the MIT license. See [LICENSE](LICENSE).

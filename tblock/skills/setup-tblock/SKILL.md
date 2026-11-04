@@ -14,7 +14,7 @@ Write `~/.tblock/roles.md`, the file every tblock skill that spawns a subagent r
 | `code` | Delegated changes in Feature, Bug fix, Perf issue, and Hillclimb | session model |
 | `hardest` | Feature and Bug fix work in cross-cutting design, concurrency, or subtle algorithms | strongest model available |
 | `judgment` | The `how` explainer, and judging delegated work in figure-it-out | strongest model available |
-| `reviewers` | A panel for `interrogate`: one adversary per entry, from different model families | one Anthropic and one OpenAI model |
+| `reviewers` | A panel for `interrogate` and `ui-council`: one adversary or reviewer per entry, from different model families | one Anthropic and one OpenAI model |
 | `swarm workers` | `swarm` workers and `how` explorers | fastest capable model |
 | `shootout runners` | A panel for `shootout`, and for `swarm` model races: one attempt per entry | one Anthropic and one OpenAI model |
 | `shootout judges` | A panel for `shootout`: judges whose family differs from the runner they judge, where possible | one Anthropic and one OpenAI model |
