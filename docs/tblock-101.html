@@ -1,0 +1,954 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>tblock 101</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the Imperial Ops shell. A heavy sidebar (l0) beside one reading pane (l2), list and detail inside it.
+   Midnight is the home theme; light swaps the values, never the components. */
+:root {
+  --l0:#050505; --l1:#0b0b0b; --l2:#101010; --l3:#161616; --l4:#1c1c1c; --l5:#242424;
+  --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.11); --line-3:rgba(255,255,255,.18);
+  --fg:#ededed; --fg-2:#a3a3a3; --fg-3:#737373; --row-name:#d6d6d6;
+  --green:#45c47a; --amber:#e0a93e; --orange:#f08a4b; --red:#f0565c;
+  --red-wash:rgba(240,86,92,.08); --danger-fg:#f68a8e;
+  --primary:#fafafa; --primary-fg:#0a0a0a; --primary-hover:#e2e2e2;
+  --glass-menu:rgba(28,28,28,.86); --glass-palette:rgba(22,22,22,.72); --glass-toast:rgba(28,28,28,.9);
+  --glass-edge:rgba(255,255,255,.07); --card-edge:rgba(255,255,255,.03);
+  --tint:rgba(255,255,255,.06); --tint-2:rgba(255,255,255,.07);
+  --well:rgba(0,0,0,.35); --well-2:rgba(0,0,0,.3); --scrim:rgba(0,0,0,.45);
+  --focus-ring:rgba(255,255,255,.45); --focus-glow:rgba(255,255,255,.05); --selection:rgba(255,255,255,.22);
+  --shadow-pop:0 16px 40px rgba(0,0,0,.5); --shadow-palette:0 24px 64px rgba(0,0,0,.6);
+  --sans:'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono:'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --ease-out:cubic-bezier(.23,1,.32,1); --ease-in-out:cubic-bezier(.77,0,.175,1);
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --l0:#efefef; --l1:#f7f7f7; --l2:#ffffff; --l3:#fafafa; --l4:#ececec; --l5:#e2e2e2;
+    --line:rgba(0,0,0,.07); --line-2:rgba(0,0,0,.1); --line-3:rgba(0,0,0,.2);
+    --fg:#171717; --fg-2:#525252; --fg-3:#737373; --row-name:#262626;
+    --green:#1f9d55; --amber:#d4940f; --orange:#c2570c; --red:#d42a31;
+    --red-wash:rgba(212,42,49,.06); --danger-fg:#c8232a;
+    --primary:#171717; --primary-fg:#ffffff; --primary-hover:#333333;
+    --glass-menu:rgba(255,255,255,.88); --glass-palette:rgba(255,255,255,.8); --glass-toast:rgba(255,255,255,.92);
+    --glass-edge:rgba(255,255,255,.9); --card-edge:rgba(255,255,255,.8);
+    --tint:rgba(0,0,0,.04); --tint-2:rgba(0,0,0,.05);
+    --well:rgba(255,255,255,.9); --well-2:rgba(0,0,0,.025); --scrim:rgba(0,0,0,.12);
+    --focus-ring:rgba(0,0,0,.4); --focus-glow:rgba(0,0,0,.05); --selection:rgba(0,0,0,.12);
+    --shadow-pop:0 12px 32px rgba(0,0,0,.12); --shadow-palette:0 24px 64px rgba(0,0,0,.18);
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"] {
+  --l0:#efefef; --l1:#f7f7f7; --l2:#ffffff; --l3:#fafafa; --l4:#ececec; --l5:#e2e2e2;
+  --line:rgba(0,0,0,.07); --line-2:rgba(0,0,0,.1); --line-3:rgba(0,0,0,.2);
+  --fg:#171717; --fg-2:#525252; --fg-3:#737373; --row-name:#262626;
+  --green:#1f9d55; --amber:#d4940f; --orange:#c2570c; --red:#d42a31;
+  --red-wash:rgba(212,42,49,.06); --danger-fg:#c8232a;
+  --primary:#171717; --primary-fg:#ffffff; --primary-hover:#333333;
+  --glass-menu:rgba(255,255,255,.88); --glass-palette:rgba(255,255,255,.8); --glass-toast:rgba(255,255,255,.92);
+  --glass-edge:rgba(255,255,255,.9); --card-edge:rgba(255,255,255,.8);
+  --tint:rgba(0,0,0,.04); --tint-2:rgba(0,0,0,.05);
+  --well:rgba(255,255,255,.9); --well-2:rgba(0,0,0,.025); --scrim:rgba(0,0,0,.12);
+  --focus-ring:rgba(0,0,0,.4); --focus-glow:rgba(0,0,0,.05); --selection:rgba(0,0,0,.12);
+  --shadow-pop:0 12px 32px rgba(0,0,0,.12); --shadow-palette:0 24px 64px rgba(0,0,0,.18);
+  color-scheme:light;
+}
+:root[data-theme="dark"] { color-scheme:dark; }
+
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+html, body { height:100%; }
+body { margin:0; background:var(--l2); color:var(--fg); font:400 14px/1.5 var(--sans); -webkit-font-smoothing:antialiased; }
+::selection { background:var(--selection); }
+button, input, select { font:inherit; color:inherit; }
+:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
+a { color:var(--fg); text-decoration-color:var(--line-3); text-underline-offset:3px; }
+a:hover { text-decoration-color:var(--fg-2); }
+code, .mono { font-family:var(--mono); }
+
+/* ---------- shell ---------- */
+.shell { display:grid; grid-template-columns:240px minmax(0,1fr); min-height:100%; }
+.side { background:var(--l0); border-right:1px solid var(--line); position:sticky; top:0; height:100vh; display:flex; flex-direction:column; gap:16px; padding:18px 12px 14px; }
+.brand { display:flex; align-items:center; gap:10px; padding:2px 8px 6px; }
+.brand-mark { width:26px; height:26px; border-radius:6px; background:var(--primary); color:var(--primary-fg); display:grid; place-items:center; font:600 13px/1 var(--mono); letter-spacing:-.04em; }
+.brand-name { font-weight:600; letter-spacing:-.01em; }
+.brand-ver { margin-left:auto; font:400 11px var(--mono); color:var(--fg-3); }
+.nav-label { font-size:12px; color:var(--fg-3); padding:0 10px; margin-bottom:-8px; }
+.nav { display:flex; flex-direction:column; gap:2px; }
+.nav a { height:32px; display:flex; align-items:center; gap:10px; padding:0 8px 0 10px; border-radius:7px; color:var(--fg-2); text-decoration:none; font-size:13px; font-weight:500; transition:background-color 120ms var(--ease-out), color 120ms var(--ease-out); }
+.nav a svg { width:16px; height:16px; flex:none; opacity:.8; }
+.nav a .kbd { margin-left:auto; }
+.nav a[aria-current="page"] { background:var(--l4); color:var(--fg); box-shadow:inset 0 0 0 1px var(--line); }
+@media (hover:hover) and (pointer:fine) { .nav a:hover { background:var(--l3); color:var(--fg); } }
+.side-foot { margin-top:auto; display:flex; flex-direction:column; gap:6px; }
+
+.kbd { display:inline-grid; place-items:center; min-width:18px; height:18px; padding:0 5px; border-radius:4px; background:var(--tint); box-shadow:inset 0 0 0 1px var(--line); font:500 11px/1 var(--sans); color:var(--fg-2); }
+
+.btn { height:34px; display:inline-flex; align-items:center; gap:8px; padding:0 14px; border-radius:9px; border:0; font-size:13px; font-weight:500; cursor:pointer; transition:background-color 150ms var(--ease-out), transform 160ms var(--ease-out); white-space:nowrap; }
+.btn:active { transform:scale(.97); }
+.btn-primary { background:var(--primary); color:var(--primary-fg); }
+.btn-secondary { background:var(--l4); color:var(--fg); box-shadow:inset 0 0 0 1px var(--line-2); }
+.btn-ghost { background:transparent; color:var(--fg-2); }
+@media (hover:hover) and (pointer:fine) {
+  .btn-primary:hover { background:var(--primary-hover); }
+  .btn-secondary:hover { background:var(--l5); }
+  .btn-ghost:hover { background:var(--l3); color:var(--fg); }
+}
+.btn svg { width:15px; height:15px; }
+.btn .kbd { margin-left:2px; }
+.side-btn { width:100%; justify-content:flex-start; height:32px; padding:0 10px; }
+.side-btn .kbd { margin-left:auto; }
+
+.main { min-width:0; }
+.pane { max-width:960px; margin:0 auto; padding:28px 40px 72px; display:flex; flex-direction:column; gap:32px; }
+section[data-view] { display:flex; flex-direction:column; gap:32px; }
+
+/* ---------- type ---------- */
+.eyebrow { font-size:12px; color:var(--fg-3); display:flex; align-items:center; gap:8px; }
+h1 { font-size:26px; font-weight:600; line-height:1.2; letter-spacing:-.025em; margin:0; text-wrap:balance; max-width:760px; }
+h2 { font-size:20px; font-weight:600; line-height:1.25; letter-spacing:-.02em; margin:0; text-wrap:balance; }
+h3 { font-size:15px; font-weight:600; letter-spacing:-.01em; margin:0; }
+h4 { font-size:14px; font-weight:600; letter-spacing:-.005em; margin:0; }
+.lead { font-size:17px; line-height:1.62; letter-spacing:-.005em; color:var(--fg-2); margin:0; max-width:68ch; }
+p { margin:0; color:var(--fg-2); line-height:1.6; max-width:68ch; }
+.meta { font-size:12px; color:var(--fg-3); }
+.head { display:flex; flex-direction:column; gap:10px; }
+.sec-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.hero-figure { font-size:88px; font-weight:600; line-height:.86; letter-spacing:-.055em; font-variant-numeric:tabular-nums; }
+
+/* ---------- surfaces ---------- */
+.card { background:var(--l3); border-radius:12px; padding:14px 16px; box-shadow:inset 0 1px 0 var(--card-edge), inset 0 0 0 1px var(--line); }
+.card.lead-card { padding:18px 20px; box-shadow:inset 0 1px 0 var(--card-edge), inset 0 0 0 1px var(--line-2); }
+.grid { display:grid; gap:10px; }
+.g2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.g3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.g4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.stack { display:flex; flex-direction:column; gap:10px; }
+.row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+.seg { display:inline-flex; gap:2px; padding:2px; border-radius:9px; background:var(--well-2); box-shadow:inset 0 0 0 1px var(--line); max-width:100%; overflow-x:auto; }
+.seg button { height:28px; padding:0 10px; border-radius:7px; border:0; background:transparent; color:var(--fg-3); font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap; transition:background-color 150ms var(--ease-out), color 150ms var(--ease-out); }
+.seg button[aria-pressed="true"] { background:var(--l4); color:var(--fg); box-shadow:inset 0 0 0 1px var(--line); }
+@media (hover:hover) and (pointer:fine) { .seg button:hover { color:var(--fg); } }
+
+.chip { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:999px; font-size:11px; font-weight:500; color:var(--fg-2); background:var(--tint); box-shadow:inset 0 0 0 1px var(--line); white-space:nowrap; }
+.chip.mono { font-family:var(--mono); font-weight:400; }
+.pill { display:inline-flex; align-items:center; gap:6px; height:22px; padding:0 9px; border-radius:999px; font-size:12px; font-weight:500; white-space:nowrap; }
+.pill.green { color:var(--green); background:color-mix(in srgb, var(--green) 10%, transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--green) 22%, transparent); }
+.pill.amber { color:var(--amber); background:color-mix(in srgb, var(--amber) 10%, transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--amber) 22%, transparent); }
+.pill.red { color:var(--red); background:color-mix(in srgb, var(--red) 10%, transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--red) 22%, transparent); }
+.pill.orange { color:var(--orange); background:color-mix(in srgb, var(--orange) 10%, transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--orange) 22%, transparent); }
+.dot { width:8px; height:8px; border-radius:999px; flex:none; }
+.dot.green { background:var(--green); box-shadow:0 0 0 3px color-mix(in srgb, var(--green) 14%, transparent); }
+.dot.red { background:var(--red); box-shadow:0 0 0 3px color-mix(in srgb, var(--red) 14%, transparent); }
+.dot.amber { background:var(--amber); box-shadow:0 0 0 3px color-mix(in srgb, var(--amber) 14%, transparent); }
+.dot.off { box-shadow:inset 0 0 0 1.5px var(--fg-3); }
+
+.code { background:var(--l1); border-radius:10px; padding:14px 16px; box-shadow:inset 0 0 0 1px var(--line); font:400 12.5px/1.85 var(--mono); color:var(--fg-2); white-space:pre-wrap; overflow-x:auto; margin:0; }
+.code b { color:var(--fg); font-weight:500; }
+.code .c { color:var(--fg-3); }
+.cmd { display:flex; align-items:center; gap:8px; background:var(--l1); border-radius:9px; padding:6px 6px 6px 14px; box-shadow:inset 0 0 0 1px var(--line); min-width:0; }
+.cmd code { flex:1; min-width:0; font-size:12.5px; color:var(--fg); overflow-x:auto; white-space:nowrap; padding:4px 0; }
+.icon-btn { width:28px; height:28px; display:grid; place-items:center; border-radius:7px; border:0; background:transparent; color:var(--fg-2); cursor:pointer; flex:none; transition:background-color 120ms var(--ease-out), transform 160ms var(--ease-out); }
+.icon-btn:active { transform:scale(.95); }
+@media (hover:hover) and (pointer:fine) { .icon-btn:hover { background:var(--l4); color:var(--fg); } }
+.icon-btn svg { width:15px; height:15px; }
+
+/* ---------- overview ---------- */
+.compare-rows { display:flex; flex-direction:column; }
+.c-row { display:grid; grid-template-columns:22px minmax(0,1fr); gap:10px; padding:10px 2px; border-top:1px solid var(--line); align-items:start; }
+.c-row:first-child { border-top:0; }
+.c-row .dot { margin-top:6px; }
+.c-row strong { font-weight:500; color:var(--row-name); }
+.c-row span { color:var(--fg-2); }
+.c-verdict { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding-top:12px; border-top:1px solid var(--line); }
+.blocks a.card { display:flex; flex-direction:column; gap:8px; text-decoration:none; color:inherit; transition:background-color 120ms var(--ease-out); min-height:132px; }
+@media (hover:hover) and (pointer:fine) { .blocks a.card:hover { background:var(--l4); } }
+.blocks .b-top { display:flex; align-items:center; justify-content:space-between; }
+.blocks .b-count { font:600 26px/1.1 var(--sans); letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.blocks p { font-size:13px; }
+.score { display:flex; flex-direction:column; gap:10px; }
+.score-bars { display:flex; flex-direction:column; gap:8px; }
+.bar-row { display:grid; grid-template-columns:72px minmax(0,1fr) 44px; gap:10px; align-items:center; font-size:12px; color:var(--fg-3); }
+.bar { height:8px; border-radius:2px; background:var(--tint-2); overflow:hidden; }
+.bar i { display:block; height:100%; border-radius:2px; background:var(--fg); }
+.bar.base i { background:var(--fg-3); }
+.bar-row b { font-weight:500; color:var(--fg); text-align:right; font-variant-numeric:tabular-nums; }
+
+/* ---------- flow ---------- */
+.flow { display:grid; grid-template-columns:260px minmax(0,1fr); gap:16px; align-items:start; }
+.steps { display:flex; flex-direction:column; gap:2px; position:sticky; top:20px; }
+.step-btn { display:grid; grid-template-columns:22px minmax(0,1fr); gap:10px; align-items:center; text-align:left; padding:8px 10px; border-radius:9px; border:0; background:transparent; color:var(--fg-2); cursor:pointer; font-size:13px; font-weight:500; transition:background-color 120ms var(--ease-out); }
+.step-btn .n { width:22px; height:22px; border-radius:999px; display:grid; place-items:center; font:500 11px var(--mono); color:var(--fg-3); box-shadow:inset 0 0 0 1px var(--line-2); }
+.step-btn[aria-current="step"] { background:var(--l4); color:var(--fg); box-shadow:inset 0 0 0 1px var(--line); }
+.step-btn[aria-current="step"] .n { background:var(--primary); color:var(--primary-fg); box-shadow:none; }
+.step-btn.done .n { color:var(--fg); box-shadow:inset 0 0 0 1px var(--line-3); }
+@media (hover:hover) and (pointer:fine) { .step-btn:hover { background:var(--l3); color:var(--fg); } }
+.step-detail { display:flex; flex-direction:column; gap:14px; min-width:0; }
+.step-detail .meter { height:4px; border-radius:4px; background:var(--tint-2); overflow:hidden; }
+.step-detail .meter i { display:block; height:100%; background:var(--fg); transition:width 240ms var(--ease-out); }
+.step-nav { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.labelled { display:flex; flex-direction:column; gap:6px; }
+.labelled > .meta { font-weight:500; }
+
+/* ---------- list + detail ---------- */
+.ld { display:grid; grid-template-columns:300px minmax(0,1fr); gap:16px; align-items:start; }
+.list { display:flex; flex-direction:column; gap:2px; position:sticky; top:20px; max-height:calc(100vh - 40px); overflow-y:auto; padding:2px; }
+.l-row { display:flex; flex-direction:column; gap:2px; text-align:left; padding:10px 10px 10px 12px; border-radius:9px; border:0; background:transparent; cursor:pointer; transition:background-color 120ms var(--ease-out); }
+.l-row .t { font-size:13px; font-weight:500; color:var(--row-name); }
+.l-row .s { font-size:12px; color:var(--fg-3); }
+.l-row[aria-selected="true"] { background:var(--l4); box-shadow:inset 0 0 0 1px var(--line); }
+.l-row[aria-selected="true"] .t { color:var(--fg); }
+@media (hover:hover) and (pointer:fine) { .l-row:hover { background:var(--l3); } .l-row[aria-selected="true"]:hover { background:var(--l4); } }
+.ol { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+.ol li { display:grid; grid-template-columns:28px minmax(0,1fr); gap:8px; padding:10px 0; border-top:1px solid var(--line); color:var(--fg-2); line-height:1.55; }
+.ol li:first-child { border-top:0; }
+.ol li::before { content:counter(i); counter-increment:i; font:500 12px/22px var(--mono); color:var(--fg-3); }
+.ol { counter-reset:i; }
+.owns { font-size:15px; font-weight:500; color:var(--fg); letter-spacing:-.01em; }
+.reply { background:var(--well-2); border-radius:9px; padding:12px 14px; box-shadow:inset 0 0 0 1px var(--line); }
+.reply p { font-size:13px; }
+
+/* ---------- skills / principles ---------- */
+.toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.search { position:relative; flex:1; min-width:220px; max-width:360px; }
+.search input { width:100%; height:34px; border-radius:9px; border:0; background:var(--l3); box-shadow:inset 0 0 0 1px var(--line); padding:0 36px 0 34px; font-size:13px; outline:none; transition:box-shadow 150ms var(--ease-out); }
+.search input:focus { box-shadow:inset 0 0 0 1px var(--line-3), 0 0 0 3px var(--focus-glow); }
+.search input::placeholder { color:var(--fg-3); }
+.search svg { position:absolute; left:11px; top:10px; width:14px; height:14px; color:var(--fg-3); }
+.search .kbd { position:absolute; right:9px; top:8px; }
+.skill-group { display:flex; flex-direction:column; gap:8px; }
+.skill-group > .meta { font-weight:500; padding-left:2px; }
+.skills { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.skill { display:flex; flex-direction:column; gap:6px; text-align:left; border:0; cursor:pointer; color:inherit; transition:background-color 120ms var(--ease-out); }
+@media (hover:hover) and (pointer:fine) { .skill:hover { background:var(--l4); } }
+.skill .n { display:flex; align-items:center; gap:8px; font:500 13px var(--mono); color:var(--fg); }
+.skill .n .chip { margin-left:auto; font-family:var(--sans); }
+.skill p { font-size:13px; }
+.empty { padding:40px 16px; text-align:center; color:var(--fg-3); }
+.principle { display:flex; flex-direction:column; gap:6px; }
+.principle .g { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.principle p { font-size:13px; }
+
+/* ---------- agents ---------- */
+.agent { display:flex; flex-direction:column; gap:12px; }
+.agent .a-top { display:flex; align-items:center; gap:10px; }
+.agent .a-icon { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; background:var(--l4); box-shadow:inset 0 0 0 1px var(--line); flex:none; }
+.agent .a-icon svg { width:16px; height:16px; }
+.agent ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.agent li { display:grid; grid-template-columns:14px minmax(0,1fr); gap:8px; font-size:13px; color:var(--fg-2); line-height:1.5; }
+.agent li::before { content:""; width:5px; height:5px; border-radius:999px; background:var(--fg-3); margin:7px 0 0 4px; }
+.table-wrap { background:var(--l3); border-radius:12px; box-shadow:inset 0 0 0 1px var(--line); overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; font-weight:400; font-size:12px; color:var(--fg-3); padding:10px 12px; }
+td { padding:9px 12px; border-top:1px solid var(--line); color:var(--fg-2); font-variant-numeric:tabular-nums; vertical-align:middle; }
+td:first-child { color:var(--fg); font-weight:500; white-space:nowrap; }
+.effort { display:inline-flex; gap:3px; vertical-align:middle; margin-right:8px; }
+.effort i { width:6px; height:12px; border-radius:2px; background:var(--tint-2); box-shadow:inset 0 0 0 1px var(--line); }
+.effort i.on { background:var(--fg); box-shadow:none; }
+.panel-dots { display:inline-flex; gap:4px; vertical-align:middle; }
+.panel-dots i { width:8px; height:8px; border-radius:999px; background:var(--fg-2); }
+.why { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+
+/* ---------- start ---------- */
+.auto-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.auto-list li { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--fg-2); }
+.field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.field label { font-size:12px; font-weight:500; color:var(--fg-3); }
+.field input { height:34px; border-radius:9px; border:0; background:var(--well); box-shadow:inset 0 0 0 1px var(--line-2); padding:0 12px; font-size:13px; outline:none; min-width:0; transition:box-shadow 150ms var(--ease-out); }
+.field input:focus { box-shadow:inset 0 0 0 1px var(--line-3), 0 0 0 3px var(--focus-glow); }
+.prompt-out { background:var(--l1); border-radius:10px; box-shadow:inset 0 0 0 1px var(--line); padding:12px 12px 12px 16px; display:flex; gap:10px; align-items:flex-start; }
+.prompt-out code { flex:1; min-width:0; font-size:13px; line-height:1.7; color:var(--fg); white-space:pre-wrap; word-break:break-word; }
+.faq details { border-top:1px solid var(--line); padding:12px 2px; }
+.faq details:first-child { border-top:0; }
+.faq summary { cursor:pointer; font-weight:500; font-size:14px; list-style:none; display:flex; justify-content:space-between; gap:12px; color:var(--row-name); }
+.faq summary::-webkit-details-marker { display:none; }
+.faq summary::after { content:"+"; color:var(--fg-3); font-family:var(--mono); }
+.faq details[open] summary::after { content:"−"; }
+.faq details p { margin-top:8px; font-size:13px; }
+
+/* ---------- palette + toast ---------- */
+.palette-scrim { position:fixed; inset:0; background:var(--scrim); z-index:50; display:flex; justify-content:center; align-items:flex-start; padding:16vh 16px 16px; }
+.palette { width:620px; max-width:100%; border-radius:14px; background:var(--glass-palette); -webkit-backdrop-filter:blur(40px) saturate(1.8); backdrop-filter:blur(40px) saturate(1.8); box-shadow:inset 0 1px 0 var(--glass-edge), 0 0 0 1px var(--line-2), var(--shadow-palette); overflow:hidden; }
+.palette input { width:100%; height:52px; border:0; background:transparent; padding:0 18px; font-size:15px; outline:none; border-bottom:1px solid var(--line); }
+.palette input::placeholder { color:var(--fg-3); }
+.p-list { max-height:min(360px, 50vh); overflow-y:auto; padding:6px; }
+.p-item { width:100%; height:38px; display:flex; align-items:center; gap:10px; padding:0 10px; border-radius:8px; border:0; background:transparent; text-align:left; font-size:14px; font-weight:500; color:var(--fg-2); cursor:pointer; }
+.p-item .k { margin-left:auto; font-size:12px; font-weight:400; color:var(--fg-3); }
+.p-item[aria-selected="true"] { background:var(--tint-2); color:var(--fg); }
+.toast { position:fixed; right:calc(20px + env(safe-area-inset-right, 0px)); bottom:calc(20px + env(safe-area-inset-bottom, 0px)); width:340px; max-width:calc(100vw - 32px); border-radius:12px; padding:12px 14px; background:var(--glass-toast); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); box-shadow:inset 0 1px 0 var(--glass-edge), 0 0 0 1px var(--line-2), var(--shadow-pop); display:flex; align-items:center; gap:10px; font-size:13px; z-index:60; transition:opacity 200ms var(--ease-out), transform 200ms var(--ease-out); }
+.toast[data-hidden="true"] { opacity:0; transform:translateY(8px); pointer-events:none; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 900px) {
+  .g4 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .flow, .ld { grid-template-columns:minmax(0,1fr); }
+  .steps, .list { position:static; max-height:none; }
+  .steps { flex-direction:row; overflow-x:auto; padding-bottom:4px; }
+  .step-btn { flex:none; }
+  .list { flex-direction:row; overflow-x:auto; }
+  .l-row { flex:none; max-width:240px; }
+}
+@media (max-width: 780px) {
+  .shell { grid-template-columns:minmax(0,1fr); }
+  .side { position:sticky; top:env(safe-area-inset-top, 0px); z-index:10; height:auto; flex-direction:row; align-items:center; gap:8px; padding:8px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); border-right:0; border-bottom:1px solid var(--line); }
+  body::before { content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top, 0px); z-index:10; background:var(--l0); }
+  .brand { padding:0; }
+  .brand-name, .brand-ver, .nav-label, .side-foot .side-btn span, .nav a .kbd { display:none; }
+  .nav { flex-direction:row; overflow-x:auto; flex:1; min-width:0; }
+  .nav a { flex:none; padding:0 10px; }
+  .nav a svg { display:none; }
+  .side-foot { margin:0; flex-direction:row; }
+  .side-btn { width:auto; padding:0 9px; }
+  .side-btn .kbd { display:none; }
+  .pane { padding:22px max(16px, env(safe-area-inset-right, 0px)) 56px max(16px, env(safe-area-inset-left, 0px)); }
+  .g2, .g3, .skills, .why { grid-template-columns:minmax(0,1fr); }
+  .hero-figure { font-size:64px; }
+}
+@media (max-width: 480px) { .g4 { grid-template-columns:minmax(0,1fr); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="side" aria-label="Sections">
+    <div class="brand"><div class="brand-mark" aria-hidden="true">tb</div><span class="brand-name">tblock</span><span class="brand-ver">0.16.0</span></div>
+    <div class="nav-label">Learn</div>
+    <nav class="nav" id="nav">
+      <a href="#overview" data-key="1"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.6M8 5.2v.1" stroke-linecap="round"/></svg>Why tblock<span class="kbd">1</span></a>
+      <a href="#flow" data-key="2"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 4h7M2.5 8h11M2.5 12h5" stroke-linecap="round"/></svg>How a run flows<span class="kbd">2</span></a>
+      <a href="#playbooks" data-key="3"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="2"/><path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3" stroke-linecap="round"/></svg>Playbooks<span class="kbd">3</span></a>
+      <a href="#skills" data-key="4"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1.5"/><rect x="9" y="2" width="5" height="5" rx="1.5"/><rect x="2" y="9" width="5" height="5" rx="1.5"/><rect x="9" y="9" width="5" height="5" rx="1.5"/></svg>Skills<span class="kbd">4</span></a>
+      <a href="#principles" data-key="5"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.7 3.6 3.8.5-2.8 2.7.7 3.8L8 10.8l-3.4 1.8.7-3.8-2.8-2.7 3.8-.5z" stroke-linejoin="round"/></svg>Principles<span class="kbd">5</span></a>
+      <a href="#agents" data-key="6"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="2.5"/><circle cx="11.5" cy="7" r="2"/><path d="M1.8 13.5c.6-2.3 2.2-3.5 4.2-3.5s3.6 1.2 4.2 3.5M10.5 10.2c1.8-.2 3.2.9 3.7 3.3" stroke-linecap="round"/></svg>Agents and roles<span class="kbd">6</span></a>
+      <a href="#start" data-key="7"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2.5v11l9-5.5z" stroke-linejoin="round"/></svg>Get started<span class="kbd">7</span></a>
+    </nav>
+    <div class="side-foot">
+      <button class="btn btn-ghost side-btn" id="open-palette" type="button"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14" stroke-linecap="round"/></svg><span>Jump to</span><span class="kbd">⌘K</span></button>
+      <button class="btn btn-ghost side-btn" id="theme" type="button"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 9.5A5.5 5.5 0 016.5 3a5.5 5.5 0 106.5 6.5z" stroke-linejoin="round"/></svg><span>Theme</span><span class="kbd">T</span></button>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="pane">
+
+      <!-- ============ OVERVIEW ============ -->
+      <section data-view="overview" aria-labelledby="h-overview">
+        <div class="head">
+          <div class="eyebrow">tblock 101 <span class="chip">Copilot</span><span class="chip">Claude Code</span><span class="chip">Codex</span></div>
+          <h1 id="h-overview">Make the coding agent work like a careful senior engineer</h1>
+          <p class="lead">tblock is a plugin of plain-text instructions. Type <code>/tblock-mode</code> before a task and the agent restates your goal, follows a checklist for that kind of work, keeps the change small, proves it on the real thing, and asks before anything leaves your machine.</p>
+        </div>
+
+        <div class="card lead-card stack" style="gap:14px">
+          <div class="sec-head">
+            <div class="stack" style="gap:4px"><h3>Same bug, two agents</h3><span class="meta">Task: "The order total counts refunds twice. It should count them once."</span></div>
+            <div class="seg" role="group" aria-label="Compare">
+              <button type="button" aria-pressed="false" data-compare="plain">Plain agent</button>
+              <button type="button" aria-pressed="true" data-compare="tblock">With tblock</button>
+            </div>
+          </div>
+          <div class="compare-rows" id="compare-rows"></div>
+          <div class="c-verdict" id="compare-verdict"></div>
+        </div>
+
+        <div class="stack" style="gap:12px">
+          <div class="sec-head"><h2>Four building blocks</h2><span class="meta">Click one to explore it</span></div>
+          <div class="grid g4 blocks">
+            <a class="card" href="#playbooks"><div class="b-top"><h4>Playbooks</h4><span class="b-count">15</span></div><p>Step-by-step checklists for one kind of task, like Bug fix or UI work.</p></a>
+            <a class="card" href="#skills"><div class="b-top"><h4>Skills</h4><span class="b-count">50</span></div><p>Techniques it picks up when a step needs one, like a multi-model review.</p></a>
+            <a class="card" href="#principles"><div class="b-top"><h4>Principles</h4><span class="b-count">24</span></div><p>Rules of judgment it must name when they change a decision.</p></a>
+            <a class="card" href="#agents"><div class="b-top"><h4>Agents</h4><span class="b-count">2+</span></div><p>Helpers it hands bounded jobs to, on the model each role needs.</p></a>
+          </div>
+        </div>
+
+        <div class="grid g2">
+          <div class="card score">
+            <div class="sec-head"><h3>Blind eval, same task and code</h3><span class="pill green">tblock ahead</span></div>
+            <p style="font-size:13px">Each run gave tblock and a plain agent the same task on the Imperial Ops dashboard. A judge scored both without knowing which was which.</p>
+            <div class="score-bars">
+              <div class="meta">Run 1 · late change windows</div>
+              <div class="bar-row"><span>tblock</span><div class="bar"><i style="width:91.7%"></i></div><b>11/12</b></div>
+              <div class="bar-row"><span>plain</span><div class="bar base"><i style="width:50%"></i></div><b>6/12</b></div>
+              <div class="meta" style="margin-top:4px">Run 2 · acknowledge a paged alert</div>
+              <div class="bar-row"><span>tblock</span><div class="bar"><i style="width:83.3%"></i></div><b>10/12</b></div>
+              <div class="bar-row"><span>plain</span><div class="bar base"><i style="width:58.3%"></i></div><b>7/12</b></div>
+            </div>
+            <span class="meta">One run per side, so this shows a direction, not a proven effect. More runs are planned, including tokens per task.</span>
+          </div>
+          <div class="card stack" style="gap:12px">
+            <h3>Where the points came from</h3>
+            <div class="compare-rows">
+              <div class="c-row"><span class="dot green"></span><div><strong>Kept what already worked.</strong> <span>The plain agent dropped existing times, notes and a footer key on the page.</span></div></div>
+              <div class="c-row"><span class="dot green"></span><div><strong>Backed claims with readings.</strong> <span>Counts and colours read from the running page, not "it works".</span></div></div>
+              <div class="c-row"><span class="dot green"></span><div><strong>Smaller diff.</strong> <span>Reused the page's own classes and components.</span></div></div>
+              <div class="c-row"><span class="dot amber"></span><div><strong>Still weak on proof.</strong> <span>No screenshots kept. The UI playbook now asks for one per state.</span></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ FLOW ============ -->
+      <section data-view="flow" aria-labelledby="h-flow" hidden>
+        <div class="head">
+          <div class="eyebrow">How a run flows</div>
+          <h1 id="h-flow">From one prompt to a change you can trust</h1>
+          <p class="lead">Step through a real bug fix. Use the arrow keys or <span class="kbd">J</span> <span class="kbd">K</span> to move.</p>
+        </div>
+        <div class="flow">
+          <div class="steps" id="steps" role="tablist" aria-label="Steps"></div>
+          <div class="card lead-card step-detail" id="step-detail" role="tabpanel"></div>
+        </div>
+      </section>
+
+      <!-- ============ PLAYBOOKS ============ -->
+      <section data-view="playbooks" aria-labelledby="h-playbooks" hidden>
+        <div class="head">
+          <div class="eyebrow">Playbooks</div>
+          <h1 id="h-playbooks">A checklist for every kind of task</h1>
+          <p class="lead">tblock-mode picks the playbook that fits and copies its steps into the agent's todo list word for word. A skipped step needs a written reason, so steps can't quietly disappear.</p>
+        </div>
+        <div class="ld">
+          <div class="list" id="pb-list" role="listbox" aria-label="Playbooks"></div>
+          <div class="card lead-card stack" id="pb-detail" style="gap:16px"></div>
+        </div>
+      </section>
+
+      <!-- ============ SKILLS ============ -->
+      <section data-view="skills" aria-labelledby="h-skills" hidden>
+        <div class="head">
+          <div class="eyebrow">Skills</div>
+          <h1 id="h-skills">50 techniques, pulled in when a step needs them</h1>
+          <p class="lead">Most run on their own when a playbook step calls for them. You can also type any of them yourself. Click a skill to copy its command.</p>
+        </div>
+        <div class="toolbar">
+          <div class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14" stroke-linecap="round"/></svg><input id="skill-q" type="search" placeholder="Search skills" autocomplete="off" aria-label="Search skills"><span class="kbd">/</span></div>
+          <div class="seg" role="group" aria-label="Filter skills" id="skill-filter"></div>
+        </div>
+        <div class="stack" id="skill-groups" style="gap:22px"></div>
+      </section>
+
+      <!-- ============ PRINCIPLES ============ -->
+      <section data-view="principles" aria-labelledby="h-principles" hidden>
+        <div class="head">
+          <div class="eyebrow">Principles</div>
+          <h1 id="h-principles">24 rules of judgment, cited in every reply</h1>
+          <p class="lead">Each principle says when it applies. The agent reads the full rule before using it, and its reply names each principle that changed a decision, so you can check its reasoning.</p>
+        </div>
+        <div class="toolbar"><div class="seg" role="group" aria-label="Filter principles" id="pr-filter"></div></div>
+        <div class="grid g2" id="pr-grid"></div>
+      </section>
+
+      <!-- ============ AGENTS ============ -->
+      <section data-view="agents" aria-labelledby="h-agents" hidden>
+        <div class="head">
+          <div class="eyebrow">Agents and roles</div>
+          <h1 id="h-agents">Helpers on a short leash</h1>
+          <p class="lead">The main agent owns the task, the playbook and the reply to you. It hands bounded jobs to helpers, each with its own memory and the model its role needs, then reviews their work itself.</p>
+        </div>
+        <div class="grid g3">
+          <div class="card agent">
+            <div class="a-top"><div class="a-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><h3>delegate</h3><span class="meta">One bounded job</span></div></div>
+            <ul><li>Gets a code change or a fix, with the files, what done means, and the check to run.</li><li>Stays inside those files. Never pushes or posts.</li><li>Returns a fixed report: changed, checked, not checked, decisions.</li></ul>
+          </div>
+          <div class="card agent">
+            <div class="a-top"><div class="a-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="2"/><path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h2.5" stroke-linecap="round"/></svg></div><div><h3>threepio</h3><span class="meta">Ticket writer</span></div></div>
+            <ul><li>Drafts GitLab or GitHub tickets from the finished work and its checks.</li><li>Only claims what the diff or the checks back up.</li><li>Drafts only. A person says yes before anything is created.</li></ul>
+          </div>
+          <div class="card agent">
+            <div class="a-top"><div class="a-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><circle cx="8" cy="11" r="2"/></svg></div><div><h3>Review panels</h3><span class="meta">interrogate · ui-council</span></div></div>
+            <ul><li>Reviewers on different model families try to break the change.</li><li>A finding counts only with proof: a run, a screenshot, or a repro.</li><li>They report. The main agent re-checks and decides.</li></ul>
+          </div>
+        </div>
+
+        <div class="stack" style="gap:12px">
+          <h2>Why agents and not just skills</h2>
+          <div class="why">
+            <div class="card stack" style="gap:6px"><h4>Separate memory</h4><p style="font-size:13px">Screenshots and long logs stay in the helper's context. The main thread keeps only the summary.</p></div>
+            <div class="card stack" style="gap:6px"><h4>A different model</h4><p style="font-size:13px">A skill runs on whatever model is already running. An agent can run on the model its role needs.</p></div>
+            <div class="card stack" style="gap:6px"><h4>A tighter leash</h4><p style="font-size:13px">A helper gets a short brief with hard limits, so it can't spawn its own helpers or push.</p></div>
+            <div class="card stack" style="gap:6px"><h4>The know-how stays in skills</h4><p style="font-size:13px">Each agent file is about ten lines that point at a skill, so Copilot and Claude Code share one copy.</p></div>
+          </div>
+        </div>
+
+        <div class="stack" style="gap:12px">
+          <div class="sec-head">
+            <div class="stack" style="gap:4px"><h2>Roles and presets</h2><span class="meta">A preset sets every role's model and effort at once. Switch with <code>tblock preset &lt;name&gt;</code>.</span></div>
+            <div class="seg" role="group" aria-label="Preset" id="preset-seg"></div>
+          </div>
+          <p id="preset-note" style="font-size:13px"></p>
+          <div class="table-wrap"><table><thead><tr><th>Role</th><th>Used for</th><th>Model</th><th>Effort</th></tr></thead><tbody id="preset-body"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- ============ START ============ -->
+      <section data-view="start" aria-labelledby="h-start" hidden>
+        <div class="head">
+          <div class="eyebrow">Get started</div>
+          <h1 id="h-start">Install once, then put /tblock-mode in front of a task</h1>
+        </div>
+
+        <div class="grid g2">
+          <div class="card stack" style="gap:12px">
+            <div class="sec-head"><h3>Install</h3><div class="seg" role="group" aria-label="Tool" id="install-seg"><button type="button" aria-pressed="true" data-tool="copilot">Copilot CLI</button><button type="button" aria-pressed="false" data-tool="claude">Claude Code</button></div></div>
+            <div class="stack" id="install-cmds" style="gap:8px"></div>
+            <span class="meta">Then run <code>/setup-tblock</code> once to pick a preset. Copilot caches plugins, so reinstall after an update.</span>
+          </div>
+          <div class="card stack" style="gap:12px">
+            <h3>What it does without asking, and what it never does alone</h3>
+            <div class="grid g2" style="gap:14px">
+              <div class="stack" style="gap:8px"><span class="pill green" style="align-self:flex-start">Just does it</span><ul class="auto-list"><li><span class="dot green"></span>Read and edit code</li><li><span class="dot green"></span>Run builds, tests, the app</li><li><span class="dot green"></span>Local commits on a branch</li><li><span class="dot green"></span>Spawn the helpers a step needs</li></ul></div>
+              <div class="stack" style="gap:8px"><span class="pill orange" style="align-self:flex-start">Always asks first</span><ul class="auto-list"><li><span class="dot amber"></span>Push or force-push</li><li><span class="dot amber"></span>Open, approve or merge a PR</li><li><span class="dot amber"></span>Post to chat or tickets</li><li><span class="dot amber"></span>Deploy, or delete anything</li></ul></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card lead-card stack" style="gap:14px">
+          <div class="stack" style="gap:4px"><h3>Build a prompt</h3><span class="meta">State the goal and how to tell it's done. Don't list skills: the playbook already knows them.</span></div>
+          <div class="seg" role="group" aria-label="Task type" id="pt-seg"></div>
+          <div class="grid g2" id="pt-fields"></div>
+          <div class="prompt-out"><code id="pt-out"></code><button class="icon-btn" type="button" id="pt-copy" aria-label="Copy prompt"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="2"/><path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5"/></svg></button></div>
+          <span class="meta" id="pt-routes"></span>
+        </div>
+
+        <div class="grid g2">
+          <div class="card stack faq" style="gap:0">
+            <details open><summary>Does it use more tokens?</summary><p>Yes, mostly on helpers and review panels. The efficient preset keeps that down, and for a one-line edit you can skip tblock-mode. A cheap answer that's wrong costs more once you count the fix.</p></details>
+            <details><summary>Can it push or deploy by itself?</summary><p>No. Pushing, PRs, tickets, deploys and deletes always wait for a clear yes, and a yes covers that one action only.</p></details>
+            <details><summary>What if my project has no tests?</summary><p>Its proof is only as good as the checks it can run. It says what it could not check instead of claiming a pass, and it can set up a verification skill for the project.</p></details>
+            <details><summary>How do I find the right skill?</summary><p>Ask <code>/tblock-help</code>. It maps what you want to do onto the skill or playbook that does it, and fixes runs that went wrong.</p></details>
+          </div>
+          <div class="card stack" style="gap:10px">
+            <h3>Three commands worth knowing</h3>
+            <div class="cmd"><code>/in-your-own-words &lt;task&gt;</code><button class="icon-btn" type="button" data-copy="/in-your-own-words " aria-label="Copy command"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="2"/><path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5"/></svg></button></div>
+            <span class="meta">Checks the agent understood a big or vague task before any code exists.</span>
+            <div class="cmd"><code>/bro</code><button class="icon-btn" type="button" data-copy="/bro" aria-label="Copy command"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="2"/><path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5"/></svg></button></div>
+            <span class="meta">Says the last reply again in plain words. Every tblock reply already ends with one.</span>
+            <div class="cmd"><code>tblock doctor</code><button class="icon-btn" type="button" data-copy="tblock doctor" aria-label="Copy command"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="2"/><path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5"/></svg></button></div>
+            <span class="meta">Checks the install, the roles file and the model setup in one go.</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div class="palette-scrim" id="palette" hidden>
+  <div class="palette" role="dialog" aria-modal="true" aria-label="Jump to">
+    <input id="p-q" type="text" placeholder="Jump to a section, playbook or skill" autocomplete="off" aria-label="Search">
+    <div class="p-list" id="p-list" role="listbox"></div>
+  </div>
+</div>
+<div class="toast" id="toast" data-hidden="true" role="status" aria-live="polite"><span class="dot green"></span><span id="toast-msg">Copied</span></div>
+
+<script>
+(() => {
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+/* ---------- toast + copy ---------- */
+let toastTimer;
+function toast(msg) {
+  $('#toast-msg').textContent = msg;
+  $('#toast').dataset.hidden = 'false';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('#toast').dataset.hidden = 'true'; }, 2400);
+}
+function copy(text, label) {
+  const done = () => toast(label || 'Copied');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, () => fallback(text, label));
+  } else fallback(text, label);
+}
+function fallback(text, label) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch {}
+  ta.remove();
+  toast(ok ? (label || 'Copied') : 'Select the text to copy it');
+}
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-copy]'); if (b) copy(b.dataset.copy); });
+
+/* ---------- compare ---------- */
+const COMPARE = {
+  plain: {
+    rows: [
+      ['red', 'Jumps to the code.', 'Opens the file the ticket mentions and edits the line that looks wrong.'],
+      ['red', 'Never reproduces the bug.', 'It can\'t say the fix changed anything on the real page.'],
+      ['amber', 'Runs the existing tests.', 'They passed before the fix too, so they prove nothing here.'],
+      ['red', 'Tidies nearby code on the way.', 'The diff grows, and an unrelated label changes.'],
+      ['red', 'Replies "Fixed, tests pass."', 'No evidence, and nothing on what it didn\'t check.']
+    ],
+    verdict: '<span class="pill red">You check everything yourself</span><span class="meta">Fast, until review finds the gaps.</span>'
+  },
+  tblock: {
+    rows: [
+      ['green', 'Restates the goal and the smallest change.', 'Refunds should count once in the total. Expected fix: one place in the totals code.'],
+      ['green', 'Reproduces it first.', 'Opens the order page and reads the wrong total: £120 where it should be £100.'],
+      ['green', 'Finds the root cause.', 'Refunds are subtracted in the line items and again in the summary. It fixes the first place it goes wrong.'],
+      ['green', 'Proves it on the same page.', 'The total now reads £100. A regression test fails before the fix and passes after.'],
+      ['green', 'Shows the evidence and asks before pushing.', 'Lists what it checked, what it didn\'t, and the principles behind each choice.']
+    ],
+    verdict: '<span class="pill green">Evidence you can review</span><span class="meta">Every claim comes with how it was checked.</span>'
+  }
+};
+function setCompare(which) {
+  $$('[data-compare]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.compare === which)));
+  const c = COMPARE[which];
+  $('#compare-rows').innerHTML = c.rows.map(([tone, a, b]) => `<div class="c-row"><span class="dot ${tone}"></span><div><strong>${esc(a)}</strong> <span>${esc(b)}</span></div></div>`).join('');
+  $('#compare-verdict').innerHTML = c.verdict;
+}
+$$('[data-compare]').forEach((b) => b.addEventListener('click', () => setCompare(b.dataset.compare)));
+setCompare('tblock');
+
+/* ---------- flow ---------- */
+const FLOW = [
+  { t: 'You type the task', d: 'Put /tblock-mode in front of the task. Say what\'s wrong and how you\'ll know it\'s right. Don\'t list skills, because the playbook already knows which ones a step needs.',
+    code: '<b>/tblock-mode</b> bug: the order total counts refunds twice.\nit should count them once.', by: [] },
+  { t: 'It restates your goal', d: 'Before any code, it tells you the goal, the problem behind it, and the smallest change it expects. If the evidence rules out what you asked for, it shows you and stops.',
+    code: '<b>Goal.</b> Refunds count once in the order total.\n<b>Smallest change.</b> One fix where the total is built,\nplus a regression test.', by: ['in-your-own-words'] },
+  { t: 'It picks a playbook', d: 'tblock-mode matches the task to the Bug fix playbook and copies its steps into the todo list word for word. A skipped step needs a written reason.',
+    code: '☐ Reproduce the failure on the surface where it occurs\n☐ Trace the mechanism\n☐ Make the smallest justified fix\n☐ Repeat the reproduction on the same surface\n☐ Show a regression test failing, then passing\n☐ Review the diff and run the repo\'s checks', by: ['Bug fix playbook'] },
+  { t: 'It reproduces and traces', d: 'It sees the bug on the real page before touching code, reads the app\'s logs over that window, and follows the symptom back to where things first go wrong.',
+    code: 'order #4471  total £120.00  <span class="c">(expected £100.00)</span>\nrefund subtracted in lineItems()  <span class="c">← first wrong value</span>\nrefund subtracted again in summary()', by: ['probe', 'how', 'Fix Root Causes'] },
+  { t: 'It makes the smallest fix', d: 'It names the data shape first, then makes the smallest change that solves the whole problem. A bounded job can go to a delegate on the code role, which stays inside its files and reports back.',
+    code: '<span class="c">- total = sum(items) - refunds</span>\n<b>+ total = sum(items)</b>   <span class="c">// items already net of refunds</span>', by: ['Laziness Protocol', 'Model the Domain', 'delegate'] },
+  { t: 'It proves it works', d: 'It repeats the original reproduction on the same page and reads the result. "It compiles" doesn\'t count. A cheap regression test must fail before the fix and pass after.',
+    code: 'order #4471  total £100.00  <span class="c">✓ matches expected</span>\ntest refunds_count_once  <span class="c">fail before → pass after</span>', by: ['Prove It Works', 'tdd', 'Test Behavior, Not Implementation'] },
+  { t: 'It gets the change reviewed', d: 'For a fix it doesn\'t fully trust, reviewers on different model families try to break it. Only findings they prove with a run survive. UI changes get the UI council, which reviews the running page.',
+    code: 'reviewer A (Claude)  1 finding  → verified\nreviewer B (GPT)     0 findings\n<b>verified:</b> partial refunds on split orders untested', by: ['interrogate', 'ui-council', 'blast-radius'] },
+  { t: 'It replies with evidence', d: 'The reply says what failed, the root cause, the fix, before and after evidence, and what it did not check. It names each principle that shaped a decision, then ends with a plain bro version.',
+    code: '<b>Not checked.</b> Split orders with partial refunds.\n<b>Principles.</b> Fix Root Causes moved the fix from\nsummary() to lineItems().\n<b>Bro version.</b> Refunds were taken off twice. Fixed\nthe first place, proved it on the real order.', by: ['unslop', 'technical-writing'] },
+  { t: 'It asks before anything leaves', d: 'Local commits are fine. Pushing, opening a PR, or creating a ticket waits for your yes. Threepio can draft the ticket, but a person approves it.',
+    code: 'Ready to push <b>fix/refund-double-count</b> and open a PR.\nOK to go ahead?', by: ['Opening an MR playbook', 'threepio', 'ticket-up'] }
+];
+let flowI = 0;
+function renderSteps() {
+  $('#steps').innerHTML = FLOW.map((s, i) => `<button type="button" class="step-btn${i < flowI ? ' done' : ''}" role="tab" ${i === flowI ? 'aria-current="step" aria-selected="true"' : 'aria-selected="false"'} data-step="${i}"><span class="n">${i + 1}</span><span>${esc(s.t)}</span></button>`).join('');
+  const s = FLOW[flowI];
+  $('#step-detail').innerHTML = `
+    <div class="meter" aria-hidden="true"><i style="width:${((flowI + 1) / FLOW.length) * 100}%"></i></div>
+    <div class="eyebrow">Step ${flowI + 1} of ${FLOW.length}</div>
+    <h2>${esc(s.t)}</h2>
+    <p>${esc(s.d)}</p>
+    <div class="labelled"><span class="meta">What you see</span><pre class="code">${s.code}</pre></div>
+    ${s.by.length ? `<div class="labelled"><span class="meta">Driven by</span><div class="row">${s.by.map((b) => `<span class="chip">${esc(b)}</span>`).join('')}</div></div>` : ''}
+    <div class="step-nav">
+      <button type="button" class="btn btn-secondary" data-go="-1" ${flowI === 0 ? 'disabled style="opacity:.4;cursor:default"' : ''}>Back <span class="kbd">K</span></button>
+      <button type="button" class="btn btn-primary" data-go="1">${flowI === FLOW.length - 1 ? 'Start again' : 'Next'} <span class="kbd" style="background:transparent;box-shadow:inset 0 0 0 1px currentColor;color:inherit;opacity:.6">J</span></button>
+    </div>`;
+}
+function goStep(i) { flowI = (i + FLOW.length) % FLOW.length; renderSteps(); }
+$('#steps').addEventListener('click', (e) => { const b = e.target.closest('[data-step]'); if (b) goStep(+b.dataset.step); });
+$('#step-detail').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b && !b.disabled) goStep(flowI === FLOW.length - 1 && b.dataset.go === '1' ? 0 : flowI + +b.dataset.go); });
+renderSteps();
+
+/* ---------- playbooks ---------- */
+const PB = [
+  { id: 'bug-fix', t: 'Bug fix', when: 'Reproduce and fix a defect', own: 'Every shipped change should trace to evidence.', steps: ['Reproduce the reported failure on the surface where it occurs.', 'Trace the mechanism, and fix it where things first go wrong.', 'Make the smallest justified fix.', 'Repeat the original reproduction on the same surface and inspect the result.', 'Where a cheap regression test exists, show it failing before the fix and passing after.', 'Review the actual diff, remove abandoned experiments, and run the repo\'s checks.'], reply: 'What failed, the root cause, the fix, before and after evidence, and any paths left unverified.' },
+  { id: 'feature', t: 'Feature', when: 'Build new or changed behavior', own: 'You own the design. Plan, build, verify.', steps: ['Read the affected subsystem and how its callers use it.', 'Name the data shape before writing logic, and pick a structure for it, such as a state machine over scattered booleans.', 'Write the throughput checkpoint as four todo items.', 'Implement against the named shape.', 'Verify on the matching surface with the project\'s verification skill when there is one.', 'Build, verify, and commit each small unit before the next.'], reply: 'What you built, the data shape and why, the evidence, and open decisions, with tables for design alternatives.' },
+  { id: 'ui-ux', t: 'UI-UX', when: 'Design and implement a UI feature', own: 'You own the experience. Plan, build, prove.', steps: ['Read the project\'s DESIGN.md and note its done-checklist.', 'List every state before you build: data states, the environment (dark, light, reduced motion, narrow width, keyboard), and every place the data shows.', 'Name the primary action, its key, and the order of events. Undo must restore the exact earlier state.', 'Build from existing tokens and components, and keep everything the page already shows.', 'Apply every UI skill the change calls for, such as better-layout for structure and better-accessibility for controls.', 'Prove every state in a real browser with a capture, then run the design checklist and interface-review.', 'For a change people will notice, run the UI council after your own proof.', 'Log each design decision and its reason.'], reply: 'A table with one row per state: how it was checked, what was seen, and the capture. Then checklist results, review findings, choices, and what is open.' },
+  { id: 'refactoring', t: 'Refactoring', when: 'Change structure, not behavior', own: 'You own the contract. The structure changes. The behavior does not.', steps: ['Pin the behavior contract first.', 'Name the structure the code is missing.', 'Name the target shape.', 'Subtract before you add.', 'Move in small behavior-preserving steps, each keeping the pin green.', 'Prove behavior is unchanged on the real artifact.', 'Confirm the change is worth keeping.', 'Rebase into small ordered commits.'], reply: 'The structure that changed, the pin it was held against, the equivalence proof, and what shipped or got reverted.' },
+  { id: 'investigation', t: 'Investigation', when: 'How does X work, why is Y like this, are we sure', own: 'You own the answer. Plan, route, write.', steps: ['Route through the how skill, and why for history and motivation.', 'Produce an explanation: overview, key concepts, how it works, where things live, gotchas.', 'Or, for a decision, a recommendation with a tradeoffs table.', 'Clean the reply with unslop.'], reply: 'The explanation, with a real judgment and reasons for "are we sure?" questions. It pushes back if the premise is wrong.' },
+  { id: 'perf-issue', t: 'Perf issue', when: 'Fix a measured slowness against a baseline', own: 'You own the measurement story. Plan, review, verify the numbers.', steps: ['Capture a baseline trace on the matching surface, and vet it.', 'Ground hypotheses in how the code works, cheapest idea first: don\'t do it, don\'t do it again, do less, do it later.', 'Plan the fix from the trace.', 'Compare the before and after artifacts.', 'Cite the measurement in the commit or PR.'], reply: 'Baseline number, post-fix number, the delta, and the artifact path.' },
+  { id: 'hillclimb', t: 'Hillclimb', when: 'Improve one metric over many keep-or-revert tries', own: 'You own the metric and the experiment\'s integrity.', steps: ['Ground the workload, then fix one metric, a target, and a minimum number of attempts.', 'Build the measurement harness, prove it can tell cases apart, then freeze it.', 'Open a decision log with one row per attempt.', 'Ground each hypothesis in a specific mechanism.', 'Loop: one change, measure, keep it only if the number moves past noise and tests stay green, otherwise revert.', 'Push past the first plateau with a different kind of idea.', 'Stop when the target is met. Never move the target to meet it.', 'Deliver the accepted commits in the order they landed.'], reply: 'The metric and target, baseline to final with the percent change, kept and reverted counts, and the next idea to try.' },
+  { id: 'prototype', t: 'Prototype', when: 'Settle an uncertain design with a sketch', own: 'The output is a design decision backed by a throwaway artifact.', steps: ['Name the decision: layout, interaction, density, behavior, timing, or approach.', 'Gather references when the design space is open.', 'Build the smallest useful experiment in a scratch directory.', 'Put alternatives behind one labelled switcher.', 'Observe each one on the real surface.', 'Present the alternatives, evidence, tradeoffs, and a recommendation.'], reply: 'The decision, the variants, what was observed, the recommendation, and where the sketch lives.' },
+  { id: 'visual-parity', t: 'Visual parity', when: 'Prove a restyle or migration looks the same', own: 'The baseline is the spec, and you do not touch it.', steps: ['Build the baseline first: a script that screenshots the component in every state.', 'Don\'t change the harness, edit the baseline, or restructure to make a diff pass.', 'Migrate one component at a time, shared primitives first.', 'Diff each against its baseline. A nonzero diff is a fail.', 'Follow the requested delivery scope.'], reply: 'Each component with its diff result, where the baseline script lives, and what is left.' },
+  { id: 'opening-an-mr', t: 'Opening an MR', when: 'Prepare and open a merge or pull request', own: 'You own what the reviewer sees. Tidy, describe, prove, and ask before it leaves.', steps: ['Read the project\'s conventions and MR template.', 'Resolve the forge once: glab for GitLab, gh for GitHub.', 'Tidy the branch.', 'Check the diff before a reviewer does.', 'Write the title and description to the technical-writing standard.', 'Ask before it leaves the machine.', 'Create any approved tickets first and close them from the description.', 'Keep MRs narrow.'], reply: 'The MR link, read back from the forge, with what it contains, how it was verified, and what is left for reviewers.' },
+  { id: 'babysit', t: 'Babysit', when: 'Drive a PR or MR to merge-ready', own: 'You own the merge frontier.', steps: ['Declare the mode before any polling.', 'Ask once for the outward actions the mode needs.', 'Work the lowest unmerged PR in a stack and nothing above it.', 'Never change the stack\'s shape.', 'Order is conflicts, then review threads, then CI.', 'Trust the forge\'s merge verdict, not a green check list.', 'Classify a CI failure before any rerun.', 'Triage review comments sceptically, human and bot alike.'], reply: 'Each PR\'s verdict, what was fixed, threads answered or dismissed with the reason, and CI reruns with their classification.' },
+  { id: 'runtime-forensics', t: 'Runtime forensics', when: 'Diagnose a live leak, spin, hang, or glitch', own: 'You own the diagnosis. Instrument the live process, don\'t theorize.', steps: ['Reproduce the symptom on the surface where it occurs.', 'Capture the live signal while it happens: a CPU profile, heap snapshot, or trace.', 'Read the app\'s logs over the same window.', 'Reduce the artifact to the smoking gun.', 'Prove the mechanism before believing it.', 'Map the finding back to the file and line.'], reply: 'The symptom, the signal captured, the reduced finding, how the mechanism was proved, and the source location.' },
+  { id: 'trace-forensics', t: 'Trace forensics', when: 'Diagnose a captured profile or heap snapshot', own: 'You own the diagnosis from the artifact.', steps: ['Identify the format and load it with the right tool.', 'Turn the raw artifact into something you can query.', 'Narrow to the cause.', 'Line up the app\'s logs with the capture\'s window.', 'Attribute it to source.', 'Diff a paired before and after capture to confirm.'], reply: 'The artifact and format, the finding, the source location, and whether a paired capture confirmed it.' },
+  { id: 'eval', t: 'Eval', when: 'Measure whether a skill or prompt change helps', own: 'Define success before running, isolate each attempt, and judge blind.', steps: ['Write 3 to 6 concrete criteria before running.', 'Prepare separate workspaces from the same baseline.', 'Use one realistic prompt, unchanged, for each variant.', 'Collect the real artifacts and run the same checks on each.', 'Have an independent judge score all outputs under neutral labels.', 'Check the run records to confirm the instructions loaded.', 'Report results, confounders, and a keep, revise or reject call.'], reply: 'Results tied to real artifacts, with the strength and limits of the evidence.' },
+  { id: 'authoring-a-skill', t: 'Authoring a skill', when: 'Write or change a skill, principle, or playbook', own: 'You own the skill\'s voice.', steps: ['Draft or revise it with the skill-creator skill when available.', 'Clean the prose with unslop.', 'Run the skill validator.', 'Add test cases if the change is structural.', 'Follow the requested delivery scope.'], reply: 'A summary of the skill, the key design decisions, and the validation notes.' }
+];
+let pbI = 0;
+function renderPB() {
+  $('#pb-list').innerHTML = PB.map((p, i) => `<button type="button" class="l-row" role="option" aria-selected="${i === pbI}" data-pb="${i}"><span class="t">${esc(p.t)}</span><span class="s">${esc(p.when)}</span></button>`).join('');
+  const p = PB[pbI];
+  $('#pb-detail').innerHTML = `
+    <div class="sec-head"><div class="eyebrow">${esc(p.when)}</div><span class="meta">${pbI + 1} of ${PB.length} · <span class="kbd">J</span> <span class="kbd">K</span></span></div>
+    <h2>${esc(p.t)}</h2>
+    <div class="owns">${esc(p.own)}</div>
+    <div class="labelled"><span class="meta">Steps, copied into the todo list</span><ol class="ol">${p.steps.map((s) => `<li><span>${esc(s)}</span></li>`).join('')}</ol></div>
+    <div class="reply labelled"><span class="meta">The reply must give</span><p>${esc(p.reply)}</p></div>`;
+}
+function goPB(i) { pbI = (i + PB.length) % PB.length; renderPB(); const sel = $(`[data-pb="${pbI}"]`); if (sel) sel.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+$('#pb-list').addEventListener('click', (e) => { const b = e.target.closest('[data-pb]'); if (b) goPB(+b.dataset.pb); });
+renderPB();
+
+/* ---------- skills ---------- */
+const SK = [
+  ['Understand', 'how', 'Explains how code works now, or where new code should live.'],
+  ['Understand', 'why', 'Digs through history, tickets and incidents to explain why code is this way.'],
+  ['Understand', 'teach', 'Explains a change or subsystem so a person really understands it.'],
+  ['Understand', 'blast-radius', 'Finds what a change could break outside its own diff.'],
+  ['Observe', 'probe', 'Reads the app\'s logs over a time window, and sets that up for a project.'],
+  ['Observe', 'grafana-dashboard', 'Builds a Grafana dashboard from the metrics a project\'s code emits.'],
+  ['Design and build', 'architect', 'Sketches types and signatures before code that crosses a function boundary.'],
+  ['Design and build', 'shootout', 'Several attempts at one brief, judged, with the best parts merged.'],
+  ['Design and build', 'swarm', 'Fans parallel workers out over slices, or races them.'],
+  ['Design and build', 'figure-it-out', 'Runs large or open-ended work that no playbook fits.'],
+  ['Design and build', 'tdd', 'Fixes a bug test-first when a cheap local test exists.'],
+  ['Review', 'interrogate', 'Reviewers on different models try to break a change. Only proven findings survive.'],
+  ['Review', 'ui-council', 'Reviewers open the running UI through one lens each: design system, breaker, experience.'],
+  ['Review', 'interface-review', 'Reviews a branch or diff for the UI problems it introduced.'],
+  ['Review', 'benchmark-checklist', 'Vets a performance number before anyone reports or acts on it.'],
+  ['UI', 'better-layout', 'Grouping, alignment, reading order and responsive structure.'],
+  ['UI', 'better-ui', 'Exact values for radius, shadows, icons and optical alignment.'],
+  ['UI', 'better-writing', 'Labels, errors, empty states and confirmations in the product\'s voice.'],
+  ['UI', 'better-typography', 'Type scale, spacing, wrapping and truncation.'],
+  ['UI', 'better-colors', 'Builds and checks a colour system, including contrast.'],
+  ['UI', 'better-accessibility', 'Keyboard, focus, ARIA and screen readers against WCAG 2.2.'],
+  ['UI', 'better-interface', 'One ranked review across all the better-* skills.'],
+  ['UI', 'emil-design-eng', 'Polish and feel: the small details that make UI feel great.'],
+  ['UI', 'state-machine', 'Renders every state of one component on a throwaway page with a switcher.'],
+  ['UI', 'prototype', 'Builds genuinely different versions of a UI piece behind a picker.'],
+  ['UI', 'break-ui', 'Feeds a UI worst-case data and reports everything that broke.'],
+  ['Motion', 'animate', 'Builds an animation, deciding first whether it should animate at all.'],
+  ['Motion', 'review-animations', 'Reviews motion code against a high craft bar.'],
+  ['Motion', 'animation-performance', 'Keeps animations inside the frame budget.'],
+  ['Motion', 'find-animation-opportunities', 'Finds where motion belongs, and rejects where it doesn\'t.'],
+  ['Motion', 'improve-animations', 'Audits existing motion and writes plans to fix it.'],
+  ['Code rules', 'typescript-best-practices', 'Rules for writing and editing .ts and .tsx files.'],
+  ['Code rules', 'vercel-react-best-practices', 'Vercel\'s rules for fast React components, hooks and data fetching.'],
+  ['Write', 'technical-writing', 'Docs, READMEs, RFCs, MR descriptions and commit messages to a standard.'],
+  ['Write', 'unslop', 'Strips AI tells out of any prose, replies included.'],
+  ['Write', 'ticket-up', 'Drafts and files GitLab or GitHub tickets for finished work.'],
+  ['Long work', 'show-me-your-work', 'Keeps a decision log on long or unattended runs.'],
+  ['Improve tblock', 'reflect', 'Turns what a session taught into proposed skill edits, with your approval.'],
+  ['Improve tblock', 'correct', 'Makes a mistake agents keep repeating impossible, with a check or a lint.'],
+  ['Improve tblock', 'automate-me', 'Turns your own working habits into a personal mode skill.'],
+  ['Verify a project', 'create-verification-skill', 'Gives agents a scripted way to launch and drive your app.'],
+  ['Verify a project', 'maintain-verification-skill', 'Brings that skill back in line when the app changes.'],
+  ['Verify a project', 'create-formal-verification-skill', 'Formally checks a key property, such as a race or a retry.'],
+  ['Verify a project', 'maintain-formal-verification-skill', 'Keeps formal verification in step with the code.'],
+  ['Set up and help', 'tblock-mode', 'The entry point. Routes the task to a playbook and runs it.'],
+  ['Set up and help', 'setup-tblock', 'Picks a preset and maps your models to roles.'],
+  ['Set up and help', 'tblock-help', 'Finds the right skill, and fixes a run that went wrong.'],
+  ['You type these', 'sharpen', 'Makes a task deeper, not bigger, and hands back a rewritten prompt.'],
+  ['You type these', 'in-your-own-words', 'Checks the agent understood the goal before it starts.'],
+  ['You type these', 'bro', 'Says the last reply again in plain words.']
+];
+const SK_GROUPS = [...new Set(SK.map((s) => s[0]))];
+const SK_FILTERS = ['All', 'Understand', 'Design and build', 'Review', 'UI', 'Write', 'More'];
+const MAIN_GROUPS = SK_FILTERS.slice(1, -1);
+let skFilter = 'All';
+$('#skill-filter').innerHTML = SK_FILTERS.map((f) => `<button type="button" aria-pressed="${f === 'All'}" data-skf="${esc(f)}">${esc(f)}</button>`).join('');
+$('#skill-filter').addEventListener('click', (e) => { const b = e.target.closest('[data-skf]'); if (!b) return; skFilter = b.dataset.skf; $$('[data-skf]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); renderSkills(); });
+$('#skill-q').addEventListener('input', renderSkills);
+function renderSkills() {
+  const q = $('#skill-q').value.trim().toLowerCase();
+  const inFilter = (g) => skFilter === 'All' || (skFilter === 'More' ? !MAIN_GROUPS.includes(g) : g === skFilter);
+  const html = SK_GROUPS.filter(inFilter).map((g) => {
+    const items = SK.filter((s) => s[0] === g && (!q || s[1].includes(q) || s[2].toLowerCase().includes(q)));
+    if (!items.length) return '';
+    return `<div class="skill-group"><span class="meta">${esc(g)} · ${items.length}</span><div class="skills">${items.map(([grp, n, d]) => `<button type="button" class="card skill" data-copy-skill="${esc(n)}"><span class="n">/${esc(n)}${grp === 'You type these' ? '<span class="chip">you type it</span>' : ''}</span><p>${esc(d)}</p></button>`).join('')}</div></div>`;
+  }).join('');
+  $('#skill-groups').innerHTML = html || `<div class="empty">No skill matches "${esc(q)}". Try a word like review, layout or test.</div>`;
+}
+$('#skill-groups').addEventListener('click', (e) => { const b = e.target.closest('[data-copy-skill]'); if (b) copy('/' + b.dataset.copySkill + ' ', `Copied /${b.dataset.copySkill}`); });
+renderSkills();
+
+/* ---------- principles ---------- */
+const PR = [
+  ['Core', 'Laziness Protocol', 'Refactoring, sizing a diff, or tempted to add layers. Bias to deletion and the smallest change that solves the problem.'],
+  ['Core', 'Foundational Thinking', 'Before writing logic: settle the core types and data structures, and what concurrent actors share.'],
+  ['Core', 'Redesign from First Principles', 'Adding a requirement to an existing design. Redesign as if it had been there from day one.'],
+  ['Core', 'Attack the Premise', 'Two fixes failed on the same assumption. Write it down and test it before a third fix.'],
+  ['Core', 'Subtract Before You Add', 'Remove dead weight first, then build on the simpler base.'],
+  ['Core', 'Minimize Reader Load', 'Code that\'s hard to trace. Count layers and hidden state, collapse one-caller wrappers.'],
+  ['Core', 'Outcome-Oriented Execution', 'Planned rewrites and migrations. Converge on the target, don\'t preserve throwaway states.'],
+  ['Core', 'Exhaust the Design Space', 'A decision with no precedent. Build two or three competing prototypes before committing.'],
+  ['Core', 'Build the Lever', 'Build the tool that does or proves the work, such as a codemod or script, not by hand.'],
+  ['Architecture', 'Model the Domain', 'Stateful or branchy logic. Encode it in a state machine, typed model or table, not scattered if/else.'],
+  ['Architecture', 'Boundary Discipline', 'Validate at system boundaries, trust internal types, keep business logic pure.'],
+  ['Architecture', 'Type System Discipline', 'Make illegal states unrepresentable, and parse external data at the edges.'],
+  ['Architecture', 'Make Operations Idempotent', 'Commands and loops that run amid crashes and retries converge to the same end state.'],
+  ['Architecture', 'Migrate Callers Then Delete Legacy APIs', 'A new internal API with old callers. Migrate them and delete the old one in one wave.'],
+  ['Architecture', 'Separate Before Serializing Shared State', 'Concurrent actors might write the same thing. Remove the sharing first.'],
+  ['Verification', 'Prove It Works', 'Before declaring done. Verify on the real artifact, not a proxy or "it compiles".'],
+  ['Verification', 'Fix Root Causes', 'Trace each symptom to the first place things went wrong and fix it there.'],
+  ['Verification', 'Sequence Verifiable Units', 'Break work into small units that each end in a check, and verify each before the next.'],
+  ['Verification', 'Test Behavior, Not Implementation', 'Assert what users can observe, so tests survive internal changes.'],
+  ['Verification', 'Explain the Number', 'Decide what result would change your mind before you measure, then find what limits the number.'],
+  ['UI', 'Importance Is Obvious', 'Make what matters, what happened, and what to do next obvious, with the project\'s design system.'],
+  ['Delegation', 'Guard the Context Window', 'Route bulky output to helpers, and keep summaries in the main thread.'],
+  ['Delegation', 'Never Block on the Human', 'On reversible work, proceed and show the result. Outward actions still wait for a yes.'],
+  ['Meta', 'Encode Lessons in Structure', 'The same instruction twice means it should become a lint, a check or a script.']
+];
+const PR_GROUPS = ['All', ...new Set(PR.map((p) => p[0]))];
+let prFilter = 'All';
+$('#pr-filter').innerHTML = PR_GROUPS.map((g) => `<button type="button" aria-pressed="${g === 'All'}" data-prf="${esc(g)}">${esc(g)}<span class="meta" style="margin-left:6px">${g === 'All' ? PR.length : PR.filter((p) => p[0] === g).length}</span></button>`).join('');
+$('#pr-filter').addEventListener('click', (e) => { const b = e.target.closest('[data-prf]'); if (!b) return; prFilter = b.dataset.prf; $$('[data-prf]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); renderPR(); });
+function renderPR() {
+  $('#pr-grid').innerHTML = PR.filter((p) => prFilter === 'All' || p[0] === prFilter).map(([g, n, w]) => `<div class="card principle"><div class="g"><h4>${esc(n)}</h4><span class="chip">${esc(g)}</span></div><p>${esc(w)}</p></div>`).join('');
+}
+renderPR();
+
+/* ---------- presets ---------- */
+const ROLES = [
+  ['code', 'Delegated code changes'],
+  ['hardest', 'Cross-cutting design, concurrency, subtle algorithms'],
+  ['judgment', 'Explanations, and judging other agents\' work'],
+  ['reviewers', 'interrogate and ui-council panels'],
+  ['swarm workers', 'swarm workers and how explorers'],
+  ['shootout runners', 'shootout attempts'],
+  ['shootout judges', 'judging shootout attempts']
+];
+const PRESETS = {
+  efficient: { note: 'Everyday bugs and small changes. Strong models on the thinking roles, your session model for code, medium effort.',
+    hardest: { family: 'claude', tier: 'strong', effort: 'medium' }, judgment: { family: 'claude', tier: 'strong', effort: 'medium' }, code: { tier: 'session', effort: 'medium' }, 'swarm workers': { family: 'gpt', tier: 'fast', effort: 'low' }, reviewers: { panel: 2, tier: 'strong', effort: 'medium' }, 'shootout runners': { panel: 2, tier: 'strong', effort: 'medium' }, 'shootout judges': { panel: 2, tier: 'strong', effort: 'medium' } },
+  high: { note: 'The default, for features and reviews. Top models where judgment matters, strong models elsewhere, two-family panels.',
+    hardest: { family: 'claude', tier: 'top', effort: 'high' }, judgment: { family: 'claude', tier: 'top', effort: 'high' }, code: { family: 'gpt', tier: 'strong', effort: 'medium' }, 'swarm workers': { family: 'gpt', tier: 'fast', effort: 'low' }, reviewers: { panel: 2, tier: 'strong', effort: 'high' }, 'shootout runners': { panel: 2, tier: 'strong', effort: 'high' }, 'shootout judges': { panel: 2, tier: 'strong', effort: 'high' } },
+  extreme: { note: 'Hard design and risky changes. Top models at high to max effort, three-family panels.',
+    hardest: { family: 'claude', tier: 'top', effort: 'max' }, judgment: { family: 'claude', tier: 'top', effort: 'max' }, code: { family: 'gpt', tier: 'top', effort: 'high' }, 'swarm workers': { family: 'gpt', tier: 'strong', effort: 'medium' }, reviewers: { panel: 3, tier: 'top', effort: 'xhigh' }, 'shootout runners': { panel: 3, tier: 'top', effort: 'xhigh' }, 'shootout judges': { panel: 3, tier: 'top', effort: 'xhigh' } }
+};
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+const FAM = { claude: 'Claude', gpt: 'GPT' };
+let preset = store.get('tb101-preset') || 'high';
+if (!PRESETS[preset]) preset = 'high';
+$('#preset-seg').innerHTML = Object.keys(PRESETS).map((p) => `<button type="button" aria-pressed="${p === preset}" data-preset="${p}">${p}</button>`).join('');
+$('#preset-seg').addEventListener('click', (e) => { const b = e.target.closest('[data-preset]'); if (!b) return; preset = b.dataset.preset; store.set('tb101-preset', preset); $$('[data-preset]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); renderPreset(); });
+function renderPreset() {
+  const P = PRESETS[preset];
+  $('#preset-note').textContent = P.note;
+  $('#preset-body').innerHTML = ROLES.map(([r, use]) => {
+    const e = P[r];
+    const model = e.tier === 'session' ? 'Your session model' : e.panel ? `<span class="panel-dots" aria-hidden="true">${'<i></i>'.repeat(e.panel)}</span> ${e.panel} models, ${e.tier} tier, mixed families` : `${FAM[e.family]}, ${e.tier} tier`;
+    const lvl = EFFORTS.indexOf(e.effort) + 1;
+    const bars = `<span class="effort" aria-hidden="true">${EFFORTS.map((_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('')}</span>`;
+    return `<tr><td class="mono" style="font-family:var(--mono);font-weight:400">${esc(r)}</td><td>${esc(use)}</td><td>${model}</td><td style="white-space:nowrap">${bars}${esc(e.effort)}</td></tr>`;
+  }).join('');
+}
+renderPreset();
+
+/* ---------- install ---------- */
+const INSTALL = {
+  copilot: ['copilot plugin install tommyc10/plugins:tblock'],
+  claude: ['claude plugin marketplace add tommyc10/plugins', 'claude plugin install tblock@plugins']
+};
+const copyIcon = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="2"/><path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5"/></svg>';
+function renderInstall(tool) {
+  $$('[data-tool]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
+  $('#install-cmds').innerHTML = INSTALL[tool].map((c) => `<div class="cmd"><code>${esc(c)}</code><button class="icon-btn" type="button" data-copy="${esc(c)}" aria-label="Copy command">${copyIcon}</button></div>`).join('');
+}
+$('#install-seg').addEventListener('click', (e) => { const b = e.target.closest('[data-tool]'); if (b) renderInstall(b.dataset.tool); });
+renderInstall('copilot');
+
+/* ---------- prompt builder ---------- */
+const PT = {
+  bug: { label: 'Bug', a: ['What goes wrong', 'the order total counts refunds twice'], b: ['What it should do', 'count them once'], make: (a, b) => `/tblock-mode bug: ${a}. it should ${b}.`, routes: 'Routes to the Bug fix playbook.' },
+  feature: { label: 'Feature', a: ['What to add', 'a filter for late change windows'], b: ['What must stay the same', 'the existing counts and footer keys'], make: (a, b) => `/tblock-mode add ${a}. ${b} stays the same. verify both.`, routes: 'Routes to the Feature playbook.' },
+  ui: { label: 'UI change', a: ['The UI change', 'restructure the access page so roles group by team'], b: ['Design doc', 'DESIGN.md'], make: (a, b) => `/tblock-mode ${a}. follow ${b}. prove every state in the browser.`, routes: 'Routes to the UI-UX playbook, with better-layout and the UI council.' },
+  refactor: { label: 'Refactor', a: ['What to restructure', 'the pricing helpers into one module'], b: ['Output to hold steady', 'every order total'], make: (a, b) => `/tblock-mode move ${a}, zero behavior change. record ${b} first and prove it's unchanged after.`, routes: 'Routes to the Refactoring playbook.' },
+  perf: { label: 'Perf', a: ['What is slow', 'opening the rules page'], b: ['How slow, on what data', '3s on the full rule set'], make: (a, b) => `/tblock-mode ${a} takes ${b}. trace it, fix the measured cause, show me before and after.`, routes: 'Routes to the Perf issue playbook.' },
+  question: { label: 'Question', a: ['What you want explained', 'the nightly refresh'], b: ['What you need to decide', 'whether it can run hourly'], make: (a, b) => `/tblock-mode how does ${a} work? I need to decide ${b}.`, routes: 'Routes to the Investigation playbook and the how skill. Read-only.' }
+};
+let pt = 'bug';
+$('#pt-seg').innerHTML = Object.entries(PT).map(([k, v]) => `<button type="button" aria-pressed="${k === pt}" data-pt="${k}">${esc(v.label)}</button>`).join('');
+$('#pt-seg').addEventListener('click', (e) => { const b = e.target.closest('[data-pt]'); if (!b) return; pt = b.dataset.pt; $$('[data-pt]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); renderPT(true); });
+function renderPT(reset) {
+  const v = PT[pt];
+  if (reset) {
+    $('#pt-fields').innerHTML = [['pt-a', v.a], ['pt-b', v.b]].map(([id, [label, val]]) => `<div class="field"><label for="${id}">${esc(label)}</label><input id="${id}" type="text" value="${esc(val)}" autocomplete="off"></div>`).join('');
+    $$('#pt-fields input').forEach((i) => i.addEventListener('input', () => renderPT(false)));
+  }
+  const a = $('#pt-a').value.trim() || '…', b = $('#pt-b').value.trim() || '…';
+  $('#pt-out').textContent = v.make(a, b);
+  $('#pt-routes').textContent = v.routes;
+}
+$('#pt-copy').addEventListener('click', () => copy($('#pt-out').textContent, 'Prompt copied'));
+renderPT(true);
+
+/* ---------- routing ---------- */
+const VIEWS = ['overview', 'flow', 'playbooks', 'skills', 'principles', 'agents', 'start'];
+function show(view) {
+  if (!VIEWS.includes(view)) view = 'overview';
+  $$('section[data-view]').forEach((s) => { s.hidden = s.dataset.view !== view; });
+  $$('#nav a').forEach((a) => { if (a.getAttribute('href') === '#' + view) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  return view;
+}
+let current = show(location.hash.slice(1));
+window.addEventListener('hashchange', () => { current = show(location.hash.slice(1)); window.scrollTo(0, 0); });
+function go(view) { if (location.hash !== '#' + view) location.hash = view; else current = show(view); }
+
+/* ---------- theme ---------- */
+const savedTheme = store.get('tb101-theme');
+if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.dataset.theme = savedTheme;
+function toggleTheme() {
+  const root = document.documentElement;
+  const isDark = root.dataset.theme ? root.dataset.theme === 'dark' : !matchMedia('(prefers-color-scheme: light)').matches;
+  root.dataset.theme = isDark ? 'light' : 'dark';
+  store.set('tb101-theme', root.dataset.theme);
+}
+$('#theme').addEventListener('click', toggleTheme);
+
+/* ---------- command palette ---------- */
+const SECTION_NAMES = { overview: 'Why tblock', flow: 'How a run flows', playbooks: 'Playbooks', skills: 'Skills', principles: 'Principles', agents: 'Agents and roles', start: 'Get started' };
+const ITEMS = [
+  ...VIEWS.map((v, i) => ({ label: SECTION_NAMES[v], kind: 'Section', run: () => go(v) })),
+  ...PB.map((p, i) => ({ label: p.t, kind: 'Playbook', run: () => { go('playbooks'); goPB(i); } })),
+  ...SK.map(([g, n]) => ({ label: '/' + n, kind: g, run: () => { go('skills'); $('#skill-q').value = n; skFilter = 'All'; $$('[data-skf]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.skf === 'All'))); renderSkills(); } })),
+  ...PR.map(([g, n]) => ({ label: n, kind: 'Principle', run: () => { go('principles'); prFilter = g; $$('[data-prf]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.prf === g))); renderPR(); } }))
+];
+let pItems = [], pSel = 0, lastFocus = null;
+function openPalette() {
+  lastFocus = document.activeElement;
+  $('#palette').hidden = false; $('#p-q').value = ''; filterPalette(); $('#p-q').focus();
+}
+function closePalette() { $('#palette').hidden = true; if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+function filterPalette() {
+  const q = $('#p-q').value.trim().toLowerCase();
+  pItems = ITEMS.filter((it) => !q || it.label.toLowerCase().includes(q) || it.kind.toLowerCase().includes(q)).slice(0, 40);
+  pSel = 0; drawPalette();
+}
+function drawPalette() {
+  $('#p-list').innerHTML = pItems.length ? pItems.map((it, i) => `<button type="button" class="p-item" role="option" aria-selected="${i === pSel}" data-pi="${i}"><span>${esc(it.label)}</span><span class="k">${esc(it.kind)}</span></button>`).join('') : '<div class="empty">Nothing matches</div>';
+  const sel = $(`[data-pi="${pSel}"]`); if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+function runPalette(i) { const it = pItems[i]; if (!it) return; $('#palette').hidden = true; it.run(); }
+$('#p-q').addEventListener('input', filterPalette);
+$('#p-list').addEventListener('click', (e) => { const b = e.target.closest('[data-pi]'); if (b) runPalette(+b.dataset.pi); });
+$('#palette').addEventListener('click', (e) => { if (e.target.id === 'palette') closePalette(); });
+$('#open-palette').addEventListener('click', openPalette);
+
+/* ---------- keyboard: one listener, palette first, then fields, then the page ---------- */
+document.addEventListener('keydown', (e) => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#palette').hidden ? openPalette() : closePalette(); return; }
+  if (!$('#palette').hidden) {
+    if (e.key === 'Escape') { e.preventDefault(); closePalette(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); pSel = Math.min(pSel + 1, pItems.length - 1); drawPalette(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); pSel = Math.max(pSel - 1, 0); drawPalette(); }
+    else if (e.key === 'Enter') { e.preventDefault(); runPalette(pSel); }
+    return;
+  }
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) { if (e.key === 'Escape') t.blur(); return; }
+  if (mod || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (/^[1-7]$/.test(k)) { go(VIEWS[+k - 1]); return; }
+  if (k === 't') { toggleTheme(); return; }
+  if (k === '/' && current === 'skills') { e.preventDefault(); $('#skill-q').focus(); return; }
+  const next = k === 'j' || e.key === 'ArrowRight' || e.key === 'ArrowDown';
+  const prev = k === 'k' || e.key === 'ArrowLeft' || e.key === 'ArrowUp';
+  if (!next && !prev) return;
+  if (current === 'flow') { e.preventDefault(); goStep(flowI + (next ? 1 : -1)); }
+  else if (current === 'playbooks') { e.preventDefault(); goPB(pbI + (next ? 1 : -1)); }
+});
+})();
+</script>
+</body>
+</html>
