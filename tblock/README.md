@@ -76,6 +76,8 @@ To find the install folder:
 | `tblock roles` | Shows which model and effort each role uses |
 | `tblock roles set "code=gpt-5 @ medium" reviewers=claude-opus-5,gpt-5` | Sets roles, and in Copilot rewrites the role agents and their efforts |
 | `tblock roles sync` | Rewrites the Copilot role agents and efforts from the roles file |
+| `tblock models` | Lists the Copilot models VS Code's picker offers your plan, and suggests tiers (needs Node 22.5+) |
+| `tblock tiers detect` | Maps tiers from those detected models, so you never type picker names |
 | `tblock tiers` and `tblock tiers set claude-top=<model> gpt-fast=<model>` | Show or map which of your models fills each tier |
 | `tblock preset` and `tblock preset <name>` | List the presets, or apply one |
 

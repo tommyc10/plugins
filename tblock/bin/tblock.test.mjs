@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 const CLI = join(dirname(fileURLToPath(import.meta.url)), 'tblock.mjs');
 const PLUGIN = join(dirname(CLI), '..');
 
-function sandbox(stubs = {}) {
+function sandbox(stubs = {}, extraEnv = {}) {
   const home = mkdtempSync(join(tmpdir(), 'tblock-test-'));
   const bin = join(home, 'bin');
   mkdirSync(bin);
@@ -19,7 +19,9 @@ function sandbox(stubs = {}) {
     chmodSync(join(bin, name), 0o755);
   }
   const cli = (...args) => {
-    const env = { HOME: home, PATH: `${bin}:/usr/bin:/bin` };
+    // Node finds the home folder through USERPROFILE on Windows, so set both, and point
+    // VS Code's state at the sandbox, or a test run rewrites the real setup.
+    const env = { HOME: home, USERPROFILE: home, APPDATA: join(home, 'AppData'), XDG_CONFIG_HOME: join(home, '.config'), PATH: `${bin}:/usr/bin:/bin`, ...extraEnv };
     const r = spawnSync(process.execPath, [CLI, ...args], { env, encoding: 'utf8' });
     return { code: r.status, out: r.stdout, err: r.stderr };
   };
@@ -199,4 +201,70 @@ test('the session model does not count as a model family', () => {
   const { cli } = sandbox();
   cli('roles', 'set', 'code=session', 'hardest=opus', 'reviewers=sonnet');
   assert.match(find(doctorJson(cli), 'Roles')[0].detail, /models from 1 family\b/);
+});
+
+// A VS Code state database holding a picker list, like the one Copilot Chat caches.
+async function vscodeState(dir, sku, plans) {
+  const { DatabaseSync } = await import('node:sqlite');
+  const file = join(dir, 'state.vscdb');
+  const db = new DatabaseSync(file);
+  db.exec('create table ItemTable (key text unique on conflict replace, value blob)');
+  const put = db.prepare('insert into ItemTable values (?, ?)');
+  put.run('extensionsAssignmentFilterProvider.copilotSku', sku);
+  put.run('chat.modelsControl', JSON.stringify(plans));
+  put.run('chat.cachedLanguageModels.v2', JSON.stringify([{ identifier: 'copilot/auto', metadata: { id: 'auto', name: 'Auto', vendor: 'copilot', isUserSelectable: true } }]));
+  db.close();
+  return file;
+}
+
+const picker = (...models) => Object.fromEntries(models.map(([id, label]) => [id, { id, label }]));
+
+test('models reads the picker list for the account plan and suggests tiers', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tblock-state-'));
+  const state = await vscodeState(dir, 'copilot_enterprise_seat', {
+    free: picker(['gpt-5-mini', 'GPT-5 mini']),
+    paid: picker(['claude-opus-5.5', 'Claude Opus 5.5'], ['claude-sonnet-5.5', 'Claude Sonnet 5.5'], ['claude-haiku-4.5', 'Claude Haiku 4.5'],
+      ['gpt-6.1-sol', 'GPT-6.1 Sol'], ['gpt-5.6-terra', 'GPT-5.6 Terra'], ['gpt-6-luna', 'GPT-6 Luna'], ['gpt-5.4-mini', 'GPT-5.4 mini'], ['kimi-k2.7-code', 'Kimi K2.7 Code']),
+  });
+  const { cli } = sandbox({}, { TBLOCK_VSCODE_STATE: state });
+  const r = cli('models', '--json');
+  assert.equal(r.code, 0, r.err);
+  assert.equal(r.err, '', 'no experimental warning reaches the user');
+  const found = JSON.parse(r.out);
+  assert.ok(!found.models.some((m) => m.id === 'gpt-5-mini'), 'free-plan models are left out for a paid seat');
+  assert.ok(!found.models.some((m) => m.id === 'auto'), 'Auto is not a model a role can pin');
+  assert.deepEqual(found.tiers, {
+    'claude-top': 'claude-opus-5.5', 'claude-strong': 'claude-sonnet-5.5', 'claude-fast': 'claude-haiku-4.5',
+    'gpt-top': 'gpt-6.1-sol', 'gpt-strong': 'gpt-5.6-terra', 'gpt-fast': 'gpt-6-luna',
+  });
+});
+
+test('tiers detect writes tiers, and Copilot agents name both the id and the picker name', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tblock-state-'));
+  const state = await vscodeState(dir, 'free_limited_copilot', {
+    free: picker(['claude-sonnet-5.5', 'Claude Sonnet 5.5'], ['claude-sonnet-5', 'Claude Sonnet 5'], ['gpt-6.1-sol', 'GPT-6.1 Sol']),
+  });
+  const { home, cli } = sandbox({}, { TBLOCK_VSCODE_STATE: state });
+  assert.equal(cli('tiers', 'detect').code, 0);
+  const roles = readFileSync(join(home, '.tblock', 'roles.md'), 'utf8');
+  assert.match(roles, /^# tiers: claude-top=claude-sonnet-5\.5, claude-strong=claude-sonnet-5, gpt-top=gpt-6\.1-sol$/m, 'with no top model, the newest strong one leads');
+  assert.match(roles, /^# model names: .*claude-sonnet-5\.5=Claude Sonnet 5\.5/m);
+
+  const r = cli('roles', 'set', '--harness=copilot', 'hardest=claude-sonnet-5.5', 'code=GPT-6.1 Sol', 'judgment=session');
+  assert.equal(r.code, 0, r.err);
+  const hardest = readFileSync(join(home, '.copilot', 'agents', 'tblock-hardest.agent.md'), 'utf8');
+  assert.match(hardest, /^model: \[claude-sonnet-5\.5, "Claude Sonnet 5\.5 \(copilot\)"\]$/m);
+  assert.match(hardest, /^model-policy: required$/m, 'the session model must not override the role');
+  const code = readFileSync(join(home, '.copilot', 'agents', 'tblock-code.agent.md'), 'utf8');
+  assert.match(code, /^model: \[gpt-6\.1-sol, "GPT-6\.1 Sol \(copilot\)"\]$/m, 'a picker name resolves to its id');
+  assert.doesNotMatch(readFileSync(join(home, '.copilot', 'agents', 'tblock-judgment.agent.md'), 'utf8'), /^model/m);
+  assert.equal(find(doctorJson(cli), 'Copilot agents')[0].level, 'PASS');
+});
+
+test('models without VS Code state says how to go on', () => {
+  const { cli } = sandbox();
+  const r = cli('models');
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /No Copilot models found/);
+  assert.equal(cli('tiers', 'detect').code, 2);
 });

@@ -73,16 +73,17 @@ const checkEffort = (effort) => !effort || PRESETS.efforts.includes(effort);
 
 function parseRoles(text) {
   const roles = {};
-  const meta = { harness: null, tools: [], preset: null, tiers: {} };
+  const meta = { harness: null, tools: [], preset: null, tiers: {}, names: {} };
   const problems = [];
   text.split('\n').forEach((line, i) => {
-    const comment = line.match(/^#\s*(harness|git host tools|preset|tiers):\s*(.*)$/);
+    const comment = line.match(/^#\s*(harness|git host tools|preset|tiers|model names):\s*(.*)$/);
     if (comment) {
       const [, key, value] = comment;
       const list = value.split(',').map((t) => t.trim()).filter(Boolean);
       if (key === 'harness') meta.harness = value.trim();
       else if (key === 'preset') meta.preset = value.trim();
       else if (key === 'tiers') meta.tiers = Object.fromEntries(list.map((pair) => pair.split('=').map((s) => s.trim())));
+      else if (key === 'model names') meta.names = Object.fromEntries(list.map((pair) => pair.split('=').map((s) => s.trim())));
       else meta.tools = list;
       return;
     }
@@ -103,6 +104,8 @@ function formatRoles(roles, meta, specs) {
   if (meta.preset) lines.push(`# preset: ${meta.preset}`);
   const tiers = Object.entries(meta.tiers);
   if (tiers.length) lines.push(`# tiers: ${tiers.map(([k, v]) => `${k}=${v}`).join(', ')}`);
+  const names = Object.entries(meta.names || {});
+  if (names.length) lines.push(`# model names: ${names.map(([k, v]) => `${k}=${v}`).join(', ')}`);
   for (const { name } of specs) if (roles[name]) lines.push(`${name}: ${roles[name].map(formatEntry).join(', ')}`);
   return `${lines.join('\n')}\n`;
 }
@@ -122,13 +125,22 @@ function agentBody() {
   return shipped.replace(/^---\n[\s\S]*?\n---\n/, '');
 }
 
-function expectedAgents(roles, specs) {
+// The Copilot runtime behind the CLI and the agents window matches model ids, while VS Code's own
+// chat matches "Name (copilot)", so list both when the name is known. Without `model-policy:
+// required` the runtime ranks the parent session's model above the agent file's.
+function modelLines(model, names = {}) {
+  const id = names[model] ? model : Object.keys(names).find((k) => names[k] === model) || model;
+  const models = names[id] ? `[${id}, "${names[id]} (copilot)"]` : model;
+  return [`model: ${models}`, 'model-policy: required'];
+}
+
+function expectedAgents(roles, specs, names) {
   const files = {};
   for (const { name, panel } of specs) {
     (roles[name] || []).forEach(({ model }, i) => {
       const id = agentName(name, i, panel);
       const front = ['---', `name: ${id}`, `description: tblock ${name} subagent. Spawned by tblock skills, not chosen by hand.`];
-      if (model !== 'session') front.push(`model: ${model}`);
+      if (model !== 'session') front.push(...modelLines(model, names));
       front.push('user-invocable: false', '---');
       files[`${id}.agent.md`] = `${front.join('\n')}\n${agentBody()}`;
     });
@@ -157,8 +169,8 @@ function writeRolesFile(file, specs) {
   console.log(`  wrote ${ROLES_FILE}`);
 }
 
-function syncAgents(roles, specs) {
-  const want = expectedAgents(roles, specs);
+function syncAgents(roles, specs, names) {
+  const want = expectedAgents(roles, specs, names);
   mkdirSync(AGENTS_DIR, { recursive: true });
   const written = [];
   const removed = [];
@@ -226,7 +238,7 @@ function syncEfforts(roles, specs) {
 
 function syncCopilot(file, specs) {
   if (file.meta.harness !== 'copilot') return;
-  const agents = syncAgents(file.roles, specs);
+  const agents = syncAgents(file.roles, specs, file.meta.names);
   console.log(`  ${AGENTS_DIR}: ${agents.written.length} written, ${agents.removed.length} removed`);
   [...agents.written.map((f) => `+ ${f}`), ...agents.removed.map((f) => `- ${f}`)].forEach((l) => console.log(`    ${l}`));
   const efforts = syncEfforts(file.roles, specs);
@@ -268,6 +280,109 @@ function resolvePreset(name, tiers, specs) {
     }
   }
   return { roles, notes };
+}
+
+// VS Code keeps the Copilot model picker's list in its state database, so setup can offer
+// models instead of asking the user to type picker names exactly.
+function vscodeStateFiles() {
+  if (process.env.TBLOCK_VSCODE_STATE) return [process.env.TBLOCK_VSCODE_STATE];
+  const base = process.platform === 'win32' ? process.env.APPDATA || join(homedir(), 'AppData', 'Roaming')
+    : process.platform === 'darwin' ? join(homedir(), 'Library', 'Application Support')
+      : process.env.XDG_CONFIG_HOME || join(homedir(), '.config');
+  return ['Code', 'Code - Insiders'].map((app) => join(base, app, 'User', 'globalStorage', 'state.vscdb')).filter(existsSync);
+}
+
+async function readVscodeState(file, keys) {
+  // node:sqlite ships with Node 22.5+, and warns that it's experimental on first load.
+  const emit = process.emitWarning;
+  process.emitWarning = (warning, ...rest) => (/SQLite/i.test(String(warning)) ? undefined : emit.call(process, warning, ...rest));
+  try {
+    const { DatabaseSync } = await import('node:sqlite');
+    const db = new DatabaseSync(file, { readOnly: true });
+    const get = db.prepare('select value from ItemTable where key = ?');
+    const values = Object.fromEntries(keys.map((k) => [k, get.get(k)?.value]));
+    db.close();
+    return values;
+  } finally {
+    process.emitWarning = emit;
+  }
+}
+
+const modelFamily = (text) => (/claude|opus|sonnet|haiku|fable/i.test(text) ? 'claude' : /gpt|codex/i.test(text) ? 'gpt' : /gemini/i.test(text) ? 'gemini' : null);
+
+async function detectModels() {
+  const notes = [];
+  for (const file of vscodeStateFiles()) {
+    let state;
+    try {
+      state = await readVscodeState(file, ['chat.modelsControl', 'chat.cachedLanguageModels.v2', 'extensionsAssignmentFilterProvider.copilotSku']);
+    } catch (error) {
+      notes.push(`could not read ${file}: ${error.message}`);
+      continue;
+    }
+    const models = new Map();
+    const add = (id, name) => id && name && id !== 'auto' && !models.has(id) && models.set(id, { id, name, family: modelFamily(`${id} ${name}`) });
+    const sku = state['extensionsAssignmentFilterProvider.copilotSku'] || '';
+    const plan = /free/i.test(sku) ? 'free' : 'paid';
+    try {
+      const control = JSON.parse(state['chat.modelsControl'] || '{}');
+      Object.values(control[plan] || {}).forEach((m) => add(m.id, m.label));
+    } catch { notes.push('the picker list in VS Code state is not JSON'); }
+    try {
+      JSON.parse(state['chat.cachedLanguageModels.v2'] || '[]')
+        .filter((m) => m.metadata?.vendor === 'copilot' && m.metadata.isUserSelectable)
+        .forEach((m) => add(m.metadata.id, m.metadata.name));
+    } catch { notes.push('the cached model list in VS Code state is not JSON'); }
+    if (models.size) return { source: file, plan: sku || plan, models: [...models.values()], notes };
+  }
+  if (!vscodeStateFiles().length) notes.push('no VS Code state found');
+  return { source: null, plan: null, models: [], notes };
+}
+
+// Size words rank a model inside its family; Copilot's Sol, Terra, and Luna run large to small.
+const sizeOf = (name) => (/\b(opus|fable|sol|ultra|pro)\b/i.test(name) ? 'top' : /\b(haiku|mini|nano|flash|lite|luna)\b/i.test(name) ? 'fast' : 'strong');
+const versionOf = (name) => (name.match(/(\d+(?:\.\d+)*)/)?.[1] || '0').split('.').map(Number);
+const byVersion = (a, b) => {
+  const [x, y] = [versionOf(a.name), versionOf(b.name)];
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (y[i] || 0) - (x[i] || 0);
+  return 0;
+};
+
+function suggestTiers(models) {
+  const tiers = {};
+  for (const fam of PRESETS.families) {
+    const group = Object.fromEntries(PRESETS.tiers.map((t) => [t, models.filter((m) => m.family === fam && sizeOf(m.name) === t).sort(byVersion)]));
+    // No top model in the family: the newest strong one leads, the next one stays strong.
+    if (!group.top.length && group.strong.length > 1) group.top.push(group.strong.shift());
+    for (const t of PRESETS.tiers) if (group[t][0]) tiers[`${fam}-${t}`] = group[t][0].id;
+  }
+  return tiers;
+}
+
+async function showModels() {
+  const found = await detectModels();
+  const tiers = suggestTiers(found.models);
+  if (json) return console.log(JSON.stringify({ ...found, tiers }, null, 2));
+  process.stdout.write(header('models'));
+  if (!found.models.length) {
+    console.log('  No Copilot models found. Open Copilot Chat in VS Code once, or copy the names from the model picker.');
+    return found.notes.forEach((n) => console.log(`  note: ${n}`));
+  }
+  console.log(`  From ${found.source} (plan: ${found.plan})\n`);
+  for (const m of found.models) console.log(`  ${m.id.padEnd(26)} ${m.name}`);
+  console.log('\n  Suggested tiers:');
+  for (const [k, v] of Object.entries(tiers)) console.log(`    ${k.padEnd(14)} ${v}`);
+  console.log('\n  Apply them with: tblock tiers detect');
+}
+
+async function detectTiers() {
+  const found = await detectModels();
+  if (!found.models.length) throw new Error(`no Copilot models found${found.notes.length ? ` (${found.notes.join('; ')})` : ''}. Set tiers by hand: tblock tiers set claude-top=<model>`);
+  const file = readRolesFile() || emptyFile();
+  file.meta.tiers = suggestTiers(found.models);
+  file.meta.names = Object.fromEntries(found.models.map((m) => [m.id, m.name]));
+  writeRolesFile(file, roleSpecs());
+  for (const [k, v] of Object.entries(file.meta.tiers)) console.log(`  ${k.padEnd(14)} ${v} (${file.meta.names[v]})`);
 }
 
 function doctor() {
@@ -315,7 +430,7 @@ function doctor() {
       }
     }
     if (meta.harness === 'copilot') {
-      const want = expectedAgents(roles, specs);
+      const want = expectedAgents(roles, specs, meta.names);
       const have = existsSync(AGENTS_DIR) ? readdirSync(AGENTS_DIR).filter((f) => /^tblock-.*\.agent\.md$/.test(f)) : [];
       const wrong = Object.entries(want).filter(([f, text]) => !have.includes(f) || readFileSync(join(AGENTS_DIR, f), 'utf8') !== text).map(([f]) => f);
       const stale = have.filter((f) => !(f in want));
@@ -358,7 +473,7 @@ function showRoles() {
   if (file.meta.harness) console.log(`  harness: ${file.meta.harness}`);
 }
 
-const emptyFile = () => ({ roles: {}, meta: { harness: null, tools: [], preset: null, tiers: {} } });
+const emptyFile = () => ({ roles: {}, meta: { harness: null, tools: [], preset: null, tiers: {}, names: {} } });
 const flagOf = (pairs, name) => pairs.find((p) => p.startsWith(`--${name}=`))?.split('=')[1];
 
 function setRoles(pairs) {
@@ -425,7 +540,9 @@ const HELP = `
   tblock roles set r=m ...   set roles: r=model, r="model @ effort", r=m1,m2 for a panel
                              (--harness=copilot|claude-code, --tools=glab,gh)
   tblock roles sync          rewrite the Copilot role agents and efforts from the roles file
+  tblock models              list the Copilot models VS Code knows about, and suggest tiers
   tblock tiers               show which of your models fills each tier
+  tblock tiers detect        map tiers from the detected Copilot models
   tblock tiers set k=m ...   map tiers to models, e.g. claude-top=claude-opus-5.5 gpt-fast=gpt-5.6-luna
   tblock preset              list presets: ${Object.keys(PRESETS.presets).join(', ')}
   tblock preset <name>       set every role's model and effort from a preset
@@ -456,8 +573,13 @@ try {
     if (!file) throw new Error(`no roles file at ${ROLES_FILE}; run /setup-tblock or tblock roles set first`);
     process.stdout.write(header('roles sync'));
     syncCopilot(file, roleSpecs());
+  } else if (command === 'models' && !sub) {
+    await showModels();
   } else if (command === 'tiers' && !sub) {
     showTiers();
+  } else if (command === 'tiers' && sub === 'detect') {
+    process.stdout.write(header('tiers detect'));
+    await detectTiers();
   } else if (command === 'tiers' && sub === 'set') {
     process.stdout.write(header('tiers set'));
     setTiers(rest);

@@ -38,9 +38,9 @@ A preset sets every role's model and effort at once, from tiers (top, strong, fa
 Claude Code if you have the `Agent` tool. Copilot if you have its custom agent tools or run in `copilot` or VS Code Copilot Chat. Otherwise ask.
 
 - **Claude Code:** the models are the `model` values the `Agent` tool lists: `opus`, `sonnet`, `haiku`, `fable`. Claude Code cannot run OpenAI or Gemini models, so only the claude tiers fill, and panels draw from one family. Say so once.
-- **Copilot:** list the model names you can see this session. If you cannot, ask the user to paste the names from Copilot's model picker (`/model` in the CLI).
+- **Copilot:** run `node <tblock>/bin/tblock.mjs models --json`. It reads the model picker's list from VS Code's state, for the user's plan, and suggests a tier mapping. Never ask the user to type model names when it finds models. Only if it finds none (no VS Code, or Node older than 22.5), list the models you can see this session, and ask the user to paste names from the picker (`/model` in the CLI) as the last resort.
 
-Never write a model you have not confirmed exists.
+Never write a model you have not confirmed exists. A model the detection lists, or the user picks from it, counts as confirmed.
 
 ### 2. Load current state
 
@@ -54,11 +54,13 @@ Run `node <tblock>/bin/tblock.mjs roles` and `node <tblock>/bin/tblock.mjs tiers
 - `high — top thinkers, strong workers`
 - `efficient — strong models, medium effort`
 
-**(b) Map the tiers.** Without asking, propose each family's top, strong, and fast model from step 1. In Claude Code, `opus` is top, `sonnet` strong, and `haiku` fast; `fable` fills `top` if the user prefers it. In Copilot, confirm the mapping with the user once. A tier left out falls back to the nearest one in the same family:
+**(b) Map the tiers.** Without asking, propose each family's top, strong, and fast model from step 1. In Claude Code, `opus` is top, `sonnet` strong, and `haiku` fast; `fable` fills `top` if the user prefers it. A tier left out falls back to the nearest one in the same family:
 
 ```
 node <tblock>/bin/tblock.mjs tiers set claude-top=<model> claude-strong=<model> claude-fast=<model>
 ```
+
+In Copilot, show the suggested tiers from `models --json` with each model's picker name, and confirm them with one `AskUserQuestion` whose options are `Use these tiers` and `Change some`, never a free-text box. On `Use these tiers`, run `node <tblock>/bin/tblock.mjs tiers detect`, which writes the tiers and each model's picker name. On `Change some`, ask which tier, then offer the detected models of that family as options, and write the changes with `tiers set` after `tiers detect`. Use model ids, not picker names: tblock writes both into each Copilot agent, because the agents window and the CLI match ids while VS Code's chat matches picker names.
 
 **(c) Apply the preset.** Show any `note:` lines the CLI prints about tiers it had to fall back on:
 
@@ -109,7 +111,7 @@ Without Node, write the file by hand in this shape.
 
 ### 6. Copilot only
 
-Copilot sets a subagent's model in its agent file and its effort in `~/.copilot/settings.json`. Every `preset` and `roles set` call also rewrites one custom agent per role in `~/.copilot/agents/` and its effort level, touching only `tblock-` agents and leaving every other setting as it was. Without Node, tell the user to set effort by hand in `/subagents`. In Claude Code no agent or settings files are written, because the spawning skill passes `model` and `effort` to the `Agent` tool. Skip this step there.
+Copilot sets a subagent's model in its agent file and its effort in `~/.copilot/settings.json`. Every `preset` and `roles set` call also rewrites one custom agent per role in `~/.copilot/agents/` and its effort level, touching only `tblock-` agents and leaving every other setting as it was. Each agent pins its model with `model-policy: required`, because without it the Copilot runtime behind the agents window runs a subagent on the session model instead. Without Node, tell the user to set effort by hand in `/subagents`. In Claude Code no agent or settings files are written, because the spawning skill passes `model` and `effort` to the `Agent` tool. Skip this step there.
 
 ### 7. Confirm
 
