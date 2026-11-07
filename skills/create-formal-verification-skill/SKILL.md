@@ -30,7 +30,7 @@ Pick the tool that answers the question at the lowest cost: a model checker, a p
 
 ## Generate the verify skill
 
-Honor a requested destination and the project's existing skill convention. Otherwise use `.claude/skills/<name>/` for Claude Code, `.github/skills/<name>/` for GitHub Copilot, or `.agents/skills/<name>/` for Codex, and reuse a shared location the harness already reads.
+Honor a requested destination and the project's existing skill convention. Otherwise use `.claude/skills/<name>/` for Claude Code or `.github/skills/<name>/` for GitHub Copilot, and reuse a shared location the harness already reads.
 
 Write the skill with frontmatter that names the area and says when to use it. Without frontmatter, the skill never registers. From the skill alone, the next agent must be able to tell whether a change touches the verified code, run the check, tell a real bug from a modeling error, and update the verification when a change is intended. Put the coverage record and the sync commit in the skill, and tell the next agent to move the sync commit forward only after it confirms that the verification describes the code at the new commit. Use this repo's real commands, paths, and nouns, and leave no placeholders.
 

@@ -11,7 +11,7 @@ A message that asks for work, such as "use tblock to fix this bug", is not a hel
 
 This file maps questions to the skills that hold the answers. Those files own the details: read the file you route to before you quote it, and trust it when it disagrees with this map. Link the public copy, `https://github.com/tommyc10/tblock/blob/main/` followed by the file's path, because the user may not be able to open the installed plugin.
 
-Slash commands differ by harness. In Claude Code, plugin skills take the `tblock:` prefix, as in `/tblock:tblock-mode`. In GitHub Copilot they don't, as in `/tblock-mode`. In Codex, the user types `$` and picks the skill, as in `$tblock-mode`. Write commands for the harness you are running in.
+Slash commands differ by harness. In Claude Code, plugin skills take the `tblock:` prefix, as in `/tblock:tblock-mode`. In GitHub Copilot they don't, as in `/tblock-mode`. Write commands for the harness you are running in.
 
 ## Find out what they need
 
@@ -31,7 +31,7 @@ Check the state that changes the answer, and mention it only when it does. Run `
 
 ## Get set up
 
-1. Install. Copilot CLI: `copilot plugin install tommyc10/tblock`. Claude Code: `claude plugin marketplace add tommyc10/tblock` then `claude plugin install tblock@tblock`. Codex: `codex plugin marketplace add tommyc10/tblock` then `codex plugin add tblock@tblock`, and start a new thread. After an update, run `codex plugin marketplace upgrade` in Codex, and reinstall in Copilot, because it caches plugins by version.
+1. Install. Copilot CLI: `copilot plugin install tommyc10/tblock`. Claude Code: `claude plugin marketplace add tommyc10/tblock` then `claude plugin install tblock@tblock`. After an update, reinstall in Copilot, because it caches plugins by version.
 2. Point a `tblock` alias at `bin/tblock.mjs` in the install folder. The [README](../../README.md) shows how to find it.
 3. Run [setup-tblock](../setup-tblock/SKILL.md). It asks for a preset (extreme, high, or efficient), applies it, shows the roles, lets the user change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one agent per role and each agent's effort level.
 4. In each repo, run [setup-project](../setup-project/SKILL.md). It sets up log reading, ticket labels, the Grafana target, and a verification skill in the repo's `.tblock/` folder, for the team to commit. setup-tblock offers it at the end.
