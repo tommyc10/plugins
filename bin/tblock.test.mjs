@@ -21,7 +21,7 @@ function sandbox(stubs = {}, extraEnv = {}) {
   const cli = (...args) => {
     // Node finds the home folder through USERPROFILE on Windows, so set both, and point
     // VS Code's state at the sandbox, or a test run rewrites the real setup.
-    const env = { HOME: home, USERPROFILE: home, APPDATA: join(home, 'AppData'), XDG_CONFIG_HOME: join(home, '.config'), PATH: `${bin}:/usr/bin:/bin`, ...extraEnv };
+    const env = { HOME: home, USERPROFILE: home, APPDATA: join(home, 'AppData'), XDG_CONFIG_HOME: join(home, '.config'), PATH: bin, ...extraEnv };
     const r = spawnSync(process.execPath, [CLI, ...args], { env, encoding: 'utf8' });
     return { code: r.status, out: r.stdout, err: r.stderr };
   };
@@ -84,15 +84,18 @@ test('doctor warns when a panel has one model family', () => {
   assert.equal(warning?.level, 'WARN');
 });
 
-test('doctor reports an out-of-date install in each harness', () => {
+test('doctor reports an out-of-date install in each harness', { skip: process.platform === 'win32' && 'the stub CLIs are POSIX shell scripts' }, () => {
   const { cli } = sandbox({
     claude: `echo '[{"id":"tblock@tblock","version":"0.0.9","installPath":"/x"}]'`,
     copilot: 'echo "Installed plugins:"; echo "  • tblock (v0.0.9)"',
+    codex: 'echo "PLUGIN         STATUS              VERSION  SOURCE"; echo "tblock@tblock  installed, enabled  0.0.9    /src/tblock"',
     glab: 'exit 1',
   });
   const checks = doctorJson(cli);
   assert.equal(find(checks, 'Claude Code')[0].level, 'WARN');
   assert.match(find(checks, 'Copilot')[0].detail, /0\.0\.9 installed/);
+  assert.equal(find(checks, 'Codex')[0].level, 'WARN');
+  assert.match(find(checks, 'Codex')[0].detail, /0\.0\.9 installed/);
   assert.equal(find(checks, 'GitLab CLI')[0].level, 'WARN');
   assert.equal(find(checks, 'GitHub CLI')[0].level, 'SKIP');
 });
@@ -383,4 +386,17 @@ test('the watch reader keeps a half-written line until the rest arrives', async 
   appendFileSync(file, '"b"}\n');
   assert.deepEqual(read().map((e) => e.type), ['b']);
   assert.deepEqual(read(), []);
+});
+
+test('doctor shows which project files the current repo has', () => {
+  const { home } = sandbox();
+  const repo = join(home, 'repo');
+  mkdirSync(join(repo, '.tblock'), { recursive: true });
+  writeFileSync(join(repo, '.tblock', 'probe.json'), '{}');
+  spawnSync('git', ['init', '-q'], { cwd: repo });
+  const env = { ...process.env, HOME: home, USERPROFILE: home, APPDATA: join(home, 'AppData'), XDG_CONFIG_HOME: join(home, '.config') };
+  const r = spawnSync(process.execPath, [CLI, 'doctor', '--json'], { cwd: repo, env, encoding: 'utf8' });
+  const project = JSON.parse(r.stdout).checks.find((c) => c.check === 'Project');
+  assert.equal(project.level, 'PASS');
+  assert.match(project.detail, /^logs set up; not set up: ticket labels, Grafana/);
 });

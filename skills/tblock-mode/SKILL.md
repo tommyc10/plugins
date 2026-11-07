@@ -26,6 +26,7 @@ Remaining triggers:
 - Asked to open an MR or PR, or to push a finished change for review → the [Opening an MR](playbooks/opening-an-mr.md) playbook.
 - Finishing a task that changed code in a project with `.tblock/tickets.json` → the [ticket-up](../ticket-up/SKILL.md) skill, inside the Opening an MR playbook when one is being opened.
 - Any PR or MR status request ("babysit this", "get it green", "address the review comments", "check on X", "anything outstanding on X") → the [Babysit](playbooks/babysit.md) playbook. Never triggered by merely opening one. Declare its mode before polling.
+- Asked to review someone else's MR or PR → the [Reviewing a teammate's MR](playbooks/review-an-mr.md) playbook, not Babysit, which drives an MR you own.
 - A review bot commented (Copilot code review, Bugbot, CodeRabbit, GitLab Duo, a security scanner) → sceptical posture. Bots catch real bugs and also file non-issues, so judge each on its merits and dismiss noise with a concrete reason instead of churning code, per [review-bot triage](references/review-bot-triage.md).
 - Docs, RFCs, READMEs, PR or MR descriptions, and commit messages → the [technical-writing](../technical-writing/SKILL.md) skill.
 - Before review → apply **Comments** below to the whole diff, delegated work included.
@@ -103,7 +104,7 @@ At the start of a tblock-mode session, read the roles file once and say in one l
 
 Invoking tblock-mode is the user's request for the subagents its skills and playbooks call for, so spawn them without asking again. You run the playbook and keep the todo list; never spawn a subagent to run them for you. Every subagent you spawn inside a playbook step, such as a code change, a fix, or a helper task, is a **delegate**: it reads the short [delegate brief](delegate.md), not this file, and ends with a fixed report. Ticket drafting goes to threepio instead. A routed skill that sets its own roles and briefs, such as how, interrogate, swarm, or shootout, keeps them.
 
-Before spawning a subagent, pick the role the work fits from the roles file. In GitHub Copilot, delegate to that role's custom agent, `tblock-<role>` or `tblock-<role>-<n>` for a panel entry; each one carries the delegate's instructions. With no `tblock-<role>` agent, use the plugin's own `delegate` agent; ticket drafting uses `threepio` on the session model. In Claude Code, pass the role's model to the `Agent` tool, with `subagent_type: "tblock:delegate"`, and `subagent_type: "tblock:threepio"` on the session model for ticket drafting. A role with no line, a `session` value, or no roles file runs on the session model; say so. Put this file's absolute path in every brief, so the subagent can find its instructions beside it. A delegate's brief names the job, the files or area, what done means, and the check to run, as file pointers, not pasted context.
+Before spawning a subagent, pick the role the work fits from the roles file. In GitHub Copilot, delegate to that role's custom agent, `tblock-<role>` or `tblock-<role>-<n>` for a panel entry; each one carries the delegate's instructions. With no `tblock-<role>` agent, use the plugin's own `delegate` agent; ticket drafting uses `threepio` on the session model. In Claude Code, pass the role's model to the `Agent` tool, with `subagent_type: "tblock:delegate"`, and `subagent_type: "tblock:threepio"` on the session model for ticket drafting. In Codex, call `spawn_agent` with the role's `model` and `reasoning_effort` and `fork_turns: "none"`, and open the brief by telling the agent to read the delegate brief, or [threepio](../../agents/threepio.md) for ticket drafting, at its absolute path. A role with no line, a `session` value, or no roles file runs on the session model; say so. Put this file's absolute path in every brief, so the subagent can find its instructions beside it. A delegate's brief names the job, the files or area, what done means, and the check to run, as file pointers, not pasted context.
 
 **Match the effort to the job.** A role entry may carry a reasoning effort, written `model @ effort`. In Copilot, the role agent already runs at that effort, because the CLI wrote it to Copilot's settings. In Claude Code, pass it as the `Agent` tool's `effort`, with `none` and `minimal` becoming `low`, and raise it one step for the hardest or subtlest work or lower it for routine work. Keep the model family the role names, so a diverse panel stays diverse. The user switches every role at once with `tblock preset extreme`, `high`, or `efficient`; new sessions pick it up.
 
@@ -151,6 +152,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Write or modify a skill, principle, or playbook | [Authoring a skill](playbooks/authoring-a-skill.md) |
 | Prepare and open a merge request or pull request | [Opening an MR](playbooks/opening-an-mr.md) |
 | Drive a PR or MR to merge-ready: conflicts, review threads, CI | [Babysit](playbooks/babysit.md) |
+| Review a teammate's MR or PR and draft the comments | [Reviewing a teammate's MR](playbooks/review-an-mr.md) |
 | Diagnose a live symptom (leak, spin, hang, glitch) from instrumentation | [Runtime forensics](playbooks/runtime-forensics.md) |
 | Diagnose a captured profile, trace, spindump, or heap snapshot | [Trace forensics](playbooks/trace-forensics.md) |
 | Measure a skill or prompt change | [Eval](playbooks/eval.md) |
@@ -174,6 +176,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Create or refresh a personal -mode skill | [automate-me](../automate-me/SKILL.md) |
 | Questions about tblock itself: setup, presets, which skill to use, a run that went wrong | [tblock-help](../tblock-help/SKILL.md) |
 | Configure which model and effort each subagent role uses, or switch preset | [setup-tblock](../setup-tblock/SKILL.md) |
+| Set up a repository's `.tblock/` files: logs, ticket labels, Grafana, verification | [setup-project](../setup-project/SKILL.md) |
 | Create project verification or a control skill | [create-verification-skill](../create-verification-skill/SKILL.md) |
 | Audit or maintain an existing verification skill | [maintain-verification-skill](../maintain-verification-skill/SKILL.md) |
 | Formally verify a key property of the code, such as a race or retry invariant | [create-formal-verification-skill](../create-formal-verification-skill/SKILL.md) |

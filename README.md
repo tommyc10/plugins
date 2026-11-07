@@ -1,6 +1,6 @@
 # tblock
 
-Engineering skills, playbooks, and principles for coding agents in GitHub Copilot and Claude Code. tblock makes the agent name the data shape before it writes code, keep diffs small, prove changes in the running app, and show you that evidence. It started from [pstack](https://github.com/cursor/plugins/tree/main/pstack) and adds a UI focus, model roles, and asks before anything outward-facing.
+Engineering skills, playbooks, and principles for coding agents in GitHub Copilot, Claude Code, and Codex. tblock makes the agent name the data shape before it writes code, keep diffs small, prove changes in the running app, and show you that evidence. It started from [pstack](https://github.com/cursor/plugins/tree/main/pstack) and adds a UI focus, model roles, and asks before anything outward-facing.
 
 New here? Open [docs/tblock-101.html](docs/tblock-101.html) in a browser for an interactive tour.
 
@@ -21,11 +21,22 @@ claude plugin marketplace add tommyc10/tblock
 claude plugin install tblock@tblock
 ```
 
-Copilot caches installed plugins. After an update, reinstall tblock to pick up the new version.
+Codex:
+
+```bash
+codex plugin marketplace add tommyc10/tblock
+codex plugin add tblock@tblock
+```
+
+Start a new Codex thread after installing. In Codex, type `$` and pick `tblock-mode` to start a task.
+
+Copilot caches installed plugins. After an update, reinstall tblock to pick up the new version. In Codex, run `codex plugin marketplace upgrade`.
 
 ## Set up once
 
 Run `/setup-tblock`. It asks for a preset, maps your models to tiers, shows the roles, lets you change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one custom agent per role to `~/.copilot/agents/`, because Copilot sets a subagent's model in its agent file, and each agent's reasoning effort to `~/.copilot/settings.json`, touching only `tblock-` agents.
+
+Then run `/setup-project` in each repo you work in, or say yes when `/setup-tblock` offers it. It sets up log reading for `probe`, ticket labels for `ticket-up`, the Grafana target for `grafana-dashboard`, and a verification skill. The files go in the repo's `.tblock/` folder and hold no secrets, so commit them and the whole team gets the same setup.
 
 | Role | Used by |
 | --- | --- |
@@ -79,6 +90,7 @@ To find the install folder:
 | `tblock roles set "code=gpt-5 @ medium" reviewers=claude-opus-5,gpt-5` | Sets roles, and in Copilot rewrites the role agents and their efforts |
 | `tblock roles sync` | Rewrites the Copilot role agents and efforts from the roles file |
 | `tblock watch` | A live view of the newest Copilot session (CLI or VS Code's agents window) or Claude Code session: the main agent, each subagent with its model and effort, whether the role's model was honoured or the subagent fell back to the session model, every tool call grouped by the prompt it served (earlier prompts fold to one line, and runs of one tool to `Bash ×12`), and the files changed. Every session active in the last half hour gets a tab marked working or your turn: `tab` or `←`/`→` switch, `1`–`9` jump, `e` opens every task, `b` rings the bell when a session finishes its turn, and `q` quits. A session that starts while it runs takes over the view. The window title counts sessions working and waiting, and Windows Terminal shows a progress ring while the session on screen works. `--session=<id prefix>` pins one session and `--once` prints a snapshot of every task. Preview it with `node bin/fixtures/watch-demo.mjs` |
+| `tblock log` | What every Claude Code and Copilot session did since yesterday, for a standup or a handoff: the task, the opening line of the last reply, MR links, files changed, subagents, and cost. Live sessions are marked, and a reply that ends in a question shows as waiting on you. `--since=monday`, `--since=3d`, or a date widens it, and `--here` keeps only the current repo. Dollars are API list prices from `pricing.json`; override a model in `~/.tblock/pricing.json`. Copilot shows premium requests, which is what it bills. |
 | `tblock models` | Lists the Copilot models VS Code's picker offers your plan, and suggests tiers (needs Node 22.5+). With VS Code on a remote, add `--from="<text>"` with the picker list in any shape, or Copilot's unknown-model error |
 | `tblock tiers detect` | Maps tiers from those detected models, so you never type picker names |
 | `tblock tiers` and `tblock tiers set claude-top=<model> gpt-fast=<model>` | Show or map which of your models fills each tier |
@@ -107,6 +119,7 @@ tblock works without asking on reversible, local work: reading, editing, builds,
 | [Visual parity](skills/tblock-mode/playbooks/visual-parity.md) | A restyle or migration proved pixel-identical by image diff |
 | [Prototype](skills/tblock-mode/playbooks/prototype.md) | Settle a design question with a throwaway sketch |
 | [Babysit](skills/tblock-mode/playbooks/babysit.md) | Drive a PR or MR to merge-ready: conflicts, review threads, CI |
+| [Reviewing a teammate's MR](skills/tblock-mode/playbooks/review-an-mr.md) | Run someone else's MR, keep the findings you can show, and draft comments you approve before they post |
 | [Runtime forensics](skills/tblock-mode/playbooks/runtime-forensics.md) and [Trace forensics](skills/tblock-mode/playbooks/trace-forensics.md) | Diagnose a live symptom, or a captured profile or trace |
 | [Authoring a skill](skills/tblock-mode/playbooks/authoring-a-skill.md) and [Eval](skills/tblock-mode/playbooks/eval.md) | Write skills, and test whether a change helps |
 
@@ -123,21 +136,21 @@ tblock works without asking on reversible, local work: reading, editing, builds,
 - **Run long work:** [show-me-your-work](skills/show-me-your-work/SKILL.md)
 - **Improve tblock itself:** [reflect](skills/reflect/SKILL.md), [correct](skills/correct/SKILL.md), [automate-me](skills/automate-me/SKILL.md)
 - **Verify a project:** [create-verification-skill](skills/create-verification-skill/SKILL.md), [maintain-verification-skill](skills/maintain-verification-skill/SKILL.md), [create-formal-verification-skill](skills/create-formal-verification-skill/SKILL.md), [maintain-formal-verification-skill](skills/maintain-formal-verification-skill/SKILL.md)
-- **Set up and help:** [setup-tblock](skills/setup-tblock/SKILL.md), [tblock-help](skills/tblock-help/SKILL.md)
+- **Set up and help:** [setup-tblock](skills/setup-tblock/SKILL.md), [setup-project](skills/setup-project/SKILL.md), [tblock-help](skills/tblock-help/SKILL.md)
 - **Type these yourself:** [sharpen](skills/sharpen/SKILL.md), [in-your-own-words](skills/in-your-own-words/SKILL.md), [bro](skills/bro/SKILL.md)
 
 **Principles:** 24 short rules, such as [Prove It Works](skills/principle-prove-it-works/SKILL.md) and [Laziness Protocol](skills/principle-laziness-protocol/SKILL.md). tblock-mode lists them all, with when each applies.
 
 ## Develop
 
-Check every skill before you commit:
+Check everything before you commit. It needs only Node 22, and CI runs the same two commands on every push and pull request:
 
 ```bash
-ruby scripts/validate-skills.rb
-node --test bin/tblock.test.mjs
+node scripts/validate-skills.mjs
+node --test
 ```
 
-It checks frontmatter, local links, that every principle is routed from tblock-mode, that every model role is used, that the Claude Code and Copilot copies of each agent match, and that the three manifests agree on name and version.
+The validator checks frontmatter, local links, that every principle is routed from tblock-mode, that every model role is used, that the Claude Code and Copilot copies of each agent match, and that the manifests agree on name and version. `node --test` runs the CLI, probe, and validator tests.
 
 To test whether a change makes agents do better work, the [Imperial Ops eval kit](evals/imperial-ops/README.md) runs tblock and plain Claude on the same task in separate copies of a project, then has a blind judge score both.
 
