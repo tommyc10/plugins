@@ -26,6 +26,7 @@ Remaining triggers:
 - Asked to open an MR or PR, or to push a finished change for review → the [Opening an MR](playbooks/opening-an-mr.md) playbook.
 - Finishing a task that changed code in a project with `.tblock/tickets.json` → the [ticket-up](../ticket-up/SKILL.md) skill, inside the Opening an MR playbook when one is being opened.
 - Any PR or MR status request ("babysit this", "get it green", "address the review comments", "check on X", "anything outstanding on X") → the [Babysit](playbooks/babysit.md) playbook. Never triggered by merely opening one. Declare its mode before polling.
+- Asked to review someone else's MR or PR → the [Reviewing a teammate's MR](playbooks/review-an-mr.md) playbook, not Babysit, which drives an MR you own.
 - A review bot commented (Copilot code review, Bugbot, CodeRabbit, GitLab Duo, a security scanner) → sceptical posture. Bots catch real bugs and also file non-issues, so judge each on its merits and dismiss noise with a concrete reason instead of churning code, per [review-bot triage](references/review-bot-triage.md).
 - Docs, RFCs, READMEs, PR or MR descriptions, and commit messages → the [technical-writing](../technical-writing/SKILL.md) skill.
 - Before review → apply **Comments** below to the whole diff, delegated work included.
@@ -151,6 +152,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Write or modify a skill, principle, or playbook | [Authoring a skill](playbooks/authoring-a-skill.md) |
 | Prepare and open a merge request or pull request | [Opening an MR](playbooks/opening-an-mr.md) |
 | Drive a PR or MR to merge-ready: conflicts, review threads, CI | [Babysit](playbooks/babysit.md) |
+| Review a teammate's MR or PR and draft the comments | [Reviewing a teammate's MR](playbooks/review-an-mr.md) |
 | Diagnose a live symptom (leak, spin, hang, glitch) from instrumentation | [Runtime forensics](playbooks/runtime-forensics.md) |
 | Diagnose a captured profile, trace, spindump, or heap snapshot | [Trace forensics](playbooks/trace-forensics.md) |
 | Measure a skill or prompt change | [Eval](playbooks/eval.md) |

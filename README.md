@@ -116,6 +116,7 @@ tblock works without asking on reversible, local work: reading, editing, builds,
 | [Visual parity](skills/tblock-mode/playbooks/visual-parity.md) | A restyle or migration proved pixel-identical by image diff |
 | [Prototype](skills/tblock-mode/playbooks/prototype.md) | Settle a design question with a throwaway sketch |
 | [Babysit](skills/tblock-mode/playbooks/babysit.md) | Drive a PR or MR to merge-ready: conflicts, review threads, CI |
+| [Reviewing a teammate's MR](skills/tblock-mode/playbooks/review-an-mr.md) | Run someone else's MR, keep the findings you can show, and draft comments you approve before they post |
 | [Runtime forensics](skills/tblock-mode/playbooks/runtime-forensics.md) and [Trace forensics](skills/tblock-mode/playbooks/trace-forensics.md) | Diagnose a live symptom, or a captured profile or trace |
 | [Authoring a skill](skills/tblock-mode/playbooks/authoring-a-skill.md) and [Eval](skills/tblock-mode/playbooks/eval.md) | Write skills, and test whether a change helps |
 

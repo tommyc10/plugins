@@ -123,6 +123,7 @@ Playbooks are step lists inside tblock-mode, not skills, so they have no slash c
 - A symptom with a repro runs Bug fix. "without changing behavior" runs Refactoring. A number that's too slow runs Perf issue; "keep improving <metric>" runs Hillclimb.
 - "open an MR" or "open a PR" runs Opening an MR. It asks before pushing and before opening.
 - "babysit this", "get it green", "address the review comments", or "check on PR X" runs Babysit. It asks once before pushing fixes or replying to threads, and stops at merge-ready; merging stays yours.
+- "review !482", "review this PR", or a teammate's MR link runs Reviewing a teammate's MR. It runs the change in its own worktree, drafts comments locally, and posts nothing until you say yes.
 - "why is this leaking", "it spins the CPU", or "it hangs" on a running app runs Runtime forensics. A profile, trace, or heap snapshot you hand over runs Trace forensics. Both diagnose, they don't fix.
 - "prototype a few options" runs Prototype. UI work runs UI-UX. "restyle it, it must look the same" or "migrate the styling" runs Visual parity.
 - "write a skill for <workflow>" runs Authoring a skill. "run the eval playbook" runs Eval.
