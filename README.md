@@ -83,7 +83,7 @@ To find the install folder:
 | `tblock tiers` and `tblock tiers set claude-top=<model> gpt-fast=<model>` | Show or map which of your models fills each tier |
 | `tblock preset` and `tblock preset <name>` | List the presets, or apply one |
 
-Add `--json` for output a script or agent can read. Colour and the banner appear only in a terminal, and `NO_COLOR` turns colour off.
+Add `--json` for output a script or agent can read. Colour appears only in a terminal: `NO_COLOR` turns it off, and `FORCE_COLOR=1` keeps it on when piping, for a preview.
 
 ## Use
 

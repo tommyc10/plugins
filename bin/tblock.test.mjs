@@ -293,3 +293,16 @@ test('a pasted list in any shape gives the same models', () => {
   const found = JSON.parse(cli('models', '--json', '--from=Claude Sonnet 5\n  gpt-5.5   GPT-5.5\nclaude-sonnet-5 x2\nKimi K2.7 Code').out);
   assert.deepEqual(found.models.map((m) => [m.id, m.name]), [['claude-sonnet-5', 'Claude Sonnet 5'], ['gpt-5.5', 'GPT-5.5']]);
 });
+
+test('every view prints plain text when piped, and colour only when asked for', () => {
+  const { cli } = sandbox();
+  cli('tiers', 'set', 'claude-top=claude-opus-5.5', 'gpt-fast=gpt-6-luna');
+  cli('preset', 'high');
+  for (const view of [[], ['roles'], ['tiers'], ['preset'], ['doctor'], ['models']]) {
+    assert.doesNotMatch(cli(...view).out, /\x1b\[/, `tblock ${view.join(' ')} is plain when piped`);
+  }
+  const { cli: colourCli } = sandbox({}, { FORCE_COLOR: '1' });
+  assert.match(colourCli('roles').out, /\x1b\[/, 'FORCE_COLOR turns colour on');
+  const { cli: plainCli } = sandbox({}, { FORCE_COLOR: '1', NO_COLOR: '1' });
+  assert.doesNotMatch(plainCli('roles').out, /\x1b\[/, 'NO_COLOR wins');
+});
