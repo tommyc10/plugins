@@ -1,6 +1,6 @@
 # tblock
 
-Engineering skills, playbooks, and principles for coding agents in GitHub Copilot, Claude Code, and Codex. tblock makes the agent name the data shape before it writes code, keep diffs small, prove changes in the running app, and show you that evidence. It started from [pstack](https://github.com/cursor/plugins/tree/main/pstack) and adds a UI focus, model roles, and asks before anything outward-facing.
+Engineering skills, playbooks, and principles for coding agents in GitHub Copilot and Claude Code. tblock makes the agent name the data shape before it writes code, keep diffs small, prove changes in the running app, and show you that evidence. It started from [pstack](https://github.com/cursor/plugins/tree/main/pstack) and adds a UI focus, model roles, and asks before anything outward-facing.
 
 New here? Open [docs/tblock-101.html](docs/tblock-101.html) in a browser for an interactive tour.
 
@@ -21,16 +21,7 @@ claude plugin marketplace add tommyc10/tblock
 claude plugin install tblock@tblock
 ```
 
-Codex:
-
-```bash
-codex plugin marketplace add tommyc10/tblock
-codex plugin add tblock@tblock
-```
-
-Start a new Codex thread after installing. In Codex, type `$` and pick `tblock-mode` to start a task.
-
-Copilot caches installed plugins. After an update, reinstall tblock to pick up the new version. In Codex, run `codex plugin marketplace upgrade`.
+Copilot caches installed plugins. After an update, reinstall tblock to pick up the new version.
 
 ## Set up once
 

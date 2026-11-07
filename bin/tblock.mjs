@@ -448,16 +448,6 @@ function doctor() {
     else add('PASS', 'Copilot', `tblock ${found[0]} installed`);
   }
 
-  const codex = run('codex', ['plugin', 'list']);
-  if (codex.missing) add('SKIP', 'Codex', 'codex CLI not found');
-  else {
-    const line = codex.out.split('\n').find((l) => /^\s*tblock@/.test(l));
-    const found = line && line.match(/\binstalled\b.*?(\d+\.\d+\.\d+)/);
-    if (!line || !found) add('SKIP', 'Codex', 'tblock is not installed there');
-    else if (newer(VERSION, found[1])) add('WARN', 'Codex', `tblock ${found[1]} installed, ${VERSION} available (run: codex plugin marketplace upgrade)`);
-    else add('PASS', 'Codex', `tblock ${found[1]} installed`);
-  }
-
   const file = readRolesFile();
   if (!file) add('WARN', 'Roles', `${ROLES_FILE} not found, so every subagent runs on the session model (run /setup-tblock)`);
   else {
@@ -653,7 +643,7 @@ const COMMANDS = [
 const FLAGS = [
   ['--json', 'output a script or agent can read'],
   ['--from="<text>"', 'read model names from pasted text, for VS Code on a remote'],
-  ['--harness=, --tools=', 'with roles set: copilot, claude-code, or codex; glab,gh'],
+  ['--harness=, --tools=', 'with roles set: copilot or claude-code; glab,gh'],
 ];
 
 function showHelp() {

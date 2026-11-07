@@ -21,7 +21,7 @@ Reach a usable development environment before writing instructions against it. F
 
 ## 2. Generate the skill
 
-Honor a requested destination and the project's existing skill convention. Otherwise use `.agents/skills/verify-<app>/` for Codex, `.claude/skills/verify-<app>/` for Claude Code, or `.github/skills/verify-<app>/` for GitHub Copilot. Copilot also reads `.agents/skills/` and `.claude/skills/`, so reuse an existing shared location. For another host, establish its supported repository-local location first. Maintain one source rather than divergent copies.
+Honor a requested destination and the project's existing skill convention. Otherwise use `.claude/skills/verify-<app>/` for Claude Code or `.github/skills/verify-<app>/` for GitHub Copilot. Copilot also reads `.agents/skills/` and `.claude/skills/`, so reuse an existing shared location. For another host, establish its supported repository-local location first. Maintain one source rather than divergent copies.
 
 Write `SKILL.md` with `name: verify-<app>` and a description naming the app, surface, and trigger. Fill these sections with observed commands and values, without unfinished placeholders:
 
