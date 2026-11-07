@@ -6,7 +6,9 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { log } from './log.mjs';
 import { createUI } from './ui.mjs';
+import { loadPrices } from './usage.mjs';
 import { watch } from './watch.mjs';
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -642,6 +644,10 @@ const COMMANDS = [
     ['preset', `list presets: ${Object.keys(PRESETS.presets).join(', ')}`],
     ['preset <name>', "set every role's model and effort at once"],
   ]],
+  ['log', [
+    ['log', 'every agent session since yesterday: task, last reply, MRs, files, and cost'],
+    ['log --since=monday', 'since a weekday, today, 3d, or a date; --here keeps this repo only'],
+  ]],
 ];
 
 const FLAGS = [
@@ -711,6 +717,13 @@ try {
   } else if (command === 'preset') {
     process.stdout.write(ui.header(`preset ${sub}`));
     applyPreset(sub);
+  } else if (command === 'log') {
+    if (!json) process.stdout.write(ui.header('log'));
+    process.stdout.write(log({
+      ui, json, flags: args.slice(1), cwd: process.cwd(), prices: loadPrices(PLUGIN, homedir()),
+      claudeHome: process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'),
+      copilotHome: process.env.COPILOT_HOME || join(homedir(), '.copilot'),
+    }));
   } else {
     throw new Error(`unknown command "${args.join(' ')}". Run tblock help to see the commands.`);
   }

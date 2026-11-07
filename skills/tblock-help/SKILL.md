@@ -39,7 +39,7 @@ Check the state that changes the answer, and mention it only when it does. Run `
 
 Presets set every role's model and effort at once: `extreme` for hard or risky changes, `high` for features and reviews, `efficient` for everyday bugs. `tblock preset <name>` switches, and new sessions pick it up. `tblock roles set "code=sonnet @ high"` changes one role.
 
-If cost is the worry, say where the credits go: subagents and review panels. Switch to `tblock preset efficient`, put `code` on `session`, or save tblock-mode for work that needs rigor. In Claude Code, only Claude models run, so panels hold one family; two different Claude models still give two opinions.
+If cost is the worry, run `tblock log --since=monday` first. It totals every session's tokens and list-price cost by model, and Copilot's premium requests, so the user sees where the spend went. It usually goes to subagents and review panels. Switch to `tblock preset efficient`, put `code` on `session`, or save tblock-mode for work that needs rigor. In Claude Code, only Claude models run, so panels hold one family; two different Claude models still give two opinions.
 
 ## Start a task with tblock-mode
 
