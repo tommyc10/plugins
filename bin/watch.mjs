@@ -270,7 +270,9 @@ export function render(state, ui, { now = Date.now(), cols = 100, rows = 40, fol
   footer.push(keys);
 
   // Activity fills what's left, newest at the bottom.
-  const room = Math.max(3, rows - out.length - footer.length - 2);
+  const lineCount = (list) => list.reduce((n, line) => n + String(line).split('\n').length, 0);
+  // Leaves room for the activity heading, the blank line above the footer, and the last screen row.
+  const room = Math.max(3, rows - lineCount(out) - lineCount(footer) - 3);
   out.push(ui.section('activity', width));
   const nameWidth = Math.min(22, Math.max(4, ...state.activity.slice(-room).map((a) => a.agent.length)));
   const feed = state.activity.slice(-room).map((a) => {
@@ -281,7 +283,8 @@ export function render(state, ui, { now = Date.now(), cols = 100, rows = 40, fol
   });
   if (!feed.length) feed.push(ui.dim('  waiting for the agent…'));
   out.push(...feed, '', ...footer);
-  return out;
+  // Tables come back as one multi-line string; split them so each line is fitted on its own.
+  return out.flatMap((line) => String(line).split('\n'));
 }
 
 const stripLen = (s) => String(s).replace(/\x1b\[[0-9;]*m/g, '').length;
