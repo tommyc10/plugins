@@ -36,6 +36,8 @@ Copilot caches installed plugins. After an update, reinstall tblock to pick up t
 
 Run `/setup-tblock`. It asks for a preset, maps your models to tiers, shows the roles, lets you change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one custom agent per role to `~/.copilot/agents/`, because Copilot sets a subagent's model in its agent file, and each agent's reasoning effort to `~/.copilot/settings.json`, touching only `tblock-` agents.
 
+Then run `/setup-project` in each repo you work in, or say yes when `/setup-tblock` offers it. It sets up log reading for `probe`, ticket labels for `ticket-up`, the Grafana target for `grafana-dashboard`, and a verification skill. The files go in the repo's `.tblock/` folder and hold no secrets, so commit them and the whole team gets the same setup.
+
 | Role | Used by |
 | --- | --- |
 | `code` | Delegated changes in Feature, Bug fix, Perf issue, and Hillclimb |
@@ -133,7 +135,7 @@ tblock works without asking on reversible, local work: reading, editing, builds,
 - **Run long work:** [show-me-your-work](skills/show-me-your-work/SKILL.md)
 - **Improve tblock itself:** [reflect](skills/reflect/SKILL.md), [correct](skills/correct/SKILL.md), [automate-me](skills/automate-me/SKILL.md)
 - **Verify a project:** [create-verification-skill](skills/create-verification-skill/SKILL.md), [maintain-verification-skill](skills/maintain-verification-skill/SKILL.md), [create-formal-verification-skill](skills/create-formal-verification-skill/SKILL.md), [maintain-formal-verification-skill](skills/maintain-formal-verification-skill/SKILL.md)
-- **Set up and help:** [setup-tblock](skills/setup-tblock/SKILL.md), [tblock-help](skills/tblock-help/SKILL.md)
+- **Set up and help:** [setup-tblock](skills/setup-tblock/SKILL.md), [setup-project](skills/setup-project/SKILL.md), [tblock-help](skills/tblock-help/SKILL.md)
 - **Type these yourself:** [sharpen](skills/sharpen/SKILL.md), [in-your-own-words](skills/in-your-own-words/SKILL.md), [bro](skills/bro/SKILL.md)
 
 **Principles:** 24 short rules, such as [Prove It Works](skills/principle-prove-it-works/SKILL.md) and [Laziness Protocol](skills/principle-laziness-protocol/SKILL.md). tblock-mode lists them all, with when each applies.

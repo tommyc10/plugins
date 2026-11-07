@@ -176,6 +176,7 @@ Choose the most specific intent below and read only the matching playbook or ski
 | Create or refresh a personal -mode skill | [automate-me](../automate-me/SKILL.md) |
 | Questions about tblock itself: setup, presets, which skill to use, a run that went wrong | [tblock-help](../tblock-help/SKILL.md) |
 | Configure which model and effort each subagent role uses, or switch preset | [setup-tblock](../setup-tblock/SKILL.md) |
+| Set up a repository's `.tblock/` files: logs, ticket labels, Grafana, verification | [setup-project](../setup-project/SKILL.md) |
 | Create project verification or a control skill | [create-verification-skill](../create-verification-skill/SKILL.md) |
 | Audit or maintain an existing verification skill | [maintain-verification-skill](../maintain-verification-skill/SKILL.md) |
 | Formally verify a key property of the code, such as a race or retry invariant | [create-formal-verification-skill](../create-formal-verification-skill/SKILL.md) |

@@ -500,6 +500,14 @@ function doctor() {
   }
   add('SKIP', 'GitLab MCP', 'only visible inside an agent session; ask the agent which MCP servers it has');
 
+  const repo = run('git', ['rev-parse', '--show-toplevel']);
+  if (repo.ok) {
+    const items = [['probe.json', 'logs'], ['tickets.json', 'ticket labels'], ['grafana.json', 'Grafana']];
+    const have = items.filter(([f]) => existsSync(join(repo.out.trim(), '.tblock', f))).map(([, label]) => label);
+    const missing = items.map(([, label]) => label).filter((label) => !have.includes(label));
+    add(have.length ? 'PASS' : 'SKIP', 'Project', `${have.length ? `${have.join(', ')} set up` : 'no .tblock files'}${missing.length ? `; not set up: ${missing.join(', ')} (run: /setup-project)` : ''}`);
+  }
+
   return checks;
 }
 

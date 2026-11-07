@@ -123,10 +123,6 @@ Copilot sets a subagent's model in its agent file and its effort in `~/.copilot/
 
 Run `node <tblock>/bin/tblock.mjs doctor` and show its output. Tell the user which files were written and that new sessions pick them up. Re-running this skill updates them, `tblock preset <name>` switches presets later, and `tblock roles set` changes single roles.
 
-### 8. Offer a verification skill (optional)
+### 8. Offer to set up this repo (optional)
 
-Check whether the project has a way to drive the real app for proof (a `verify-*` skill, or an existing harness). If not, offer once: "want a project-local verification skill, so agents can drive the app the way a user does and prove changes work? I can generate one with /create-verification-skill." On yes, run [create-verification-skill](../create-verification-skill/SKILL.md). On no, move on without pushing.
-
-### 9. Offer a formal verification skill (optional)
-
-Check whether the project already has a formal verification skill, a project skill that runs a model checker, a prover, or another verifier against the code. If not, offer once: "want a formal verification skill, so agents can prove a key property of your code holds in every case in scope, not only the cases tests reach? I can generate one with /create-formal-verification-skill." On yes, run [create-formal-verification-skill](../create-formal-verification-skill/SKILL.md). On no, move on without pushing.
+When the session runs inside a git repository, offer once: "Your models are set. Want to set up this repo too, so tblock can read its logs, label its tickets, and prove changes in the running app?" On yes, run [setup-project](../setup-project/SKILL.md). On no, say that `/setup-project` does it later in any repo.

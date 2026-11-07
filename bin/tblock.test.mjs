@@ -344,3 +344,16 @@ test('the watch reader keeps a half-written line until the rest arrives', async 
   assert.deepEqual(read().map((e) => e.type), ['b']);
   assert.deepEqual(read(), []);
 });
+
+test('doctor shows which project files the current repo has', () => {
+  const { home } = sandbox();
+  const repo = join(home, 'repo');
+  mkdirSync(join(repo, '.tblock'), { recursive: true });
+  writeFileSync(join(repo, '.tblock', 'probe.json'), '{}');
+  spawnSync('git', ['init', '-q'], { cwd: repo });
+  const env = { ...process.env, HOME: home, USERPROFILE: home, APPDATA: join(home, 'AppData'), XDG_CONFIG_HOME: join(home, '.config') };
+  const r = spawnSync(process.execPath, [CLI, 'doctor', '--json'], { cwd: repo, env, encoding: 'utf8' });
+  const project = JSON.parse(r.stdout).checks.find((c) => c.check === 'Project');
+  assert.equal(project.level, 'PASS');
+  assert.match(project.detail, /^logs set up; not set up: ticket labels, Grafana/);
+});

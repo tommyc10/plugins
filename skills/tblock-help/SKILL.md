@@ -34,7 +34,8 @@ Check the state that changes the answer, and mention it only when it does. Run `
 1. Install. Copilot CLI: `copilot plugin install tommyc10/tblock`. Claude Code: `claude plugin marketplace add tommyc10/tblock` then `claude plugin install tblock@tblock`. Codex: `codex plugin marketplace add tommyc10/tblock` then `codex plugin add tblock@tblock`, and start a new thread. After an update, run `codex plugin marketplace upgrade` in Codex, and reinstall in Copilot, because it caches plugins by version.
 2. Point a `tblock` alias at `bin/tblock.mjs` in the install folder. The [README](../../README.md) shows how to find it.
 3. Run [setup-tblock](../setup-tblock/SKILL.md). It asks for a preset (extreme, high, or efficient), applies it, shows the roles, lets the user change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one agent per role and each agent's effort level.
-4. Run `tblock doctor`, then start a real task with tblock-mode, a goal, and a check that can pass or fail.
+4. In each repo, run [setup-project](../setup-project/SKILL.md). It sets up log reading, ticket labels, the Grafana target, and a verification skill in the repo's `.tblock/` folder, for the team to commit. setup-tblock offers it at the end.
+5. Run `tblock doctor`, then start a real task with tblock-mode, a goal, and a check that can pass or fail.
 
 Presets set every role's model and effort at once: `extreme` for hard or risky changes, `high` for features and reviews, `efficient` for everyday bugs. `tblock preset <name>` switches, and new sessions pick it up. `tblock roles set "code=sonnet @ high"` changes one role.
 
@@ -97,6 +98,7 @@ The default answer is tblock-mode, which runs most of the others when its steps 
 | Run a large or cross-cutting change, or one to review after stepping away | [figure-it-out](../figure-it-out/SKILL.md) |
 | Keep a decision log during a long run | [show-me-your-work](../show-me-your-work/SKILL.md) |
 | Pick models, efforts, or a preset | [setup-tblock](../setup-tblock/SKILL.md) |
+| Set up a repo's logs, ticket labels, Grafana target, and verification | [setup-project](../setup-project/SKILL.md) |
 | Turn their own habits into a personal mode skill | [automate-me](../automate-me/SKILL.md) |
 | Turn what a session taught into skill edits | [reflect](../reflect/SKILL.md) |
 | Stop agents repeating a mistake in this repo | [correct](../correct/SKILL.md) |
