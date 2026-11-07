@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createUI } from './ui.mjs';
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), '..');
 const VERSION = JSON.parse(readFileSync(join(PLUGIN, 'plugin.json'), 'utf8')).version;
@@ -19,30 +20,10 @@ const json = argv.includes('--json');
 // --from=<text> hands model names to `models` and `tiers detect` when VS Code's state is out of reach.
 const fromText = argv.find((a) => a.startsWith('--from='))?.slice('--from='.length);
 const args = argv.filter((a) => a !== '--json' && !a.startsWith('--from='));
-const fancy = process.stdout.isTTY && !json && !('NO_COLOR' in process.env);
-
-const paint = (rgb, text) => (fancy ? `\x1b[38;2;${rgb.join(';')}m${text}\x1b[0m` : text);
-const RED = [235, 40, 40];
-const COLORS = { PASS: [80, 200, 120], WARN: [235, 180, 60], FAIL: RED, SKIP: [130, 130, 130] };
-
-const LETTERS = [
-  '████████╗██████╗ ██╗      ██████╗  ██████╗██╗  ██╗',
-  '╚══██╔══╝██╔══██╗██║     ██╔═══██╗██╔════╝██║ ██╔╝',
-  '   ██║   ██████╔╝██║     ██║   ██║██║     █████╔╝ ',
-  '   ██║   ██╔══██╗██║     ██║   ██║██║     ██╔═██╗ ',
-  '   ██║   ██████╔╝███████╗╚██████╔╝╚██████╗██║  ██╗',
-  '   ╚═╝   ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝',
-];
-
-function banner() {
-  // Dark to bright red down the letters, then a lightsaber: grey hilt, glowing blade.
-  const rows = LETTERS.map((line, i) => paint([120 + i * 25, 10, 10 + i * 4], line));
-  const saber = paint([150, 150, 150], ' ▐▓▓█▌') + paint([255, 70, 70], '━'.repeat(44)) + paint([255, 160, 160], '╸');
-  const tag = paint([150, 150, 150], ` on the block · go deep first, then go fast · v${VERSION}`);
-  return ['', ...rows, saber, tag, ''].join('\n');
-}
-
-const header = (command) => `${paint(RED, '▟▙')} tblock ${VERSION} · ${command}\n`;
+// Colour only in a terminal; FORCE_COLOR turns it on for previews, NO_COLOR always wins.
+const wantsColor = (stream) => !('NO_COLOR' in process.env) && (stream.isTTY || (process.env.FORCE_COLOR || '0') !== '0');
+const ui = createUI({ color: !json && wantsColor(process.stdout), version: VERSION });
+const say = (...lines) => lines.forEach((line) => console.log(line));
 
 function run(cmd, cmdArgs) {
   try {
@@ -168,7 +149,7 @@ function readRolesFile() {
 function writeRolesFile(file, specs) {
   mkdirSync(dirname(ROLES_FILE), { recursive: true });
   writeFileSync(ROLES_FILE, formatRoles(file.roles, file.meta, specs));
-  console.log(`  wrote ${ROLES_FILE}`);
+  say(ui.done('Saved roles', ROLES_FILE));
 }
 
 function syncAgents(roles, specs, names) {
@@ -241,11 +222,13 @@ function syncEfforts(roles, specs) {
 function syncCopilot(file, specs) {
   if (file.meta.harness !== 'copilot') return;
   const agents = syncAgents(file.roles, specs, file.meta.names);
-  console.log(`  ${AGENTS_DIR}: ${agents.written.length} written, ${agents.removed.length} removed`);
-  [...agents.written.map((f) => `+ ${f}`), ...agents.removed.map((f) => `- ${f}`)].forEach((l) => console.log(`    ${l}`));
   const efforts = syncEfforts(file.roles, specs);
-  console.log(`  ${SETTINGS_FILE}: ${efforts.set.length} efforts set, ${efforts.cleared.length} cleared`);
-  [...efforts.set.map((f) => `+ ${f}`), ...efforts.cleared.map((f) => `- ${f}`)].forEach((l) => console.log(`    ${l}`));
+  const counted = (a, aWord, b, bWord) => (a || b ? [a && `${a} ${aWord}`, b && `${b} ${bWord}`].filter(Boolean).join(' · ') : 'up to date');
+  const short = (f) => f.replace(/^tblock-/, '').replace(/\.agent\.md$/, '');
+  say(ui.done('Copilot agents', `${counted(agents.written.length, 'written', agents.removed.length, 'removed')}  ${AGENTS_DIR}`));
+  say(...ui.changes('+', agents.written.map(short)), ...ui.changes('-', agents.removed.map(short)));
+  say(ui.done('Copilot efforts', `${counted(efforts.set.length, 'set', efforts.cleared.length, 'cleared')}  ${SETTINGS_FILE}`));
+  say(...ui.changes('+', efforts.set.map(short)), ...ui.changes('-', efforts.cleared.map(short)));
 }
 
 // A tier the user hasn't mapped falls back to the nearest one, preferring the cheaper on a tie.
@@ -388,24 +371,41 @@ function suggestTiers(models) {
   return tiers;
 }
 
+// Families down, tiers across; an empty tier falls back to its neighbour when a preset runs.
+function tierGrid(tiers) {
+  const families = PRESETS.families.filter((f) => PRESETS.tiers.some((t) => tiers[`${f}-${t}`]));
+  if (!families.length) return ui.dim('  no tiers mapped yet');
+  const rows = families.map((f) => [ui.bold(f), ...PRESETS.tiers.map((t) => (tiers[`${f}-${t}`] ? ui.model(tiers[`${f}-${t}`], f) : ui.dim('·')))]);
+  return ui.table(rows, { head: ['', ...PRESETS.tiers] });
+}
+
 async function showModels() {
   const found = await detectModels();
   const tiers = suggestTiers(found.models);
   if (json) return console.log(JSON.stringify({ ...found, tiers }, null, 2));
-  process.stdout.write(header('models'));
+  process.stdout.write(ui.header('models'));
   if (!found.models.length) {
-    console.log('  No Copilot models found. Copy the model picker list (any format) and run: tblock models --from="<pasted list>"');
-    return found.notes.forEach((n) => console.log(`  note: ${n}`));
+    say(ui.status('WARN', 'No Copilot models found', '', 0), '');
+    found.notes.forEach((n) => say(ui.note(n)));
+    return say('', ui.hint('tblock models --from="<model picker list, in any shape>"'));
   }
-  console.log(`  From ${found.source}${found.plan ? ` (plan: ${found.plan})` : ''}\n`);
-  for (const m of found.models) console.log(`  ${m.id.padEnd(26)} ${m.name}${m.overCostTier ? '  (costs more than the session model)' : ''}`);
+  const from = found.source === '--from' ? 'from the text you passed' : "from VS Code's model picker";
+  say(ui.dim(`  ${found.models.length} models ${from}${found.plan ? `  ·  plan ${found.plan}` : ''}`), '');
+  for (const fam of [...PRESETS.families, null]) {
+    const group = found.models.filter((m) => m.family === fam).sort(byVersion);
+    if (!group.length) continue;
+    say(ui.section(fam || 'other'));
+    say(ui.table(group.map((m) => [
+      fam ? ui.model(m.name, fam) : ui.dim(`○ ${m.name}`),
+      ui.dim(m.id),
+      m.overCostTier ? ui.icon('WARN') + ui.dim(' costs more than the session model') : '',
+    ])), '');
+  }
   if (found.models.some((m) => m.overCostTier)) {
-    console.log('\n  note: VS Code chat refuses a subagent model that costs more than the session model, so roles on those');
-    console.log('  models only run when the session model costs at least as much.');
+    say(ui.note('VS Code chat refuses a subagent model that costs more than the session model, so roles on those run only when the session model costs at least as much.'), '');
   }
-  console.log('\n  Suggested tiers:');
-  for (const [k, v] of Object.entries(tiers)) console.log(`    ${k.padEnd(14)} ${v}`);
-  console.log(`\n  Apply them with: tblock tiers detect${fromText !== undefined ? ' --from="<the same list>"' : ''}`);
+  say(ui.section('suggested tiers'), tierGrid(tiers), '');
+  say(ui.hint(`tblock tiers detect${fromText !== undefined ? ' --from="<the same list>"' : ''}`), ui.dim('    saves these tiers'));
 }
 
 async function detectTiers() {
@@ -415,7 +415,7 @@ async function detectTiers() {
   file.meta.tiers = suggestTiers(found.models);
   file.meta.names = Object.fromEntries(found.models.map((m) => [m.id, m.name]));
   writeRolesFile(file, roleSpecs());
-  for (const [k, v] of Object.entries(file.meta.tiers)) console.log(`  ${k.padEnd(14)} ${v} (${file.meta.names[v]})`);
+  say('', tierGrid(file.meta.tiers), '', ui.hint('tblock preset <name>'), ui.dim('    fills every role from these tiers'));
 }
 
 function doctor() {
@@ -492,18 +492,39 @@ function doctor() {
   return checks;
 }
 
+// A detail ending "(run: <command>)" prints the command on its own line, as the fix.
 function printChecks(checks) {
-  for (const { level, check, detail } of checks) console.log(`  ${paint(COLORS[level], level.padEnd(4))}  ${check}: ${detail}`);
+  const labelWidth = Math.max(...checks.map((c) => c.check.length)) + 3;
+  for (const { level, check, detail } of checks) {
+    const fix = detail.match(/\s*\(run:? ([^)]+)\)\s*$/);
+    say(ui.status(level, check, fix ? detail.slice(0, fix.index) : detail, labelWidth));
+    if (fix) say(ui.hint(fix[1], (ui.color ? 5 : 7) + labelWidth));
+  }
+  const counts = Object.fromEntries(['PASS', 'WARN', 'FAIL', 'SKIP'].map((l) => [l, checks.filter((c) => c.level === l).length]));
+  say('', ui.tally(counts));
+}
+
+function rolesTable(file) {
+  const rows = [];
+  for (const { name } of roleSpecs()) {
+    (file.roles[name] || [{ model: 'session', effort: null }]).forEach((entry, i) => {
+      rows.push([i ? '' : ui.bold(name), ui.model(entry.model, modelFamily(entry.model)), ui.effort(entry.effort)]);
+    });
+  }
+  return ui.table(rows, { head: ['role', 'model', 'effort'] });
+}
+
+function rolesFooter(meta) {
+  const parts = [meta.preset && `preset ${ui.accent(meta.preset)}`, meta.harness && `harness ${meta.harness}`, meta.tools.length && `tools ${meta.tools.join(', ')}`].filter(Boolean);
+  return parts.length ? ui.dim(`  ${parts.join('  ·  ')}`) : '';
 }
 
 function showRoles() {
   const file = readRolesFile();
   if (json) return console.log(JSON.stringify(file ? { roles: file.roles, ...file.meta } : null, null, 2));
-  process.stdout.write(header('roles'));
-  if (!file) return console.log(`  No roles file at ${ROLES_FILE}. Every subagent runs on the session model.`);
-  for (const { name } of roleSpecs()) console.log(`  ${name.padEnd(17)} ${(file.roles[name] || [{ model: 'session' }]).map(formatEntry).join(', ')}`);
-  if (file.meta.preset) console.log(`\n  preset: ${file.meta.preset}`);
-  if (file.meta.harness) console.log(`  harness: ${file.meta.harness}`);
+  process.stdout.write(ui.header('roles'));
+  if (!file) return say(ui.status('SKIP', 'No roles yet', 'every subagent runs on the session model', 0), '', ui.hint('/setup-tblock'));
+  say(rolesTable(file), '', rolesFooter(file.meta));
 }
 
 const emptyFile = () => ({ roles: {}, meta: { harness: null, tools: [], preset: null, tiers: {}, names: {} } });
@@ -538,13 +559,12 @@ function setTiers(pairs) {
     file.meta.tiers[key] = model.trim();
   }
   writeRolesFile(file, roleSpecs());
+  say('', tierGrid(file.meta.tiers));
 }
 
 function showTiers() {
-  const file = readRolesFile();
-  process.stdout.write(header('tiers'));
-  const tiers = file?.meta.tiers || {};
-  for (const f of PRESETS.families) console.log(`  ${f.padEnd(7)} ${PRESETS.tiers.map((t) => `${t}: ${tiers[`${f}-${t}`] || '-'}`).join('   ')}`);
+  process.stdout.write(ui.header('tiers'));
+  say(tierGrid(readRolesFile()?.meta.tiers || {}), '', ui.hint('tblock models'), ui.dim('    suggests tiers from your Copilot models'));
 }
 
 function applyPreset(name) {
@@ -553,79 +573,116 @@ function applyPreset(name) {
   const { roles, notes } = resolvePreset(name, file.meta.tiers, specs);
   file.roles = roles;
   file.meta.preset = name;
+  notes.forEach((n) => say(ui.note(n)));
+  if (notes.length) say('');
   writeRolesFile(file, specs);
-  notes.forEach((n) => console.log(`  note: ${n}`));
   syncCopilot(file, specs);
+  say('', rolesTable(file), '', rolesFooter(file.meta));
 }
+
+const PRESET_BLURBS = {
+  extreme: 'Hard design and risky changes: top models, high to max effort',
+  high: 'Features and reviews: top thinkers, strong workers',
+  efficient: 'Everyday bugs and small changes: strong models, medium effort',
+};
 
 function showPresets() {
   const current = readRolesFile()?.meta.preset;
-  process.stdout.write(header('preset'));
+  process.stdout.write(ui.header('preset'));
+  const nameWidth = Math.max(...Object.keys(PRESETS.presets).map((n) => n.length)) + 3;
   for (const [name, roles] of Object.entries(PRESETS.presets)) {
-    const mark = current && current.startsWith(name) ? paint(RED, '▸') : ' ';
-    console.log(`  ${mark} ${name.padEnd(10)} hardest ${roles.hardest.tier}@${roles.hardest.effort}, code ${roles.code.tier}@${roles.code.effort}, reviewers ${roles.reviewers.panel}×${roles.reviewers.tier}@${roles.reviewers.effort}`);
+    const on = current && current.split(' ')[0] === name;
+    const mark = ui.color ? (on ? ui.accent('●') : ui.dim('○')) : on ? '*' : ' ';
+    say(`  ${mark}  ${ui.pad(on ? ui.bold(ui.accent(name)) : ui.bold(name), nameWidth)}${PRESET_BLURBS[name] || ''}${on ? ui.dim(`  · current${current.endsWith('(edited)') ? ', edited' : ''}`) : ''}`);
+    const shape = [['hardest', roles.hardest], ['code', roles.code], ['reviewers', roles.reviewers]]
+      .map(([role, r]) => `${ui.dim(role)} ${r.panel ? `${r.panel}×` : ''}${r.tier} ${ui.color ? ui.effort(r.effort, { word: false }) : `@ ${r.effort}`}`);
+    say(`  ${' '.repeat(3 + nameWidth)}${shape.join(ui.dim('   '))}`, '');
   }
+  if (ui.color) say(`  ${ui.dim('effort')}  ${['low', 'medium', 'high', 'max'].map((e) => `${ui.effort(e, { word: false })} ${ui.dim(e)}`).join('   ')}`, '');
+  say(ui.hint('tblock preset <name>'), ui.dim('    switches every role at once'));
 }
 
-const HELP = `
-  tblock doctor              check the install, roles, Copilot agents and efforts, and git tools
-  tblock roles               show which model and effort each role uses
-  tblock roles set r=m ...   set roles: r=model, r="model @ effort", r=m1,m2 for a panel
-                             (--harness=copilot|claude-code, --tools=glab,gh)
-  tblock roles sync          rewrite the Copilot role agents and efforts from the roles file
-  tblock models              list the Copilot models VS Code knows about, and suggest tiers
-  tblock tiers               show which of your models fills each tier
-  tblock tiers detect        map tiers from the detected Copilot models
-                             (--from="<text>" reads model names from pasted text instead)
-  tblock tiers set k=m ...   map tiers to models, e.g. claude-top=claude-opus-5.5 gpt-fast=gpt-5.6-luna
-  tblock preset              list presets: ${Object.keys(PRESETS.presets).join(', ')}
-  tblock preset <name>       set every role's model and effort from a preset
-  tblock --version           print the version
-`;
+const COMMANDS = [
+  ['check', [['doctor', 'check the install, roles, Copilot agents, and git tools']]],
+  ['roles', [
+    ['roles', 'show the model and effort each role uses'],
+    ['roles set r=m …', 'set roles: r=model, r="model @ effort", r=m1,m2 for a panel'],
+    ['roles sync', 'rewrite the Copilot role agents and efforts from the roles file'],
+  ]],
+  ['models', [
+    ['models', 'list your Copilot models and suggest tiers'],
+    ['tiers', 'show which model fills each tier'],
+    ['tiers detect', 'save the suggested tiers'],
+    ['tiers set k=m …', 'map tiers by hand, e.g. claude-top=claude-opus-5.5'],
+  ]],
+  ['presets', [
+    ['preset', `list presets: ${Object.keys(PRESETS.presets).join(', ')}`],
+    ['preset <name>', "set every role's model and effort at once"],
+  ]],
+];
+
+const FLAGS = [
+  ['--json', 'output a script or agent can read'],
+  ['--from="<text>"', 'read model names from pasted text, for VS Code on a remote'],
+  ['--harness=, --tools=', 'with roles set: copilot or claude-code; glab,gh'],
+];
+
+function showHelp() {
+  process.stdout.write(`${ui.logo('go deep first, then go fast')}\n`);
+  const commandWidth = Math.max(...COMMANDS.flatMap(([, list]) => list.map(([c]) => c.length)), ...FLAGS.map(([f]) => f.length)) + 10;
+  for (const [title, list] of COMMANDS) {
+    say(ui.section(title));
+    for (const [cmd, what] of list) say(`  ${ui.pad(`${ui.dim('tblock')} ${ui.bold(cmd)}`, commandWidth)}${what}`);
+    say('');
+  }
+  say(ui.section('flags'));
+  for (const [flag, what] of FLAGS) say(`  ${ui.pad(ui.accent(flag), commandWidth)}${ui.dim(what)}`);
+  say('', ui.dim('  NO_COLOR=1 prints plain text.  tblock --version prints the version.'), '');
+}
 
 const [command, sub, ...rest] = args;
 try {
   if (!command || command === 'help' || command === '--help') {
-    process.stdout.write(`${fancy ? banner() : `tblock ${VERSION}\n`}${HELP}\n`);
+    showHelp();
   } else if (command === '--version') {
     console.log(VERSION);
   } else if (command === 'doctor') {
     const checks = doctor();
     if (json) console.log(JSON.stringify({ version: VERSION, checks }, null, 2));
     else {
-      process.stdout.write(fancy ? `${banner()}\n` : header('doctor'));
+      process.stdout.write(ui.header('doctor'));
       printChecks(checks);
     }
     process.exitCode = checks.some((c) => c.level === 'FAIL') ? 1 : 0;
   } else if (command === 'roles' && !sub) {
     showRoles();
   } else if (command === 'roles' && sub === 'set') {
-    process.stdout.write(header('roles set'));
+    process.stdout.write(ui.header('roles set'));
     setRoles(rest);
   } else if (command === 'roles' && sub === 'sync') {
     const file = readRolesFile();
     if (!file) throw new Error(`no roles file at ${ROLES_FILE}; run /setup-tblock or tblock roles set first`);
-    process.stdout.write(header('roles sync'));
+    process.stdout.write(ui.header('roles sync'));
     syncCopilot(file, roleSpecs());
   } else if (command === 'models' && !sub) {
     await showModels();
   } else if (command === 'tiers' && !sub) {
     showTiers();
   } else if (command === 'tiers' && sub === 'detect') {
-    process.stdout.write(header('tiers detect'));
+    process.stdout.write(ui.header('tiers detect'));
     await detectTiers();
   } else if (command === 'tiers' && sub === 'set') {
-    process.stdout.write(header('tiers set'));
+    process.stdout.write(ui.header('tiers set'));
     setTiers(rest);
   } else if (command === 'preset' && !sub) {
     showPresets();
   } else if (command === 'preset') {
-    process.stdout.write(header(`preset ${sub}`));
+    process.stdout.write(ui.header(`preset ${sub}`));
     applyPreset(sub);
   } else {
-    throw new Error(`unknown command "${args.join(' ')}"${HELP}`);
+    throw new Error(`unknown command "${args.join(' ')}". Run tblock help to see the commands.`);
   }
 } catch (error) {
-  console.error(`tblock: ${error.message}`);
+  console.error(ui.error(error.message, wantsColor(process.stderr)));
   process.exitCode = 2;
 }
