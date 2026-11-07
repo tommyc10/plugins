@@ -11,7 +11,7 @@ A message that asks for work, such as "use tblock to fix this bug", is not a hel
 
 This file maps questions to the skills that hold the answers. Those files own the details: read the file you route to before you quote it, and trust it when it disagrees with this map. Link the public copy, `https://github.com/tommyc10/tblock/blob/main/` followed by the file's path, because the user may not be able to open the installed plugin.
 
-Slash commands differ by harness. In Claude Code, plugin skills take the `tblock:` prefix, as in `/tblock:tblock-mode`. In GitHub Copilot they don't, as in `/tblock-mode`. Write commands for the harness you are running in.
+Slash commands differ by harness. In Claude Code, plugin skills take the `tblock:` prefix, as in `/tblock:tblock-mode`. In GitHub Copilot they don't, as in `/tblock-mode`. In Codex, the user types `$` and picks the skill, as in `$tblock-mode`. Write commands for the harness you are running in.
 
 ## Find out what they need
 
@@ -31,14 +31,15 @@ Check the state that changes the answer, and mention it only when it does. Run `
 
 ## Get set up
 
-1. Install. Copilot CLI: `copilot plugin install tommyc10/tblock`. Claude Code: `claude plugin marketplace add tommyc10/tblock` then `claude plugin install tblock@tblock`. After an update, reinstall in Copilot, because it caches plugins by version.
+1. Install. Copilot CLI: `copilot plugin install tommyc10/tblock`. Claude Code: `claude plugin marketplace add tommyc10/tblock` then `claude plugin install tblock@tblock`. Codex: `codex plugin marketplace add tommyc10/tblock` then `codex plugin add tblock@tblock`, and start a new thread. After an update, run `codex plugin marketplace upgrade` in Codex, and reinstall in Copilot, because it caches plugins by version.
 2. Point a `tblock` alias at `bin/tblock.mjs` in the install folder. The [README](../../README.md) shows how to find it.
 3. Run [setup-tblock](../setup-tblock/SKILL.md). It asks for a preset (extreme, high, or efficient), applies it, shows the roles, lets the user change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one agent per role and each agent's effort level.
-4. Run `tblock doctor`, then start a real task with tblock-mode, a goal, and a check that can pass or fail.
+4. In each repo, run [setup-project](../setup-project/SKILL.md). It sets up log reading, ticket labels, the Grafana target, and a verification skill in the repo's `.tblock/` folder, for the team to commit. setup-tblock offers it at the end.
+5. Run `tblock doctor`, then start a real task with tblock-mode, a goal, and a check that can pass or fail.
 
 Presets set every role's model and effort at once: `extreme` for hard or risky changes, `high` for features and reviews, `efficient` for everyday bugs. `tblock preset <name>` switches, and new sessions pick it up. `tblock roles set "code=sonnet @ high"` changes one role.
 
-If cost is the worry, say where the credits go: subagents and review panels. Switch to `tblock preset efficient`, put `code` on `session`, or save tblock-mode for work that needs rigor. In Claude Code, only Claude models run, so panels hold one family; two different Claude models still give two opinions.
+If cost is the worry, run `tblock log --since=monday` first. It totals every session's tokens and list-price cost by model, and Copilot's premium requests, so the user sees where the spend went. It usually goes to subagents and review panels. Switch to `tblock preset efficient`, put `code` on `session`, or save tblock-mode for work that needs rigor. In Claude Code, only Claude models run, so panels hold one family; two different Claude models still give two opinions.
 
 ## Start a task with tblock-mode
 
@@ -97,6 +98,7 @@ The default answer is tblock-mode, which runs most of the others when its steps 
 | Run a large or cross-cutting change, or one to review after stepping away | [figure-it-out](../figure-it-out/SKILL.md) |
 | Keep a decision log during a long run | [show-me-your-work](../show-me-your-work/SKILL.md) |
 | Pick models, efforts, or a preset | [setup-tblock](../setup-tblock/SKILL.md) |
+| Set up a repo's logs, ticket labels, Grafana target, and verification | [setup-project](../setup-project/SKILL.md) |
 | Turn their own habits into a personal mode skill | [automate-me](../automate-me/SKILL.md) |
 | Turn what a session taught into skill edits | [reflect](../reflect/SKILL.md) |
 | Stop agents repeating a mistake in this repo | [correct](../correct/SKILL.md) |
@@ -123,6 +125,7 @@ Playbooks are step lists inside tblock-mode, not skills, so they have no slash c
 - A symptom with a repro runs Bug fix. "without changing behavior" runs Refactoring. A number that's too slow runs Perf issue; "keep improving <metric>" runs Hillclimb.
 - "open an MR" or "open a PR" runs Opening an MR. It asks before pushing and before opening.
 - "babysit this", "get it green", "address the review comments", or "check on PR X" runs Babysit. It asks once before pushing fixes or replying to threads, and stops at merge-ready; merging stays yours.
+- "review !482", "review this PR", or a teammate's MR link runs Reviewing a teammate's MR. It runs the change in its own worktree, drafts comments locally, and posts nothing until you say yes.
 - "why is this leaking", "it spins the CPU", or "it hangs" on a running app runs Runtime forensics. A profile, trace, or heap snapshot you hand over runs Trace forensics. Both diagnose, they don't fix.
 - "prototype a few options" runs Prototype. UI work runs UI-UX. "restyle it, it must look the same" or "migrate the styling" runs Visual parity.
 - "write a skill for <workflow>" runs Authoring a skill. "run the eval playbook" runs Eval.

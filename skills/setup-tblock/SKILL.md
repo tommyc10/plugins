@@ -1,6 +1,6 @@
 ---
 name: setup-tblock
-description: "Configure which model and reasoning effort each tblock role uses for subagents, in Claude Code or GitHub Copilot, from a preset (extreme, high, efficient) with the option to change single roles. Writes the roles file every tblock skill reads, plus a custom agent and effort level per role in Copilot. Use for /setup-tblock, configuring tblock models or effort, switching presets, or changing them."
+description: "Configure which model and reasoning effort each tblock role uses for subagents, in Claude Code, Codex, or GitHub Copilot, from a preset (extreme, high, efficient) with the option to change single roles. Writes the roles file every tblock skill reads, plus a custom agent and effort level per role in Copilot. Use for /setup-tblock, configuring tblock models or effort, switching presets, or changing them."
 ---
 
 # Setup tblock
@@ -35,9 +35,10 @@ A preset sets every role's model and effort at once, from tiers (top, strong, fa
 
 ### 1. Detect the harness and models
 
-Claude Code if you have the `Agent` tool. Copilot if you have its custom agent tools or run in `copilot` or VS Code Copilot Chat. Otherwise ask.
+Claude Code if you have the `Agent` tool. Codex if you have the `spawn_agent` tool. Copilot if you have its custom agent tools or run in `copilot` or VS Code Copilot Chat. Otherwise ask.
 
 - **Claude Code:** the models are the `model` values the `Agent` tool lists: `opus`, `sonnet`, `haiku`, `fable`. Claude Code cannot run OpenAI or Gemini models, so only the claude tiers fill, and panels draw from one family. Say so once.
+- **Codex:** the models are the ones `spawn_agent`'s description lists, each with its reasoning efforts. Codex runs only OpenAI models, so only the gpt tiers fill, and panels draw from one family. Say so once.
 - **Copilot:** find the models in this order, and never ask the user to type or map model names:
   1. Run `node <tblock>/bin/tblock.mjs models --json`. It reads the model picker's list from VS Code's state, for the user's plan, and suggests a tier mapping. It finds nothing when VS Code is connected to a remote (Remote-SSH, WSL, a container, Codespaces), because that state stays beside the VS Code window, or on Node older than 22.5.
   2. If it finds none, ask Copilot itself: call your subagent tool once with model `tblock-list-models` and a one-line task. No model has that name, so the call fails before anything runs, and the error lists every available model as `Name (copilot)`, with any that cost more than the session model under "Unavailable". Pass the whole error text to `node <tblock>/bin/tblock.mjs models --json --from="<error text>"`.
@@ -59,7 +60,7 @@ Run `node <tblock>/bin/tblock.mjs roles` and `node <tblock>/bin/tblock.mjs tiers
 - `high — top thinkers, strong workers`
 - `efficient — strong models, medium effort`
 
-**(b) Map the tiers.** Without asking, propose each family's top, strong, and fast model from step 1. In Claude Code, `opus` is top, `sonnet` strong, and `haiku` fast; `fable` fills `top` if the user prefers it. A tier left out falls back to the nearest one in the same family:
+**(b) Map the tiers.** Without asking, propose each family's top, strong, and fast model from step 1. In Claude Code, `opus` is top, `sonnet` strong, and `haiku` fast; `fable` fills `top` if the user prefers it. In Codex, take the tiers from how `spawn_agent` describes each model. Its frontier model is top, its current workhorse is strong, and its fast model is fast. A tier left out falls back to the nearest one in the same family:
 
 ```
 node <tblock>/bin/tblock.mjs tiers set claude-top=<model> claude-strong=<model> claude-fast=<model>
@@ -87,7 +88,7 @@ node <tblock>/bin/tblock.mjs roles set "code=<model> @ medium" "reviewers=<model
 
 ### 4. Record the harness and git tools
 
-Record the harness, and which of these exist: a GitLab MCP server, the `glab` CLI, the `gh` CLI. Check the tool list and `command -v`. Record names only, never hosts, tokens, or project paths. In Claude Code add `--harness=claude-code`:
+Record the harness, and which of these exist: a GitLab MCP server, the `glab` CLI, the `gh` CLI. Check the tool list and `command -v`. Record names only, never hosts, tokens, or project paths. In Claude Code add `--harness=claude-code`, and in Codex `--harness=codex`:
 
 ```
 node <tblock>/bin/tblock.mjs roles set --harness=claude-code --tools=gh,glab
@@ -116,16 +117,12 @@ Without Node, write the file by hand in this shape.
 
 ### 6. Copilot only
 
-Copilot sets a subagent's model in its agent file and its effort in `~/.copilot/settings.json`. Every `preset` and `roles set` call also rewrites one custom agent per role in `~/.copilot/agents/` and its effort level, touching only `tblock-` agents and leaving every other setting as it was. Each agent pins its model with `model-policy: required`, because without it the Copilot runtime behind the agents window runs a subagent on the session model instead. Without Node, tell the user to set effort by hand in `/subagents`. In Claude Code no agent or settings files are written, because the spawning skill passes `model` and `effort` to the `Agent` tool. Skip this step there.
+Copilot sets a subagent's model in its agent file and its effort in `~/.copilot/settings.json`. Every `preset` and `roles set` call also rewrites one custom agent per role in `~/.copilot/agents/` and its effort level, touching only `tblock-` agents and leaving every other setting as it was. Each agent pins its model with `model-policy: required`, because without it the Copilot runtime behind the agents window runs a subagent on the session model instead. Without Node, tell the user to set effort by hand in `/subagents`. In Claude Code and Codex no agent or settings files are written, because the spawning skill passes the model and effort to the `Agent` or `spawn_agent` tool. Skip this step there.
 
 ### 7. Confirm
 
 Run `node <tblock>/bin/tblock.mjs doctor` and show its output. Tell the user which files were written and that new sessions pick them up. Re-running this skill updates them, `tblock preset <name>` switches presets later, and `tblock roles set` changes single roles.
 
-### 8. Offer a verification skill (optional)
+### 8. Offer to set up this repo (optional)
 
-Check whether the project has a way to drive the real app for proof (a `verify-*` skill, or an existing harness). If not, offer once: "want a project-local verification skill, so agents can drive the app the way a user does and prove changes work? I can generate one with /create-verification-skill." On yes, run [create-verification-skill](../create-verification-skill/SKILL.md). On no, move on without pushing.
-
-### 9. Offer a formal verification skill (optional)
-
-Check whether the project already has a formal verification skill, a project skill that runs a model checker, a prover, or another verifier against the code. If not, offer once: "want a formal verification skill, so agents can prove a key property of your code holds in every case in scope, not only the cases tests reach? I can generate one with /create-formal-verification-skill." On yes, run [create-formal-verification-skill](../create-formal-verification-skill/SKILL.md). On no, move on without pushing.
+When the session runs inside a git repository, offer once: "Your models are set. Want to set up this repo too, so tblock can read its logs, label its tickets, and prove changes in the running app?" On yes, run [setup-project](../setup-project/SKILL.md). On no, say that `/setup-project` does it later in any repo.

@@ -6,7 +6,9 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { log } from './log.mjs';
 import { createUI } from './ui.mjs';
+import { loadPrices } from './usage.mjs';
 import { watch } from './watch.mjs';
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -446,6 +448,16 @@ function doctor() {
     else add('PASS', 'Copilot', `tblock ${found[0]} installed`);
   }
 
+  const codex = run('codex', ['plugin', 'list']);
+  if (codex.missing) add('SKIP', 'Codex', 'codex CLI not found');
+  else {
+    const line = codex.out.split('\n').find((l) => /^\s*tblock@/.test(l));
+    const found = line && line.match(/\binstalled\b.*?(\d+\.\d+\.\d+)/);
+    if (!line || !found) add('SKIP', 'Codex', 'tblock is not installed there');
+    else if (newer(VERSION, found[1])) add('WARN', 'Codex', `tblock ${found[1]} installed, ${VERSION} available (run: codex plugin marketplace upgrade)`);
+    else add('PASS', 'Codex', `tblock ${found[1]} installed`);
+  }
+
   const file = readRolesFile();
   if (!file) add('WARN', 'Roles', `${ROLES_FILE} not found, so every subagent runs on the session model (run /setup-tblock)`);
   else {
@@ -489,6 +501,14 @@ function doctor() {
     else add(auth.ok ? 'PASS' : 'WARN', label, auth.ok ? `${tool} is logged in` : `${tool} is installed but not logged in`);
   }
   add('SKIP', 'GitLab MCP', 'only visible inside an agent session; ask the agent which MCP servers it has');
+
+  const repo = run('git', ['rev-parse', '--show-toplevel']);
+  if (repo.ok) {
+    const items = [['probe.json', 'logs'], ['tickets.json', 'ticket labels'], ['grafana.json', 'Grafana']];
+    const have = items.filter(([f]) => existsSync(join(repo.out.trim(), '.tblock', f))).map(([, label]) => label);
+    const missing = items.map(([, label]) => label).filter((label) => !have.includes(label));
+    add(have.length ? 'PASS' : 'SKIP', 'Project', `${have.length ? `${have.join(', ')} set up` : 'no .tblock files'}${missing.length ? `; not set up: ${missing.join(', ')} (run: /setup-project)` : ''}`);
+  }
 
   return checks;
 }
@@ -624,12 +644,16 @@ const COMMANDS = [
     ['preset', `list presets: ${Object.keys(PRESETS.presets).join(', ')}`],
     ['preset <name>', "set every role's model and effort at once"],
   ]],
+  ['log', [
+    ['log', 'every agent session since yesterday: task, last reply, MRs, files, and cost'],
+    ['log --since=monday', 'since a weekday, today, 3d, or a date; --here keeps this repo only'],
+  ]],
 ];
 
 const FLAGS = [
   ['--json', 'output a script or agent can read'],
   ['--from="<text>"', 'read model names from pasted text, for VS Code on a remote'],
-  ['--harness=, --tools=', 'with roles set: copilot or claude-code; glab,gh'],
+  ['--harness=, --tools=', 'with roles set: copilot, claude-code, or codex; glab,gh'],
 ];
 
 function showHelp() {
@@ -693,6 +717,13 @@ try {
   } else if (command === 'preset') {
     process.stdout.write(ui.header(`preset ${sub}`));
     applyPreset(sub);
+  } else if (command === 'log') {
+    if (!json) process.stdout.write(ui.header('log'));
+    process.stdout.write(log({
+      ui, json, flags: args.slice(1), cwd: process.cwd(), prices: loadPrices(PLUGIN, homedir()),
+      claudeHome: process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'),
+      copilotHome: process.env.COPILOT_HOME || join(homedir(), '.copilot'),
+    }));
   } else {
     throw new Error(`unknown command "${args.join(' ')}". Run tblock help to see the commands.`);
   }
