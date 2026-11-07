@@ -143,8 +143,6 @@ node --test
 
 The validator checks frontmatter, local links, that every principle is routed from tblock-mode, that every model role is used, that the Claude Code and Copilot copies of each agent match, and that the manifests agree on name and version. `node --test` runs the CLI, probe, and validator tests.
 
-To test whether a change makes agents do better work, the [Imperial Ops eval kit](evals/imperial-ops/README.md) runs tblock and plain Claude on the same task in separate copies of a project, then has a blind judge score both.
-
 ## Credits
 
 Much of tblock is adapted from [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan. The animation and polish skills are [Emil Kowalski's](https://github.com/emilkowalski/skills), and the `better-*`, `interface-review`, and `state-machine` skills are [Jakub Krehel's](https://github.com/jakubkrehel/skills). All are used under the MIT license. See [LICENSE](LICENSE).

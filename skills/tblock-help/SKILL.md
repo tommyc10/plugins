@@ -157,7 +157,7 @@ Principles are one-rule skills that tblock-mode reads and cites in its replies. 
 - [automate-me](../automate-me/SKILL.md) drafts a personal mode skill from the user's own history.
 - [reflect](../reflect/SKILL.md) after a session turns its lessons into skill edits the user approves.
 - "write a skill for <workflow>" in tblock-mode runs the Authoring a skill playbook. Keep work-only conventions in the work repo or a private plugin, never in public tblock.
-- The Eval playbook tests whether a change helps. The repo's `evals/imperial-ops` kit runs tblock against plain Claude on one task, blind.
+- The Eval playbook tests whether a change helps.
 
 ## Reply
 
