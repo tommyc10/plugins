@@ -130,14 +130,14 @@ tblock works without asking on reversible, local work: reading, editing, builds,
 
 ## Develop
 
-Check every skill before you commit:
+Check everything before you commit. It needs only Node 22, and CI runs the same two commands on every push and pull request:
 
 ```bash
-ruby scripts/validate-skills.rb
-node --test bin/tblock.test.mjs
+node scripts/validate-skills.mjs
+node --test
 ```
 
-It checks frontmatter, local links, that every principle is routed from tblock-mode, that every model role is used, that the Claude Code and Copilot copies of each agent match, and that the three manifests agree on name and version.
+The validator checks frontmatter, local links, that every principle is routed from tblock-mode, that every model role is used, that the Claude Code and Copilot copies of each agent match, and that the manifests agree on name and version. `node --test` runs the CLI, probe, and validator tests.
 
 To test whether a change makes agents do better work, the [Imperial Ops eval kit](evals/imperial-ops/README.md) runs tblock and plain Claude on the same task in separate copies of a project, then has a blind judge score both.
 

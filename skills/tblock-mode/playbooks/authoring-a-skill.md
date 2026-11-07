@@ -4,7 +4,7 @@
 
 1. Use the **skill-creator** skill when it is available to draft or revise the SKILL.md, principle, or playbook.
 2. Apply the [unslop](../../unslop/SKILL.md) skill to the prose.
-3. Validate the skill. In tblock, run `ruby scripts/validate-skills.rb` from the plugin root. Elsewhere, check that frontmatter has `name` and `description`, referenced files exist, and cross-skill links resolve.
+3. Validate the skill. In tblock, run `node scripts/validate-skills.mjs` from the plugin root. Elsewhere, check that frontmatter has `name` and `description`, referenced files exist, and cross-skill links resolve.
 4. Test cases if structural. Skip if subjective. To show a change improves agent behavior, run the [Eval](eval.md) playbook.
 5. Follow the requested delivery scope for commits and PRs.
 

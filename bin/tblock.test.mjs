@@ -84,7 +84,7 @@ test('doctor warns when a panel has one model family', () => {
   assert.equal(warning?.level, 'WARN');
 });
 
-test('doctor reports an out-of-date install in each harness', () => {
+test('doctor reports an out-of-date install in each harness', { skip: process.platform === 'win32' && 'the stub CLIs are POSIX shell scripts' }, () => {
   const { cli } = sandbox({
     claude: `echo '[{"id":"tblock@tblock","version":"0.0.9","installPath":"/x"}]'`,
     copilot: 'echo "Installed plugins:"; echo "  • tblock (v0.0.9)"',
