@@ -86,7 +86,7 @@ test('doctor warns when a panel has one model family', () => {
 
 test('doctor reports an out-of-date install in each harness', () => {
   const { cli } = sandbox({
-    claude: `echo '[{"id":"tblock@plugins","version":"0.0.9","installPath":"/x"}]'`,
+    claude: `echo '[{"id":"tblock@tblock","version":"0.0.9","installPath":"/x"}]'`,
     copilot: 'echo "Installed plugins:"; echo "  • tblock (v0.0.9)"',
     glab: 'exit 1',
   });

@@ -9,7 +9,7 @@ Answer the user's question about tblock, hand them a prompt they can send, and l
 
 A message that asks for work, such as "use tblock to fix this bug", is not a help question. Read [tblock-mode](../tblock-mode/SKILL.md) and do the work under it.
 
-This file maps questions to the skills that hold the answers. Those files own the details: read the file you route to before you quote it, and trust it when it disagrees with this map. Link the public copy, `https://github.com/tommyc10/plugins/blob/main/tblock/` followed by the file's path, because the user may not be able to open the installed plugin.
+This file maps questions to the skills that hold the answers. Those files own the details: read the file you route to before you quote it, and trust it when it disagrees with this map. Link the public copy, `https://github.com/tommyc10/tblock/blob/main/` followed by the file's path, because the user may not be able to open the installed plugin.
 
 Slash commands differ by harness. In Claude Code, plugin skills take the `tblock:` prefix, as in `/tblock:tblock-mode`. In GitHub Copilot they don't, as in `/tblock-mode`. Write commands for the harness you are running in.
 
@@ -31,7 +31,7 @@ Check the state that changes the answer, and mention it only when it does. Run `
 
 ## Get set up
 
-1. Install. Copilot CLI: `copilot plugin install tommyc10/plugins:tblock`. Claude Code: `claude plugin marketplace add tommyc10/plugins` then `claude plugin install tblock@plugins`. After an update, reinstall in Copilot, because it caches plugins by version.
+1. Install. Copilot CLI: `copilot plugin install tommyc10/tblock`. Claude Code: `claude plugin marketplace add tommyc10/tblock` then `claude plugin install tblock@tblock`. After an update, reinstall in Copilot, because it caches plugins by version.
 2. Point a `tblock` alias at `bin/tblock.mjs` in the install folder. The [README](../../README.md) shows how to find it.
 3. Run [setup-tblock](../setup-tblock/SKILL.md). It asks for a preset (extreme, high, or efficient), applies it, shows the roles, lets the user change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one agent per role and each agent's effort level.
 4. Run `tblock doctor`, then start a real task with tblock-mode, a goal, and a check that can pass or fail.

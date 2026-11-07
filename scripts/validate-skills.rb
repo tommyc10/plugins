@@ -147,7 +147,7 @@ if presets_file.file? && setup.file?
 end
 
 manifests = {}
-Dir[root.join('{plugin.json,.claude-plugin/*.json}').to_s].sort.each do |file|
+Dir[root.join('{plugin.json,.claude-plugin/*.json}').to_s].reject { |f| File.basename(f) == 'marketplace.json' }.sort.each do |file|
   begin
     manifests[Pathname.new(file).relative_path_from(root).to_s] = JSON.parse(File.read(file))
   rescue JSON::ParserError => e
@@ -163,7 +163,7 @@ if reference
     end
   end
 
-  marketplace = root.join('../.claude-plugin/marketplace.json')
+  marketplace = root.join('.claude-plugin/marketplace.json')
   if marketplace.file?
     entry = JSON.parse(marketplace.read).fetch('plugins', []).find { |plugin| plugin['name'] == reference['name'] }
     if entry.nil?

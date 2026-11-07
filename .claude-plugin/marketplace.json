@@ -1,12 +1,12 @@
 {
-  "name": "plugins",
+  "name": "tblock",
   "owner": {
     "name": "Tommy Clark"
   },
   "plugins": [
     {
       "name": "tblock",
-      "source": "./tblock",
+      "source": "./",
       "description": "Rigorous engineering skills, playbooks, and principles.",
       "version": "0.17.0"
     }

@@ -1,6 +1,6 @@
 # Imperial Ops eval
 
-Tests whether `tblock-mode` improves real work on the Imperial Ops dashboard, following tblock's [Eval playbook](../../tblock/skills/tblock-mode/playbooks/eval.md). Each arm gets the same task, the same starting commit, and its own worktree with a neutral name. Only the prompt prefix differs.
+Tests whether `tblock-mode` improves real work on the Imperial Ops dashboard, following tblock's [Eval playbook](../../skills/tblock-mode/playbooks/eval.md). Each arm gets the same task, the same starting commit, and its own worktree with a neutral name. Only the prompt prefix differs.
 
 | Arm | Prompt |
 | --- | --- |
@@ -34,4 +34,4 @@ Tests whether `tblock-mode` improves real work on the Imperial Ops dashboard, fo
 
 ## Limits
 
-One run per arm shows a direction, not a result. Repeat matched runs before trusting a gap, per the [Explain the Number](../../tblock/skills/principle-explain-the-number/SKILL.md) principle. The dashboard ships its own `animate` and `emil-design-eng` skills in `.claude/skills/`, and every arm sees them.
+One run per arm shows a direction, not a result. Repeat matched runs before trusting a gap, per the [Explain the Number](../../skills/principle-explain-the-number/SKILL.md) principle. The dashboard ships its own `animate` and `emil-design-eng` skills in `.claude/skills/`, and every arm sees them.
