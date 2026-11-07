@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Validates the files agents load. Node built-ins only, so it runs wherever the tblock CLI runs.
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,6 +27,21 @@ export function parseFrontmatter(text) {
   return { data, body: text.slice(block[0].length) };
 }
 
+const CODEX_HIDDEN = /^policy:\s*\r?\n\s+allow_implicit_invocation:\s*false\s*$/m;
+export const CODEX_POLICY = 'policy:\n  allow_implicit_invocation: false\n';
+
+// Writes the Codex policy for each skill hidden from model invocation, so the two flags can't drift.
+export function fixCodexPolicies(root) {
+  const missing = validate(root).skills.filter((s) => s.hidden && !s.codexHidden);
+  for (const s of missing) {
+    mkdirSync(dirname(s.policy), { recursive: true });
+    const current = existsSync(s.policy) ? readFileSync(s.policy, 'utf8') : '';
+    if (/^policy:/m.test(current)) throw new Error(`${s.policy}: has a policy block without allow_implicit_invocation: false; edit it by hand`);
+    writeFileSync(s.policy, current ? `${current.replace(/\s*$/, '\n')}${CODEX_POLICY}` : CODEX_POLICY);
+  }
+  return missing.length;
+}
+
 export function validate(root) {
   const errors = [];
   const rel = (p) => relative(root, p).replaceAll('\\', '/');
@@ -45,7 +60,11 @@ export function validate(root) {
     if (typeof description !== 'string' || !description.trim() || description.length > 1024 || /[<>]/.test(description)) errors.push(`${rel(file)}: invalid description`);
     if (hidden !== undefined && typeof hidden !== 'boolean') errors.push(`${rel(file)}: disable-model-invocation must be boolean`);
     if (String(name).startsWith('principle-') && hidden !== true) errors.push(`${rel(file)}: principles load through tblock-mode and need disable-model-invocation: true`);
-    skills.push({ name, file, dir, hidden: hidden === true });
+    const policy = join(dirname(file), 'agents', 'openai.yaml');
+    const codexHidden = existsSync(policy) && CODEX_HIDDEN.test(readFileSync(policy, 'utf8'));
+    if (hidden === true && !codexHidden) errors.push(`${rel(file)}: Codex ignores disable-model-invocation, so it needs ${rel(policy)} with allow_implicit_invocation: false (run with --fix)`);
+    if (hidden !== true && codexHidden) errors.push(`${rel(policy)}: hides from Codex a skill that other tools can invoke`);
+    skills.push({ name, file, dir, hidden: hidden === true, policy, codexHidden });
   }
   if (!skills.length) errors.push('No skills found');
   const names = new Set(skills.map((s) => s.name));
@@ -153,6 +172,7 @@ export function validate(root) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = resolve(process.argv.find((a, i) => i > 1 && !a.startsWith('--')) || join(dirname(fileURLToPath(import.meta.url)), '..'));
+  if (process.argv.includes('--fix')) console.log(`Wrote ${fixCodexPolicies(root)} Codex policy files.`);
   const { errors, summary } = validate(root);
   if (errors.length) {
     console.error(errors.join('\n'));

@@ -88,11 +88,14 @@ test('doctor reports an out-of-date install in each harness', { skip: process.pl
   const { cli } = sandbox({
     claude: `echo '[{"id":"tblock@tblock","version":"0.0.9","installPath":"/x"}]'`,
     copilot: 'echo "Installed plugins:"; echo "  • tblock (v0.0.9)"',
+    codex: 'echo "PLUGIN         STATUS              VERSION  SOURCE"; echo "tblock@tblock  installed, enabled  0.0.9    /src/tblock"',
     glab: 'exit 1',
   });
   const checks = doctorJson(cli);
   assert.equal(find(checks, 'Claude Code')[0].level, 'WARN');
   assert.match(find(checks, 'Copilot')[0].detail, /0\.0\.9 installed/);
+  assert.equal(find(checks, 'Codex')[0].level, 'WARN');
+  assert.match(find(checks, 'Codex')[0].detail, /0\.0\.9 installed/);
   assert.equal(find(checks, 'GitLab CLI')[0].level, 'WARN');
   assert.equal(find(checks, 'GitHub CLI')[0].level, 'SKIP');
 });
