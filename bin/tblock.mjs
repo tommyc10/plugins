@@ -618,6 +618,7 @@ const COMMANDS = [
   ['watch', [
     ['watch', 'live view of a Copilot or Claude Code session: agents, models, tools, files'],
     ['watch --once', 'print one snapshot instead (--session=<id> picks a session by id prefix)'],
+    ['watch --replay', 'play a recorded session back (--replay=<id> picks one by id prefix)'],
   ]],
   ['roles', [
     ['roles', 'show the model and effort each role uses'],
@@ -667,10 +668,12 @@ try {
     console.log(VERSION);
   } else if (command === 'watch') {
     const flags = args.slice(1);
-    const unknown = flags.filter((f) => f !== '--once' && !f.startsWith('--session='));
-    if (unknown.length) throw new Error(`watch takes --once and --session=<id>, not ${unknown.join(' ')}`);
+    const unknown = flags.filter((f) => f !== '--once' && !f.startsWith('--session=') && f !== '--replay' && !f.startsWith('--replay='));
+    if (unknown.length) throw new Error(`watch takes --once, --session=<id>, and --replay[=<id>], not ${unknown.join(' ')}`);
+    const replay = flags.find((f) => f === '--replay' || f.startsWith('--replay='));
     await watch({
       ui, version: VERSION, once: flags.includes('--once'),
+      replay: replay ? replay.slice('--replay='.length) || true : false,
       session: flags.find((f) => f.startsWith('--session='))?.slice('--session='.length),
       copilotHome: process.env.COPILOT_HOME || join(homedir(), '.copilot'),
       claudeHome: process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'),

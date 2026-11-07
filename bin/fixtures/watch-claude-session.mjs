@@ -7,7 +7,8 @@ const win = (...parts) => ['C:', ...parts].join(String.fromCharCode(92));
 
 export const CLAUDE_DEMO_ID = 'c1aude00-0000-4000-8000-000000000000';
 
-export function claudeSessionRecords({ start = Date.parse('2026-11-07T15:00:00Z'), finished = true } = {}) {
+// `trouble` adds an MCP call, a compaction, and three failing test runs in a row before the reply.
+export function claudeSessionRecords({ start = Date.parse('2026-11-07T15:00:00Z'), finished = true, trouble = false } = {}) {
   let t = start;
   const at = (s = 1) => new Date((t += s * 1000)).toISOString();
   const base = { cwd: win('work', 'dashboard'), gitBranch: 'feature/alerts', sessionId: CLAUDE_DEMO_ID, isSidechain: false };
@@ -29,7 +30,7 @@ export function claudeSessionRecords({ start = Date.parse('2026-11-07T15:00:00Z'
   const coder = [
     { ...sub('agent1', 1), type: 'user', message: { role: 'user', content: '…' } },
     { ...sub('agent1', 1), type: 'assistant', effort: 'medium', message: { id: 's1', model: 'claude-sonnet-5-5', stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'st1', name: 'Edit', input: { file_path: file } }], usage: usage(10, 5) } },
-    { ...sub('agent1', 1), type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'st1', content: 'ok' }] } },
+    { ...sub('agent1', 1), type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'st1', content: 'ok' }] }, toolUseResult: { filePath: file, structuredPatch: [{ oldStart: 10, oldLines: 2, newStart: 10, newLines: 4, lines: [' const rows = alerts;', '-const shown = rows;', '+const [severity, setSeverity] = useState("all");', '+const shown = rows.filter((a) => severity === "all" || a.severity === severity);', '+// filtered by severity'] }] } },
     { ...sub('agent1', 1), type: 'assistant', effort: 'medium', message: { id: 's2', model: 'claude-sonnet-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'done' }], usage: usage(10, 5) } },
   ];
   main.push(
@@ -39,7 +40,20 @@ export function claudeSessionRecords({ start = Date.parse('2026-11-07T15:00:00Z'
     // The thinking block carries the reply's end_turn before its text lands.
     reply('m4', [{ type: 'thinking', thinking: '' }], 'end_turn'),
   );
-  if (finished) main.push(reply('m4', [{ type: 'text', text: 'Added the filter.' }], 'end_turn'));
+  if (trouble) {
+    main.push(
+      reply('m5', [{ type: 'tool_use', id: 'mcp1', name: 'mcp__t3-code__t3_background_wait', input: { taskId: 'b1' } }], 'tool_use'),
+      result('mcp1'),
+      { ...base, type: 'system', subtype: 'compact_boundary', timestamp: at(), compactMetadata: { preTokens: 820000, postTokens: 41000 } },
+    );
+    for (const n of [1, 2, 3]) {
+      main.push(
+        reply(`m6${n}`, [{ type: 'tool_use', id: `b${n}`, name: 'Bash', input: { command: 'npm test -- alerts' } }], 'tool_use'),
+        { ...base, type: 'user', timestamp: at(), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `b${n}`, is_error: true, content: 'Exit code 1\n> vitest run alerts\nFAIL src/alerts/AlertsPage.test.tsx\nAssertionError: expected 3 rows, got 5' }] } },
+      );
+    }
+  }
+  if (finished) main.push(reply('m4', [{ type: 'text', text: 'Added the filter. The severity tests still fail on the empty state.\nShould I keep the old empty-state copy, or use the new one from the design?' }], 'end_turn'));
   return { main, subagents: { agent1: { records: coder, meta: { agentType: 'tblock:delegate', toolUseId: 'a1', model: 'sonnet', finished: true } } } };
 }
 

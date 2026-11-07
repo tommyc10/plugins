@@ -327,7 +327,7 @@ test('watch says how to start when there are no sessions, and rejects unknown fl
   const none = cli('watch', '--once');
   assert.equal(none.code, 2);
   assert.match(none.err, /no Copilot or Claude Code sessions/);
-  assert.match(cli('watch', '--follow').err, /watch takes --once and --session=<id>/);
+  assert.match(cli('watch', '--follow').err, /watch takes --once, --session=<id>, and --replay/);
 });
 
 test('watch reads a Claude Code session: the prompt, each subagent with its model and effort, and files', async () => {
@@ -383,6 +383,95 @@ test('the watch reader keeps a half-written line until the rest arrives', async 
   appendFileSync(file, '"b"}\n');
   assert.deepEqual(read().map((e) => e.type), ['b']);
   assert.deepEqual(read(), []);
+});
+
+test('watch shows what the agent said, what broke, its context, and the lines each file changed', async () => {
+  const { claudeSessionRecords, writeClaudeSession } = await import('./fixtures/watch-claude-session.mjs');
+  const { home, cli } = sandbox();
+  writeClaudeSession(join(home, '.claude'), claudeSessionRecords({ trouble: true }));
+  const r = cli('watch', '--once');
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /│ Should I keep the old empty-state copy, or use the new one from the design\?/, 'the question it waits on shows in full');
+  assert.match(r.out, /▲ failed 3× in a row · Bash · exit 1 · AssertionError: expected 3 rows, got 5/, 'three failures in a row get flagged');
+  assert.match(r.out, /✖ {2}Bash\s+exit 1 · AssertionError: expected 3 rows/, 'a failed step says why');
+  assert.match(r.out, /context {2}\[\.+\] {2}1\.1k \/ 1M · 0% · compacted ×1/, 'context against the model window');
+  assert.match(r.out, /t3·background_wait\s+taskId=b1/, 'MCP tools read as server·tool with their argument');
+  assert.match(r.out, /FILES {2}1 changed · \+3 −1/i);
+  assert.match(r.out, /✎ …\/alerts\/AlertsPage\.tsx {2}\+3 −1/);
+  assert.match(r.out, /≈ \$0\.0\d/, 'an estimated cost from the price table');
+});
+
+test('watch keys: arrows select a step, enter opens it, esc steps back one layer, then quits', async () => {
+  const { onKey, initialView } = await import('./watch.mjs');
+  const steps = [{ key: 1 }, { key: 2 }, { key: 3 }];
+  const press = (view, key, tabs = 1) => onKey(view, key, { steps, tabs });
+  let { view } = press(initialView(), '\x1b[A');
+  assert.equal(view.selected, 3, 'up from following picks the newest step');
+  ({ view } = press(view, 'k'));
+  assert.equal(view.selected, 2);
+  ({ view } = press(view, '\r'));
+  assert.equal(view.layer, 'detail');
+  ({ view } = press(view, '\x1b'));
+  assert.deepEqual([view.layer, view.selected], ['feed', 2], 'esc closes the step and keeps the selection');
+  ({ view } = press(view, '\x1b'));
+  assert.equal(view.selected, null, 'esc again goes back to following');
+  assert.equal(press(view, '\x1b').act, 'quit', 'esc on the plain feed quits, as before');
+  assert.equal(press(initialView(), 'o').view.layer, 'overview');
+  assert.equal(press(initialView(), '3', 4).act, 'tab:2');
+  assert.equal(press(initialView(), '3', 2).act, null, 'a tab that is not there does nothing');
+});
+
+test('watch opens a step to its diff, splits into two panes when wide, and keeps quit in the footer', async () => {
+  const { claudeSessionRecords, writeClaudeSession } = await import('./fixtures/watch-claude-session.mjs');
+  const { createClaudeSource, listClaudeSessions } = await import('./watch-claude.mjs');
+  const { createState, applyEvent, render, selectable, initialView } = await import('./watch.mjs');
+  const { createUI } = await import('./ui.mjs');
+  const home = mkdtempSync(join(tmpdir(), 'tblock-watch-'));
+  writeClaudeSession(join(home, '.claude'), claudeSessionRecords({ trouble: true }));
+  const s = listClaudeSessions(join(home, '.claude', 'projects'))[0];
+  const state = createState(s.id, null);
+  createClaudeSource(s)().forEach((e) => applyEvent(state, e));
+  const ui = createUI({ color: false, version: 't', env: {} });
+  const now = state.last + 1000;
+  const edit = selectable(state, false).find((x) => x.tool === 'Edit');
+  const opened = render(state, ui, { now, cols: 100, rows: 40, view: { ...initialView(), layer: 'detail', selected: edit.key } }).join('\n');
+  assert.match(opened, /diff {2}\+3 −1\n {4}@@ -10,2 \+10,4 @@\n {5}const rows = alerts;\n {4}-const shown = rows;\n {4}\+const \[severity/);
+  const wide = render(state, ui, { now, cols: 200, rows: 40 });
+  assert.ok(wide.some((l) => /^tasks {2}1 .*│ *agent$/.test(l)), 'tasks on the left, the agent on the right');
+  const colourUi = createUI({ color: true, version: 't', env: {} });
+  const footer = render(state, colourUi, { now, cols: 80, rows: 30, pin: true }).at(-1).replace(/\x1b\[[0-9;]*m/g, '');
+  assert.ok(footer.length <= 79 && footer.endsWith('q quit'), footer);
+});
+
+test('watch replays a session: seeking back and forward rebuilds the same state', async () => {
+  const { claudeSessionRecords, writeClaudeSession } = await import('./fixtures/watch-claude-session.mjs');
+  const { createClaudeSource, listClaudeSessions } = await import('./watch-claude.mjs');
+  const { createState, createReplay } = await import('./watch.mjs');
+  const home = mkdtempSync(join(tmpdir(), 'tblock-watch-'));
+  writeClaudeSession(join(home, '.claude'), claudeSessionRecords({ trouble: true }));
+  const s = listClaudeSessions(join(home, '.claude', 'projects'))[0];
+  const rp = createReplay(createClaudeSource(s)(), () => createState(s.id, null));
+  assert.equal(rp.marks.length, 1, 'one prompt to jump to');
+  rp.seek(rp.t1);
+  const end = { tools: rp.state.tools, errors: rp.state.errors };
+  assert.deepEqual(end, { tools: 8, errors: 3 });
+  rp.seek(rp.t0 + 6000);
+  assert.ok(rp.state.tools < end.tools, 'seeking back undoes later events');
+  rp.seek(rp.t1);
+  assert.deepEqual({ tools: rp.state.tools, errors: rp.state.errors }, end, 'and forward again lands on the same state');
+});
+
+test('watch picks a notifier per platform and a reason for each failure', async () => {
+  const { notifyCommand, errorLine, toolLabel } = await import('./watch.mjs');
+  assert.equal(notifyCommand('win32', 't', 'b')[0], 'powershell.exe');
+  assert.match(notifyCommand('win32', "it's", 'b')[1].at(-1), /CreateTextNode\('it''s'\)/, 'quotes are escaped for PowerShell');
+  assert.deepEqual(notifyCommand('darwin', 'T', 'B'), ['osascript', ['-e', 'display notification "B" with title "T"']]);
+  assert.deepEqual(notifyCommand('linux', 'T', 'B'), ['notify-send', ['T', 'B']]);
+  assert.equal(notifyCommand('aix', 'T', 'B'), null);
+  assert.equal(errorLine('Exit code 2\nsrc/a.ts: is_error: true\nTypeError: x is not a function'), 'exit 2 · TypeError: x is not a function');
+  assert.equal(errorLine('permission denied'), 'permission denied');
+  assert.equal(toolLabel('mcp__claude_ai_Claude_Docs__batch'), 'Claude·batch');
+  assert.equal(toolLabel('Bash'), 'Bash');
 });
 
 test('doctor shows which project files the current repo has', () => {

@@ -37,6 +37,27 @@ function promptText(content) {
 
 const contextOf = (u) => (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
 
+// What a tool printed, newlines kept: Bash's stdout and stderr, else the result block's text.
+function resultText(block, res) {
+  if (res && typeof res === 'object' && typeof res.stdout === 'string') return [res.stdout, res.stderr].filter(Boolean).join('\n');
+  const c = block.content;
+  return typeof c === 'string' ? c : Array.isArray(c) ? c.filter((x) => x.type === 'text').map((x) => x.text).join('\n') : '';
+}
+
+// Lines an Edit or Write added and removed, from the patch Claude Code records with the result.
+function patchOf(res) {
+  if (!res || typeof res !== 'object') return null;
+  if (Array.isArray(res.structuredPatch) && res.structuredPatch.length) {
+    const lines = res.structuredPatch.flatMap((h) => [`@@ -${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@`, ...(h.lines || [])]);
+    return { added: lines.filter((l) => l.startsWith('+')).length, removed: lines.filter((l) => l.startsWith('-')).length, lines: lines.slice(0, 400) };
+  }
+  if (res.type === 'create' && typeof res.content === 'string') {
+    const lines = res.content.split('\n');
+    return { added: lines.length, removed: 0, lines: lines.slice(0, 400).map((l) => `+${l}`) };
+  }
+  return null;
+}
+
 // Reads a Claude Code session and its subagents; each call returns the new events, oldest first.
 export function createClaudeSource(session) {
   const main = createReader(session.log);
@@ -64,6 +85,7 @@ export function createClaudeSource(session) {
     }
     // A session started from a slash command is titled "$skill args".
     if (r.type === 'custom-title' && !sub) out.push(ev('session.title_changed', { title: String(r.customTitle || '').replace(/^\$/, '/') }));
+    if (!sub && r.type === 'system' && r.subtype === 'compact_boundary') out.push(ev('session.compaction_complete', { preTokens: r.compactMetadata?.preTokens, postTokens: r.compactMetadata?.postTokens }));
     if (r.type === 'user' && !r.isMeta) {
       const content = r.message?.content;
       const results = Array.isArray(content) ? content.filter((b) => b.type === 'tool_result') : [];
@@ -80,7 +102,9 @@ export function createClaudeSource(session) {
             error: failed ? promptText(b.content).slice(0, 200) || 'failed' : undefined,
           }));
         }
-        out.push(ev('tool.execution_complete', { toolCallId: b.tool_use_id, success: !b.is_error }));
+        const own = results.length === 1 ? r.toolUseResult : null;
+        const text = resultText(b, own);
+        out.push(ev('tool.execution_complete', { toolCallId: b.tool_use_id, success: !b.is_error, result: text, error: b.is_error ? text || 'failed' : undefined, patch: b.is_error ? null : patchOf(own) }));
       }
       if (!results.length && !sub && !r.isSidechain && r.turnOrigin !== undefined) {
         out.push(ev('user.message', { content: promptText(content) }), ev('assistant.turn_start', {}));
@@ -98,16 +122,17 @@ export function createClaudeSource(session) {
       if (m.id && m.usage && !seenMessages.has(m.id)) {
         seenMessages.add(m.id);
         out.push(ev('session.usage_record', {
-          usage: { inputTokens: (m.usage.input_tokens || 0) + (m.usage.cache_creation_input_tokens || 0), outputTokens: m.usage.output_tokens || 0, model: m.model },
+          usage: { inputTokens: m.usage.input_tokens || 0, cacheWriteTokens: m.usage.cache_creation_input_tokens || 0, cacheReadTokens: m.usage.cache_read_input_tokens || 0, outputTokens: m.usage.output_tokens || 0, model: m.model },
           contextTokens: contextOf(m.usage),
         }));
       }
       for (const b of m.content || []) {
+        if (b.type === 'text' && b.text?.trim()) out.push(ev('assistant.message', { content: b.text }));
         if (b.type !== 'tool_use') continue;
         out.push(ev('tool.execution_start', { toolCallId: b.id, toolName: b.name, arguments: b.input }));
         if (b.name === 'Agent' || b.name === 'Task') {
           agentCalls.set(b.id, b.input || {});
-          if (!sub) out.push(ev('subagent.started', { toolCallId: b.id, agentName: b.input?.description || b.input?.subagent_type || 'subagent', agentDisplayName: b.input?.subagent_type, model: b.input?.model || null, modelSelectionSource: b.input?.model ? 'explicit_override' : null }));
+          if (!sub) out.push(ev('subagent.started', { toolCallId: b.id, agentName: b.input?.description || b.input?.subagent_type || 'subagent', agentDisplayName: b.input?.subagent_type, prompt: b.input?.prompt, model: b.input?.model || null, modelSelectionSource: b.input?.model ? 'explicit_override' : null }));
         }
       }
       // One reply is split into a record per block, each carrying the reply's stop reason, so the
