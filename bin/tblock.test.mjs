@@ -21,7 +21,7 @@ function sandbox(stubs = {}, extraEnv = {}) {
   const cli = (...args) => {
     // Node finds the home folder through USERPROFILE on Windows, so set both, and point
     // VS Code's state at the sandbox, or a test run rewrites the real setup.
-    const env = { HOME: home, USERPROFILE: home, APPDATA: join(home, 'AppData'), XDG_CONFIG_HOME: join(home, '.config'), PATH: `${bin}:/usr/bin:/bin`, ...extraEnv };
+    const env = { HOME: home, USERPROFILE: home, APPDATA: join(home, 'AppData'), XDG_CONFIG_HOME: join(home, '.config'), PATH: bin, ...extraEnv };
     const r = spawnSync(process.execPath, [CLI, ...args], { env, encoding: 'utf8' });
     return { code: r.status, out: r.stdout, err: r.stderr };
   };
