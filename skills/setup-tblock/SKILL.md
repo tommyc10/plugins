@@ -38,7 +38,12 @@ A preset sets every role's model and effort at once, from tiers (top, strong, fa
 Claude Code if you have the `Agent` tool. Copilot if you have its custom agent tools or run in `copilot` or VS Code Copilot Chat. Otherwise ask.
 
 - **Claude Code:** the models are the `model` values the `Agent` tool lists: `opus`, `sonnet`, `haiku`, `fable`. Claude Code cannot run OpenAI or Gemini models, so only the claude tiers fill, and panels draw from one family. Say so once.
-- **Copilot:** run `node <tblock>/bin/tblock.mjs models --json`. It reads the model picker's list from VS Code's state, for the user's plan, and suggests a tier mapping. Never ask the user to type model names when it finds models. Only if it finds none (no VS Code, or Node older than 22.5), list the models you can see this session, and ask the user to paste names from the picker (`/model` in the CLI) as the last resort.
+- **Copilot:** find the models in this order, and never ask the user to type or map model names:
+  1. Run `node <tblock>/bin/tblock.mjs models --json`. It reads the model picker's list from VS Code's state, for the user's plan, and suggests a tier mapping. It finds nothing when VS Code is connected to a remote (Remote-SSH, WSL, a container, Codespaces), because that state stays beside the VS Code window, or on Node older than 22.5.
+  2. If it finds none, ask Copilot itself: call your subagent tool once with model `tblock-list-models` and a one-line task. No model has that name, so the call fails before anything runs, and the error lists every available model as `Name (copilot)`, with any that cost more than the session model under "Unavailable". Pass the whole error text to `node <tblock>/bin/tblock.mjs models --json --from="<error text>"`.
+  3. Only if neither works, ask the user to copy the model picker's list (`/model` in the CLI) and paste it in any shape, unedited. Pass it the same way with `--from`. The CLI picks out the names, so the user never types them exactly or maps tiers.
+
+  Models marked `overCostTier` cost more than the session model. Say so when one fills a tier: VS Code's chat refuses that subagent unless the session model costs at least as much.
 
 Never write a model you have not confirmed exists. A model the detection lists, or the user picks from it, counts as confirmed.
 
@@ -60,7 +65,7 @@ Run `node <tblock>/bin/tblock.mjs roles` and `node <tblock>/bin/tblock.mjs tiers
 node <tblock>/bin/tblock.mjs tiers set claude-top=<model> claude-strong=<model> claude-fast=<model>
 ```
 
-In Copilot, show the suggested tiers from `models --json` with each model's picker name, and confirm them with one `AskUserQuestion` whose options are `Use these tiers` and `Change some`, never a free-text box. On `Use these tiers`, run `node <tblock>/bin/tblock.mjs tiers detect`, which writes the tiers and each model's picker name. On `Change some`, ask which tier, then offer the detected models of that family as options, and write the changes with `tiers set` after `tiers detect`. Use model ids, not picker names: tblock writes both into each Copilot agent, because the agents window and the CLI match ids while VS Code's chat matches picker names.
+In Copilot, show the suggested tiers from `models --json` with each model's picker name, and confirm them with one `AskUserQuestion` whose options are `Use these tiers` and `Change some`, never a free-text box. On `Use these tiers`, run `node <tblock>/bin/tblock.mjs tiers detect`, with the same `--from` text if step 1 used one, which writes the tiers and each model's picker name. On `Change some`, ask which tier, then offer the detected models of that family as options, and write the changes with `tiers set` after `tiers detect`. Use model ids, not picker names: tblock writes both into each Copilot agent, because the agents window and the CLI match ids while VS Code's chat matches picker names.
 
 **(c) Apply the preset.** Show any `note:` lines the CLI prints about tiers it had to fall back on:
 

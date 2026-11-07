@@ -268,3 +268,28 @@ test('models without VS Code state says how to go on', () => {
   assert.match(r.out, /No Copilot models found/);
   assert.equal(cli('tiers', 'detect').code, 2);
 });
+
+test('models --from reads the list from Copilot\'s unknown-model error, for remote VS Code', () => {
+  const { home, cli } = sandbox();
+  const error = "Requested model 'tblock-list-models' not found. Available models: Auto (copilot), Claude Sonnet 5.5 (copilot), " +
+    'GPT-6.1 Sol (copilot), GPT-5.4 mini (copilot), Gemini 3 Pro (Preview) (copilot), Raptor mini (copilot). ' +
+    "Unavailable (exceeds current model's cost tier): Claude Opus 5.5 (copilot)";
+  const r = cli('models', '--json', `--from=${error}`);
+  assert.equal(r.code, 0, r.err);
+  const found = JSON.parse(r.out);
+  assert.deepEqual(found.models.map((m) => m.id), ['claude-sonnet-5.5', 'gpt-6.1-sol', 'gpt-5.4-mini', 'gemini-3-pro-preview', 'claude-opus-5.5']);
+  assert.equal(found.models.find((m) => m.id === 'gemini-3-pro-preview').name, 'Gemini 3 Pro (Preview)');
+  assert.equal(found.models.find((m) => m.id === 'claude-opus-5.5').overCostTier, true);
+  assert.equal(found.tiers['gpt-fast'], 'gpt-5.4-mini');
+
+  assert.equal(cli('tiers', 'detect', `--from=${error}`).code, 0);
+  const roles = readFileSync(join(home, '.tblock', 'roles.md'), 'utf8');
+  assert.match(roles, /claude-top=claude-opus-5\.5/);
+  assert.match(roles, /^# model names: .*gpt-6\.1-sol=GPT-6\.1 Sol/m);
+});
+
+test('a pasted list in any shape gives the same models', () => {
+  const { cli } = sandbox();
+  const found = JSON.parse(cli('models', '--json', '--from=Claude Sonnet 5\n  gpt-5.5   GPT-5.5\nclaude-sonnet-5 x2\nKimi K2.7 Code').out);
+  assert.deepEqual(found.models.map((m) => [m.id, m.name]), [['claude-sonnet-5', 'Claude Sonnet 5'], ['gpt-5.5', 'GPT-5.5']]);
+});

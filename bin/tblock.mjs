@@ -16,7 +16,9 @@ const PRESETS = JSON.parse(readFileSync(join(PLUGIN, 'presets.json'), 'utf8'));
 
 const argv = process.argv.slice(2);
 const json = argv.includes('--json');
-const args = argv.filter((a) => a !== '--json');
+// --from=<text> hands model names to `models` and `tiers detect` when VS Code's state is out of reach.
+const fromText = argv.find((a) => a.startsWith('--from='))?.slice('--from='.length);
+const args = argv.filter((a) => a !== '--json' && !a.startsWith('--from='));
 const fancy = process.stdout.isTTY && !json && !('NO_COLOR' in process.env);
 
 const paint = (rgb, text) => (fancy ? `\x1b[38;2;${rgb.join(';')}m${text}\x1b[0m` : text);
@@ -310,8 +312,33 @@ async function readVscodeState(file, keys) {
 
 const modelFamily = (text) => (/claude|opus|sonnet|haiku|fable/i.test(text) ? 'claude' : /gpt|codex/i.test(text) ? 'gpt' : /gemini/i.test(text) ? 'gemini' : null);
 
+// Picks model names out of any text: a paste from the picker, or the error Copilot's subagent tool
+// gives for an unknown model, which lists every available model as "Name (copilot)".
+const MODEL_NAME = /\b(?:Claude\s+(?:Opus|Sonnet|Haiku|Fable)\s+\d+(?:\.\d+)*|GPT-\d+(?:\.\d+)*(?:[- ](?:Sol|Terra|Luna|mini|nano|Codex|Max))*|Gemini\s+\d+(?:\.\d+)*\s+(?:Pro|Flash)(?:[- ]Lite)?(?:\s*\(Preview\))?|(?:claude-(?:opus|sonnet|haiku|fable)|gpt|gemini)-\d+(?:\.\d+)*(?:-[a-z]+)*)/gi;
+
+function modelsFromText(text) {
+  const models = new Map();
+  // VS Code lists models that cost more than the session model after this marker, and refuses
+  // them as subagents until the session runs on a model at least as costly.
+  const overAt = text.search(/Unavailable \(exceeds/i);
+  for (const { 0: match, index } of text.matchAll(MODEL_NAME)) {
+    const id = match.toLowerCase().replace(/[()]/g, '').trim().replace(/\s+/g, '-');
+    const typedId = match === id;
+    const seen = models.get(id);
+    // A picker name beats a bare id, because VS Code's chat matches names.
+    const overCostTier = overAt >= 0 && index > overAt;
+    if (!seen || (seen.typedId && !typedId)) models.set(id, { id, name: typedId ? id : match.replace(/\s+/g, ' '), family: modelFamily(id), typedId, ...(overCostTier && { overCostTier }) });
+  }
+  return [...models.values()].map(({ typedId, ...m }) => m);
+}
+
 async function detectModels() {
   const notes = [];
+  if (fromText !== undefined) {
+    const models = modelsFromText(fromText);
+    if (!models.length) notes.push('the text given with --from names no Claude, GPT, or Gemini model');
+    return { source: '--from', plan: null, models, notes };
+  }
   for (const file of vscodeStateFiles()) {
     let state;
     try {
@@ -335,7 +362,9 @@ async function detectModels() {
     } catch { notes.push('the cached model list in VS Code state is not JSON'); }
     if (models.size) return { source: file, plan: sku || plan, models: [...models.values()], notes };
   }
-  if (!vscodeStateFiles().length) notes.push('no VS Code state found');
+  // VS Code keeps this state beside its window, so Remote-SSH, WSL, containers, and Codespaces
+  // run tblock on a machine that doesn't have it.
+  if (!vscodeStateFiles().length) notes.push('no VS Code state on this machine, which is normal when VS Code is connected to a remote. Pass the model list with --from instead');
   return { source: null, plan: null, models: [], notes };
 }
 
@@ -365,19 +394,23 @@ async function showModels() {
   if (json) return console.log(JSON.stringify({ ...found, tiers }, null, 2));
   process.stdout.write(header('models'));
   if (!found.models.length) {
-    console.log('  No Copilot models found. Open Copilot Chat in VS Code once, or copy the names from the model picker.');
+    console.log('  No Copilot models found. Copy the model picker list (any format) and run: tblock models --from="<pasted list>"');
     return found.notes.forEach((n) => console.log(`  note: ${n}`));
   }
-  console.log(`  From ${found.source} (plan: ${found.plan})\n`);
-  for (const m of found.models) console.log(`  ${m.id.padEnd(26)} ${m.name}`);
+  console.log(`  From ${found.source}${found.plan ? ` (plan: ${found.plan})` : ''}\n`);
+  for (const m of found.models) console.log(`  ${m.id.padEnd(26)} ${m.name}${m.overCostTier ? '  (costs more than the session model)' : ''}`);
+  if (found.models.some((m) => m.overCostTier)) {
+    console.log('\n  note: VS Code chat refuses a subagent model that costs more than the session model, so roles on those');
+    console.log('  models only run when the session model costs at least as much.');
+  }
   console.log('\n  Suggested tiers:');
   for (const [k, v] of Object.entries(tiers)) console.log(`    ${k.padEnd(14)} ${v}`);
-  console.log('\n  Apply them with: tblock tiers detect');
+  console.log(`\n  Apply them with: tblock tiers detect${fromText !== undefined ? ' --from="<the same list>"' : ''}`);
 }
 
 async function detectTiers() {
   const found = await detectModels();
-  if (!found.models.length) throw new Error(`no Copilot models found${found.notes.length ? ` (${found.notes.join('; ')})` : ''}. Set tiers by hand: tblock tiers set claude-top=<model>`);
+  if (!found.models.length) throw new Error(`no Copilot models found${found.notes.length ? ` (${found.notes.join('; ')})` : ''}. Pass the picker list with --from="<list>", or set tiers by hand: tblock tiers set claude-top=<model>`);
   const file = readRolesFile() || emptyFile();
   file.meta.tiers = suggestTiers(found.models);
   file.meta.names = Object.fromEntries(found.models.map((m) => [m.id, m.name]));
@@ -543,6 +576,7 @@ const HELP = `
   tblock models              list the Copilot models VS Code knows about, and suggest tiers
   tblock tiers               show which of your models fills each tier
   tblock tiers detect        map tiers from the detected Copilot models
+                             (--from="<text>" reads model names from pasted text instead)
   tblock tiers set k=m ...   map tiers to models, e.g. claude-top=claude-opus-5.5 gpt-fast=gpt-5.6-luna
   tblock preset              list presets: ${Object.keys(PRESETS.presets).join(', ')}
   tblock preset <name>       set every role's model and effort from a preset
