@@ -326,8 +326,51 @@ test('watch says how to start when there are no sessions, and rejects unknown fl
   const { cli } = sandbox();
   const none = cli('watch', '--once');
   assert.equal(none.code, 2);
-  assert.match(none.err, /no Copilot sessions/);
+  assert.match(none.err, /no Copilot or Claude Code sessions/);
   assert.match(cli('watch', '--follow').err, /watch takes --once and --session=<id>/);
+});
+
+test('watch reads a Claude Code session: the prompt, each subagent with its model and effort, and files', async () => {
+  const { writeClaudeSession } = await import('./fixtures/watch-claude-session.mjs');
+  const { home, cli } = sandbox();
+  writeClaudeSession(join(home, '.claude'));
+  const r = cli('watch', '--once');
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /Claude Code {2}·/);
+  assert.match(r.out, /main {3}claude-opus-5-5 high {3}turn 1/, 'the main agent shows its model and effort');
+  assert.match(r.out, /▾ ! \d\d:\d\d {2}“\/tblock:tblock-mode add a severity filter”\s+4 tools · 2 agents · 1 file · 15s/, 'the task is the prompt as the user typed it, with its counts');
+  assert.match(r.out, /your turn · waiting/);
+  assert.match(r.out, /Add the filter\s+✔ {2}done\s+1 tool call\n/);
+  assert.doesNotMatch(r.out, /Base directory for this skill/, 'skill bodies are not prompts');
+  assert.match(r.out, /Add the filter\s+claude-sonnet-5-5\s+medium\s+42s\s+1 tools · 31\.0k tok\s+✔ role model/);
+  assert.match(r.out, /Review the filter\s+claude-opus-5-5\s+9s\s+0 tools · 12\.0k tok\s+▲ session model/);
+  assert.match(r.out, /✎ …\/alerts\/AlertsPage\.tsx/, 'a subagent edit counts as a changed file');
+  assert.match(r.out, /✔ {2}main /, 'the turn has ended');
+});
+
+test('watch lists every live session as a tab and folds a run of one tool into one line', async () => {
+  const { writeClaudeSession } = await import('./fixtures/watch-claude-session.mjs');
+  const { writeWatchSession } = await import('./fixtures/watch-session.mjs');
+  const { foldSteps } = await import('./watch.mjs');
+  const { home, cli } = sandbox({}, {});
+  writeClaudeSession(join(home, '.claude'));
+  writeWatchSession(join(home, '.copilot'));
+  const r = cli('watch', '--once');
+  assert.equal(r.code, 0, r.err);
+  const tabs = r.out.split('\n')[2];
+  assert.match(tabs, /▸1 /, 'the session on screen is marked');
+  assert.match(tabs, /\/tblock-mode add a severity filter/, 'a Claude Code tab');
+  assert.match(tabs, /Alerts severity filter/, 'a Copilot tab');
+
+  const steps = foldSteps(['a', 'b', 'c'].map((text) => ({ agent: 'main', kind: 'search', tool: 'Grep', text })).concat({ agent: 'main', kind: 'shell', tool: 'Bash', text: 'ls' }));
+  assert.deepEqual(steps.map((s) => [s.tool, s.times, s.text]), [['Grep', 3, 'c'], ['Bash', 1, 'ls']]);
+});
+
+test('a Claude Code turn stays busy until its reply text lands, not when its thinking block says end_turn', async () => {
+  const { claudeSessionRecords, writeClaudeSession } = await import('./fixtures/watch-claude-session.mjs');
+  const { home, cli } = sandbox();
+  writeClaudeSession(join(home, '.claude'), claudeSessionRecords({ finished: false }));
+  assert.match(cli('watch', '--once').out, /\* {2}main /);
 });
 
 test('the watch reader keeps a half-written line until the rest arrives', async () => {
