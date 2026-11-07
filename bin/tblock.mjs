@@ -7,6 +7,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createUI } from './ui.mjs';
+import { watch } from './watch.mjs';
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), '..');
 const VERSION = JSON.parse(readFileSync(join(PLUGIN, 'plugin.json'), 'utf8')).version;
@@ -604,6 +605,10 @@ function showPresets() {
 
 const COMMANDS = [
   ['check', [['doctor', 'check the install, roles, Copilot agents, and git tools']]],
+  ['watch', [
+    ['watch', 'live view of a Copilot session: agents, models, tools, files'],
+    ['watch --once', 'print one snapshot instead (--session=<id> picks a session)'],
+  ]],
   ['roles', [
     ['roles', 'show the model and effort each role uses'],
     ['roles set r=m …', 'set roles: r=model, r="model @ effort", r=m1,m2 for a panel'],
@@ -646,6 +651,15 @@ try {
     showHelp();
   } else if (command === '--version') {
     console.log(VERSION);
+  } else if (command === 'watch') {
+    const flags = args.slice(1);
+    const unknown = flags.filter((f) => f !== '--once' && !f.startsWith('--session='));
+    if (unknown.length) throw new Error(`watch takes --once and --session=<id>, not ${unknown.join(' ')}`);
+    await watch({
+      ui, version: VERSION, once: flags.includes('--once'),
+      session: flags.find((f) => f.startsWith('--session='))?.slice('--session='.length),
+      copilotHome: process.env.COPILOT_HOME || join(homedir(), '.copilot'),
+    });
   } else if (command === 'doctor') {
     const checks = doctor();
     if (json) console.log(JSON.stringify({ version: VERSION, checks }, null, 2));
