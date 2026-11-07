@@ -78,6 +78,7 @@ To find the install folder:
 | `tblock roles` | Shows which model and effort each role uses |
 | `tblock roles set "code=gpt-5 @ medium" reviewers=claude-opus-5,gpt-5` | Sets roles, and in Copilot rewrites the role agents and their efforts |
 | `tblock roles sync` | Rewrites the Copilot role agents and efforts from the roles file |
+| `tblock watch` | A live view of the newest Copilot session (CLI or VS Code's agents window): the main agent, each subagent with its model and effort, whether Copilot honoured the role's model or fell back to the session model, every tool call, and the files changed. `q` quits, `--session=<id>` picks a session, and `--once` prints one snapshot. Preview it with `node bin/fixtures/watch-demo.mjs` |
 | `tblock models` | Lists the Copilot models VS Code's picker offers your plan, and suggests tiers (needs Node 22.5+). With VS Code on a remote, add `--from="<text>"` with the picker list in any shape, or Copilot's unknown-model error |
 | `tblock tiers detect` | Maps tiers from those detected models, so you never type picker names |
 | `tblock tiers` and `tblock tiers set claude-top=<model> gpt-fast=<model>` | Show or map which of your models fills each tier |

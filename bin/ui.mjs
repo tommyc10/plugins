@@ -9,6 +9,8 @@ const FAMILY = { claude: [222, 128, 96], gpt: [52, 211, 153], gemini: [96, 165, 
 const EFFORT_RAMP = [[94, 234, 212], [96, 165, 250], [167, 139, 250], [244, 114, 182], [255, 77, 109]];
 const EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
+const TONES = { accent: ACCENT, ok: STATUS.PASS, warn: STATUS.WARN, fail: STATUS.FAIL, info: [96, 165, 250], violet: [167, 139, 250], pink: [244, 114, 182], ...FAMILY };
+const SPINNER = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
 const ICON = { PASS: '✔', WARN: '▲', FAIL: '✖', SKIP: '○', NOTE: '▲' };
 const WORD = { PASS: 'PASS', WARN: 'WARN', FAIL: 'FAIL', SKIP: 'SKIP', NOTE: 'note:' };
 
@@ -57,6 +59,14 @@ export function createUI({ color, version, stream = process.stdout, env = proces
   const ui = {
     color, bold, dim, accent, pad, tildify, width,
 
+    // A named colour from the palette: accent, ok, warn, fail, info, violet, pink, claude, gpt, gemini.
+    tone: (name, text) => rgb(TONES[name], text),
+
+    // Shortens plain text to n columns with an ellipsis; style it after clipping.
+    clip: (text, n) => (String(text).length > n ? `${String(text).slice(0, Math.max(0, n - 1))}…` : String(text)),
+
+    spinner: (ms) => (color ? SPINNER[Math.floor(ms / 80) % SPINNER.length] : '*'),
+
     header(command) {
       if (!color) return `tblock ${version} · ${command}\n\n`;
       const left = `  ${bold(gradient('tblock'))} ${dim('›')} ${bold(command)}`;
@@ -70,10 +80,26 @@ export function createUI({ color, version, stream = process.stdout, env = proces
       return ['', `  ${bold(gradient(LOGO[0], EMBER, span))}`, `  ${bold(gradient(LOGO[1], EMBER, span))}   ${dim(`v${version}`)}`, `  ${dim(tagline)}`, ''].join('\n');
     },
 
-    section(title) {
+    section(title, w = width) {
       if (!color) return `${title}`;
       const label = ` ${title.toUpperCase()} `;
-      return `  ${accent('▍')}${bold(label)}${dim('─'.repeat(Math.max(4, width - visible(label) - 5)))}`;
+      return `  ${accent('▍')}${bold(label)}${dim('─'.repeat(Math.max(4, w - visible(label) - 5)))}`;
+    },
+
+    // Trims a styled line to n visible columns, leaving escape codes whole.
+    fit(line, n) {
+      if (visible(line) <= n) return line;
+      let shown = 0;
+      let out = '';
+      for (const part of String(line).split(/(\x1b\[[0-9;]*m)/)) {
+        if (part.startsWith('\x1b[')) { out += part; continue; }
+        const chars = [...part];
+        const take = chars.slice(0, Math.max(0, n - shown));
+        out += take.join('');
+        shown += take.length;
+        if (shown >= n) break;
+      }
+      return color ? `${out}\x1b[0m` : out;
     },
 
     icon(level) {

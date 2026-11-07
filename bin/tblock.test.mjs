@@ -306,3 +306,38 @@ test('every view prints plain text when piped, and colour only when asked for', 
   const { cli: plainCli } = sandbox({}, { FORCE_COLOR: '1', NO_COLOR: '1' });
   assert.doesNotMatch(plainCli('roles').out, /\x1b\[/, 'NO_COLOR wins');
 });
+
+test('watch shows each subagent, its model, and whether Copilot honoured the role', async () => {
+  const { writeWatchSession } = await import('./fixtures/watch-session.mjs');
+  const { home, cli: _ } = sandbox();
+  writeWatchSession(join(home, '.copilot'));
+  const { cli } = sandbox({}, { COPILOT_HOME: join(home, '.copilot') });
+  const r = cli('watch', '--once');
+  assert.equal(r.code, 0, r.err);
+  assert.doesNotMatch(r.out, /\x1b\[/, 'a snapshot piped to an agent is plain text');
+  assert.match(r.out, /tblock-code\s+gpt-5\.6-terra\s+medium\s+48s\s+3 tools · 41\.2k tok\s+✔ role model/);
+  assert.match(r.out, /tblock-reviewers-1\s+claude-sonnet-5\.5\s+high\s+31s\s+2 tools · 18\.8k tok\s+▲ session model/);
+  assert.match(r.out, /✚ …\/alerts\/SeverityFilter\.tsx/, 'files print relative to the project');
+  assert.match(r.out, /FILES {2}2 changed|files {2}2 changed/i);
+  assert.match(r.out, /ended/);
+});
+
+test('watch says how to start when there are no sessions, and rejects unknown flags', () => {
+  const { cli } = sandbox();
+  const none = cli('watch', '--once');
+  assert.equal(none.code, 2);
+  assert.match(none.err, /no Copilot sessions/);
+  assert.match(cli('watch', '--follow').err, /watch takes --once and --session=<id>/);
+});
+
+test('the watch reader keeps a half-written line until the rest arrives', async () => {
+  const { createReader } = await import('./watch.mjs');
+  const { appendFileSync } = await import('node:fs');
+  const file = join(mkdtempSync(join(tmpdir(), 'tblock-log-')), 'events.jsonl');
+  writeFileSync(file, '{"type":"a"}\n{"type":');
+  const read = createReader(file);
+  assert.deepEqual(read().map((e) => e.type), ['a']);
+  appendFileSync(file, '"b"}\n');
+  assert.deepEqual(read().map((e) => e.type), ['b']);
+  assert.deepEqual(read(), []);
+});
