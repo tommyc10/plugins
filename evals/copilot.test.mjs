@@ -79,6 +79,7 @@ test('replay clones without remotes, runs both arms, and scores them', () => {
     const env = { ...process.env, TBLOCK_EVALS: evals, COPILOT_HOME: join(base, 'copilot'), TBLOCK_COPILOT: join(here, 'fake-copilot.mjs') };
     const r = spawnSync(process.execPath, [join(here, 'copilot.mjs'), 'replay', '--runs', '1'], { env, encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr || r.stdout);
+    assert.match(r.stdout, /arms ran on different models in tidy/, 'unpinned arms that got different models are flagged');
     const [stamp] = readdirSync(join(evals, 'results'));
     const { runs, entry } = JSON.parse(readFileSync(join(evals, 'results', stamp, 'scorecard.json'), 'utf8'));
     const by = Object.fromEntries(runs.map((x) => [x.arm, x]));
@@ -91,9 +92,17 @@ test('replay clones without remotes, runs both arms, and scores them', () => {
     }
     assert.equal(by.with.checks.find((c) => c.name === 'tblock-mode-loaded').pass, true);
     assert.equal(by.without.checks.some((c) => c.name === 'tblock-mode-loaded'), false);
-    assert.deepEqual([by.with.premium, by.without.premium], [2, 1]);
+    assert.deepEqual([by.with.tokens, by.without.tokens], [3200, 1200]);
+    assert.deepEqual([by.with.aiCredits, by.without.aiCredits], [1.5, 0.5]);
+    assert.deepEqual([entry.cases.tidy.with.models, entry.cases.tidy.without.models], [['auto-picked-a'], ['auto-picked-b']]);
     assert.equal(entry.cases.tidy.with.check, 1);
+    assert.equal(entry.cases.tidy.with.aiCredits, 1.5);
     assert.equal(readFileSync(join(evals, 'history.jsonl'), 'utf8').trim().split('\n').length, 1);
+
+    const pinned = spawnSync(process.execPath, [join(here, 'copilot.mjs'), 'replay', '--runs', '1', '--model', 'gpt-x'], { env, encoding: 'utf8' });
+    assert.equal(pinned.status, 0, pinned.stderr || pinned.stdout);
+    assert.doesNotMatch(pinned.stdout, /different models|No --model/, 'a pinned model raises no warning');
+    assert.match(pinned.stdout, /gpt-x/);
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

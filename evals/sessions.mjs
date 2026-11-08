@@ -42,7 +42,7 @@ function finish(run) {
   return run;
 }
 
-const newRun = (harness, id) => ({ harness, id, title: null, cwd: null, repo: null, branch: null, headCommit: null, started: null, last: null, prompt: null, messages: [], followUps: 0, model: null, premium: null, tokens: { input: 0, output: 0 }, tools: [], texts: [], skills: new Set() });
+const newRun = (harness, id) => ({ harness, id, title: null, cwd: null, repo: null, branch: null, headCommit: null, started: null, last: null, prompt: null, messages: [], followUps: 0, model: null, models: new Set(), premium: null, aiCredits: null, tokens: { input: 0, output: 0 }, tools: [], texts: [], skills: new Set() });
 
 // VS Code's Chat panel log: line 0 is a snapshot, then kind 1 sets the value at path k, and kind 2 splices v into the array at k from index i.
 export function replayChatLog(text) {
@@ -140,8 +140,17 @@ export function cliEventsToRun(events, id) {
       else run.followUps += 1;
     }
     if (e.type === 'skill.invoked' && d.name) run.skills.add(d.name);
-    if (e.type === 'session.usage_record' && d.usage) { run.tokens.input += d.usage.inputTokens || 0; run.tokens.output += d.usage.outputTokens || 0; if (main) run.model = d.usage.model || run.model; }
-    if (e.type === 'session.shutdown') run.premium = d.accountingSnapshot?.totalPremiumRequestCost ?? run.premium;
+    if (e.type === 'session.usage_record' && d.usage) {
+      run.tokens.input += d.usage.inputTokens || 0;
+      run.tokens.output += d.usage.outputTokens || 0;
+      if (d.usage.model) run.models.add(d.usage.model);
+      if (main) run.model = d.usage.model || run.model;
+    }
+    if (e.type === 'session.shutdown') {
+      run.premium = d.accountingSnapshot?.totalPremiumRequestCost ?? run.premium;
+      // Premium requests are billed per prompt, so a replay is always about 1. AI credits follow the tokens actually used.
+      if (d.accountingSnapshot?.totalNanoAiu != null) run.aiCredits = d.accountingSnapshot.totalNanoAiu / 1e9;
+    }
     if (e.type === 'external_tool.requested' && d.toolName === 'rename_chat' && d.arguments?.title) run.title = d.arguments.title;
     if (e.type === 'assistant.message') {
       if (String(d.content || '').trim()) { order += 1; run.texts.push({ order, main, text: d.content }); }

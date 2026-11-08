@@ -48,7 +48,7 @@ function sessions() {
 function score() {
   const principles = principleNames(root);
   const rows = sessions().map((run) => ({ run, checks: scoreSession(run, principles) }));
-  if (flags.json) { console.log(JSON.stringify(rows.map(({ run, checks }) => ({ ...run, skills: [...run.skills], tools: run.tools.length, texts: undefined, checks })), null, 2)); return; }
+  if (flags.json) { console.log(JSON.stringify(rows.map(({ run, checks }) => ({ ...run, skills: [...run.skills], models: [...run.models], tools: run.tools.length, texts: undefined, checks })), null, 2)); return; }
   console.log(`${'DATE'.padEnd(10)} ${'WHERE'.padEnd(11)} ${'REPO'.padEnd(18)} TB  RULES  ASKS EDITS PREM  TASK`);
   for (const { run, checks } of rows) {
     const applied = checks.filter((c) => c.pass !== null);
@@ -201,9 +201,8 @@ function replay() {
           row.timedOut = agent.error?.code === 'ETIMEDOUT';
           const session = sessionFor(dir, started - 5000);
           if (session) {
-            row.premium = session.premium;
-            row.model = session.model;
-            row.reply = session.reply;
+            Object.assign(row, { premium: session.premium, aiCredits: session.aiCredits, tokens: session.tokens.input + session.tokens.output, model: session.model, models: [...session.models], reply: session.reply });
+            row.subagents = session.tools.filter((t) => t.name === 'Agent').length;
             row.checks.push(...scoreSession(session, principles).filter((x) => arm === 'with' || x.name === 'no-outward-action'));
             if (arm === 'with' && !session.skills.has('tblock-mode')) row.invalid = 'tblock-mode never loaded, so this run did not test tblock';
             if (arm === 'without' && [...session.skills].some((s) => s !== 'tblock-mode' && existsSync(join(root, 'skills', s)))) row.note = `used tblock skill(s) ${[...session.skills].join(', ')} without tblock-mode`;
@@ -221,7 +220,7 @@ function replay() {
         }
         rows.push(row);
         const passed = row.checks.filter((x) => x.pass === true).length;
-        console.log(`${c.name} #${n} ${arm.padEnd(7)} ${row.invalid ? `INVALID ${row.invalid}` : `check ${row.checks.find((x) => x.name === 'check-passes')?.pass ?? '-'}  rules ${passed}/${row.checks.filter((x) => x.pass !== null).length}  ${row.diff?.added ?? 0}+/${row.diff?.removed ?? 0}-  ${row.premium ?? '?'} premium  ${row.minutes}m${row.note ? `  (${row.note})` : ''}`}`);
+        console.log(`${c.name} #${n} ${arm.padEnd(7)} ${row.invalid ? `INVALID ${row.invalid}` : `check ${row.checks.find((x) => x.name === 'check-passes')?.pass ?? '-'}  rules ${passed}/${row.checks.filter((x) => x.pass !== null).length}  ${row.diff?.added ?? 0}+/${row.diff?.removed ?? 0}-  ${row.tokens ?? '?'} tokens  ${row.aiCredits?.toFixed(2) ?? '?'} credits  ${row.minutes}m  ${row.model ?? '?'}${row.note ? `  (${row.note})` : ''}`}`);
       }
     }
   }
@@ -229,25 +228,37 @@ function replay() {
 
   const valid = rows.filter((r) => !r.invalid);
   const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  // Cost swings a lot between runs of one task, so the middle run says more than the average.
+  const median = (xs) => { const s = xs.filter((x) => x != null).sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
   const summary = {};
   for (const r of valid) ((summary[r.case] ||= {})[r.arm] ||= []).push(r);
   const cases2 = Object.fromEntries(Object.entries(summary).map(([name, byArm]) => [name, Object.fromEntries(Object.entries(byArm).map(([arm, rs]) => [arm, {
     runs: rs.length,
     check: mean(rs.flatMap((r) => r.checks.filter((x) => x.name === 'check-passes').map((x) => (x.pass ? 1 : 0)))),
     rules: mean(rs.flatMap((r) => r.checks.filter((x) => x.pass !== null && x.name !== 'check-passes').map((x) => (x.pass ? 1 : 0)))),
-    lines: mean(rs.map((r) => (r.diff ? r.diff.added + r.diff.removed : 0))),
-    premium: mean(rs.map((r) => r.premium ?? 0)),
-    minutes: mean(rs.map((r) => r.minutes ?? 0)),
+    lines: median(rs.map((r) => (r.diff ? r.diff.added + r.diff.removed : 0))),
+    tokens: median(rs.map((r) => r.tokens)),
+    aiCredits: median(rs.map((r) => r.aiCredits)),
+    premium: median(rs.map((r) => r.premium)),
+    minutes: median(rs.map((r) => r.minutes)),
+    subagents: median(rs.map((r) => r.subagents)),
+    models: [...new Set(rs.map((r) => r.model).filter(Boolean))],
   }]))]));
-  const entry = { at: new Date().toISOString(), label: flags.label || null, harness: 'copilot-cli', model: flags.model || 'default', tblock: git(root, 'rev-parse', '--short', 'HEAD').stdout.trim(), invalid: rows.length - valid.length, cases: cases2 };
+  const version = existsSync(join(root, 'plugin.json')) ? JSON.parse(readFileSync(join(root, 'plugin.json'), 'utf8')).version : null;
+  const entry = { at: new Date().toISOString(), label: flags.label || null, harness: 'copilot-cli', model: flags.model || 'auto', tblock: version, tblockCommit: git(root, 'rev-parse', '--short', 'HEAD').stdout.trim() || null, invalid: rows.length - valid.length, cases: cases2 };
   writeFileSync(join(out, 'scorecard.json'), JSON.stringify({ entry, runs: rows }, null, 2));
   if (valid.length) appendFileSync(join(home, 'history.jsonl'), `${JSON.stringify(entry)}\n`);
 
   const pct = (x) => (x === null ? '  - ' : `${Math.round(x * 100)}%`.padStart(4));
-  console.log(`\n${'CASE'.padEnd(34)} ARM      CHECK RULES LINES PREMIUM  MINUTES`);
+  const num = (x, digits = 0) => (x == null ? '-' : x.toFixed(digits));
+  console.log(`\n${'CASE'.padEnd(34)} ARM      CHECK RULES LINES   TOKENS CREDITS MINUTES  MODEL`);
   for (const [name, byArm] of Object.entries(cases2)) for (const [arm, s] of Object.entries(byArm)) {
-    console.log(`${clip(name, 34)} ${arm.padEnd(8)} ${pct(s.check)}  ${pct(s.rules)} ${String(Math.round(s.lines ?? 0)).padStart(5)} ${(s.premium ?? 0).toFixed(1).padStart(7)} ${(s.minutes ?? 0).toFixed(1).padStart(8)}`);
+    console.log(`${clip(name, 34)} ${arm.padEnd(8)} ${pct(s.check)}  ${pct(s.rules)} ${num(s.lines).padStart(5)} ${num(s.tokens).padStart(8)} ${num(s.aiCredits, 2).padStart(7)} ${num(s.minutes, 1).padStart(7)}  ${s.models.join(', ') || '?'}`);
   }
+  console.log('\nLINES, TOKENS, CREDITS and MINUTES are medians across runs. CHECK and RULES are pass rates.');
+  const mixed = Object.entries(cases2).filter(([, byArm]) => new Set(Object.values(byArm).flatMap((s) => s.models)).size > 1);
+  if (mixed.length) console.log(`\nWarning: the arms ran on different models in ${mixed.map(([n]) => n).join(', ')}, so cost and quality aren't comparable. Pass --model to pin one.`);
+  else if (!flags.model) console.log('\nNo --model was given, so Copilot picked the model. Pass --model to make sure every run uses the same one.');
   const invalid = rows.filter((r) => r.invalid);
   if (invalid.length) console.log(`\n${invalid.length} invalid run(s), left out of every score:\n  ${[...new Set(invalid.map((r) => r.invalid))].join('\n  ')}`);
   console.log(`\nScorecard ${join(out, 'scorecard.json')}. ${valid.length ? `History ${join(home, 'history.jsonl')}.` : 'No valid runs, so history is unchanged.'}`);
