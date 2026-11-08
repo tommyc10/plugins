@@ -1,0 +1,1 @@
+{ "touch": ["package.json", "CHANGELOG.md", "package-lock.json"] }

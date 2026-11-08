@@ -141,7 +141,9 @@ node scripts/validate-skills.mjs
 node --test
 ```
 
-The validator checks frontmatter, local links, that every principle is routed from tblock-mode, that every model role is used, that the Claude Code and Copilot copies of each agent match, and that the manifests agree on name and version. `node --test` runs the CLI, probe, and validator tests.
+The validator checks frontmatter, local links, that every principle is routed from tblock-mode, that every model role is used, that the Claude Code and Copilot copies of each agent match, and that the manifests agree on name and version. `node --test` runs the CLI, probe, validator, and eval scoring tests.
+
+To measure whether a change to a skill helps, run the eval suite with `node evals/run.mjs --model sonnet`. It runs each case with and without tblock, scores tblock's rules, hidden tests, and diff size, and appends the result to `evals/history.jsonl`. See [evals/README.md](evals/README.md).
 
 ## Credits
 

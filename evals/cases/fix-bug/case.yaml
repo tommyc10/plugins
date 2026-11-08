@@ -1,0 +1,30 @@
+schema_version: "1.0"
+name: fix-bug
+description: A one-line bug with a hidden test suite. Checks routing to Bug fix, reproduce-before-edit, and evidence in the reply.
+tags: [contract, outcome]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: >-
+    /tblock:tblock-mode slugify('Hello World!') returns 'hello-world-' with a dash on the end.
+    It should be 'hello-world'. Can you fix it?
+  max_turns: 40
+  timeout_seconds: 900
+  allowed_tools: [Read, Edit, Write, Bash, Glob, Grep, Skill]
+runs: 3
+graders:
+  - name: read-bug-fix-playbook
+    type: tool_used
+    tool: Read
+    input_match: 'bug-fix\.md'
+    arm: with-only
+  - name: reproduced-before-editing
+    type: tool_order
+    before: { tool: Bash, input_match: "node" }
+    after: { tool: Edit }
+  - name: reply-shows-evidence
+    type: llm
+    criteria: >-
+      The final reply (1) names the test or command that was run after the fix and what it printed or reported,
+      such as a pass count, and (2) says plainly what was not checked, or that nothing was left unchecked.
+      A reply that only says the fix works, with no command or observed result, fails.
