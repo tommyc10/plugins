@@ -53,7 +53,7 @@ function patchOf(res) {
   }
   if (res.type === 'create' && typeof res.content === 'string') {
     const lines = res.content.split('\n');
-    return { added: lines.length, removed: 0, lines: lines.slice(0, 400).map((l) => `+${l}`) };
+    return { created: true, added: lines.length, removed: 0, lines: lines.slice(0, 400).map((l) => `+${l}`) };
   }
   return null;
 }
@@ -115,7 +115,7 @@ export function createClaudeSource(session) {
       if (!sub) {
         if (r.effort) out.push(ev('session.effort', { effort: r.effort }));
         if (m.model && m.model !== '<synthetic>') mainModel = m.model;
-      } else if (!sub.configured && m.model) {
+      } else if (!sub.configured && m.model && m.model !== '<synthetic>') {
         sub.configured = true;
         out.push(ev('subagent.configured', { model: m.model, reasoningEffort: r.effort || null }));
       }
@@ -127,7 +127,8 @@ export function createClaudeSource(session) {
         }));
       }
       for (const b of m.content || []) {
-        if (b.type === 'text' && b.text?.trim()) out.push(ev('assistant.message', { content: b.text }));
+        // Claude Code writes a rate limit or an API failure as a reply from no model; it stopped the run.
+        if (b.type === 'text' && b.text?.trim()) out.push(m.model === '<synthetic>' ? ev('session.error', { message: b.text.trim() }) : ev('assistant.message', { content: b.text }));
         if (b.type !== 'tool_use') continue;
         out.push(ev('tool.execution_start', { toolCallId: b.id, toolName: b.name, arguments: b.input }));
         if (b.name === 'Agent' || b.name === 'Task') {

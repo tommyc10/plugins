@@ -1,0 +1,20 @@
+{
+  "description": "tblock guard. Silent until `tblock guard on`: then the harness asks before a push, PR, MR, ticket, or publish, and each session starts knowing its roles.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/hook.mjs\" session-start claude-code", "timeout": 10 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/hook.mjs\" pre-tool claude-code", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}

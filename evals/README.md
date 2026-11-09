@@ -2,7 +2,7 @@
 
 Measures whether tblock makes an agent's work better, and catches the change that makes it worse. Each case runs twice through `claude plugin eval`: once with tblock loaded and once without it, on the same prompt, fixture, and model. Then `run.mjs` scores every run three more ways:
 
-- **Rules.** tblock's non-negotiables, checked from the run's trace: tblock-mode loaded, no push or PR, every cited principle was read, the goal was stated before the first edit, and no long dash in the reply. The rules live in [rules.mjs](rules.mjs) and are tested in [rules.test.mjs](rules.test.mjs).
+- **Rules.** tblock's rules, checked from the run's trace: tblock-mode loaded (it stated a size, or ended with the bro version), no push, PR, ticket or publish, every cited principle was read, the goal was stated before the first edit, and no long dash in the reply. The outward-command list is [bin/outward.mjs](../bin/outward.mjs), the same one the guard hook asks about. The rules live in [rules.mjs](rules.mjs) and are tested in [rules.test.mjs](rules.test.mjs).
 - **Hidden tests.** A case's `hidden/` tests run against a copy of the files after the run. The agent never sees them, so the score doesn't depend on a judge.
 - **Diff.** Files and lines changed against the fixture, and whether the changes stayed inside the case's `expect.json` scope.
 
@@ -18,7 +18,9 @@ node evals/run.mjs --model sonnet --case fix-*    # one case
 node evals/run.mjs --runs 5 -j 4 --label "before trimming feature.md"
 ```
 
-**On Windows, only shell-free cases run.** `claude plugin eval` refuses any run granted Bash or PowerShell when it can't sandbox the shell, and Windows has no sandbox backend. Today that leaves `answer-read-only`. Run the rest on Linux or macOS, or in WSL. A refused run is reported as invalid and left out of every score.
+**On Windows, only shell-free cases run.** `claude plugin eval` refuses any run granted Bash or PowerShell when it can't sandbox the shell, and Windows has no sandbox backend. Today that leaves `answer-read-only`. Run the rest on Linux or macOS, in WSL, or in CI. A refused run is reported as invalid and left out of every score.
+
+**In CI.** The [evals workflow](../.github/workflows/evals.yml) runs the suite on Linux when you start it from the Actions tab, with the model, runs per arm, a cost cap, and a label as inputs. It needs an `ANTHROPIC_API_KEY` repository secret. It prints the scorecard, uploads `evals/results/` and the new `history.jsonl` row as an artifact, and commits nothing, so append the row to `history.jsonl` yourself when you want it in the trend.
 
 Any `claude plugin eval` flag passes through. `run.mjs` always adds `--keep-temp` (to read traces and final files, then delete them), `--scaffold` (each case copies its fixture in), `--allow-tools Bash Edit Write`, and `--no-publish` unless you pass `--publish-report`. Add `--trust-plugin` for a non-interactive run, and `--max-cost-usd` to cap spend. `--threshold 0` stops a low score from setting the exit code.
 

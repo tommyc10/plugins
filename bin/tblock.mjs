@@ -2,27 +2,33 @@
 // tblock's own CLI: deterministic setup checks and role files, so agents don't write them freehand.
 // Node built-ins only, so it runs wherever Copilot CLI or Claude Code runs.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { handoff } from './handoff.mjs';
 import { log } from './log.mjs';
+import { HARNESSES, HARNESS_NAME, emptyFile, formatRoles, parseEntry, readRoles, rolesPath, runsInClaudeCode, section } from './roles.mjs';
 import { createUI } from './ui.mjs';
 import { loadPrices } from './usage.mjs';
 import { watch } from './watch.mjs';
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), '..');
 const VERSION = JSON.parse(readFileSync(join(PLUGIN, 'plugin.json'), 'utf8')).version;
-const ROLES_FILE = join(homedir(), '.tblock', 'roles.md');
-const AGENTS_DIR = join(process.env.COPILOT_HOME || join(homedir(), '.copilot'), 'agents');
-const SETTINGS_FILE = join(process.env.COPILOT_HOME || join(homedir(), '.copilot'), 'settings.json');
+const ROLES_FILE = rolesPath(homedir());
+const COPILOT_HOME = process.env.COPILOT_HOME || join(homedir(), '.copilot');
+const AGENTS_DIR = join(COPILOT_HOME, 'agents');
+const SETTINGS_FILE = join(COPILOT_HOME, 'settings.json');
 const PRESETS = JSON.parse(readFileSync(join(PLUGIN, 'presets.json'), 'utf8'));
 
 const argv = process.argv.slice(2);
 const json = argv.includes('--json');
 // --from=<text> hands model names to `models` and `tiers detect` when VS Code's state is out of reach.
 const fromText = argv.find((a) => a.startsWith('--from='))?.slice('--from='.length);
-const args = argv.filter((a) => a !== '--json' && !a.startsWith('--from='));
+// --harness=<name> says which harness's section of the roles file a command reads or writes.
+const harnessFlag = argv.find((a) => a.startsWith('--harness='))?.slice('--harness='.length);
+const args = argv.filter((a) => a !== '--json' && !a.startsWith('--from=') && !a.startsWith('--harness='));
 // Colour only in a terminal; FORCE_COLOR turns it on for previews, NO_COLOR always wins.
 const wantsColor = (stream) => !('NO_COLOR' in process.env) && (stream.isTTY || (process.env.FORCE_COLOR || '0') !== '0');
 const ui = createUI({ color: !json && wantsColor(process.stdout), version: VERSION });
@@ -49,51 +55,22 @@ function roleSpecs() {
   return [...section.matchAll(/^\| `([a-z ]+)` \| ([^|]+) \|/gm)].map(([, name, usedBy]) => ({ name, panel: /\bpanel\b/i.test(usedBy) }));
 }
 
-// One entry is "model" or "model @ effort".
-function parseEntry(text) {
-  const [model, effort] = text.split('@').map((s) => s.trim());
-  return { model, effort: effort || null };
-}
-const formatEntry = ({ model, effort }) => (effort ? `${model} @ ${effort}` : model);
 const checkEffort = (effort) => !effort || PRESETS.efforts.includes(effort);
 
-function parseRoles(text) {
-  const roles = {};
-  const meta = { harness: null, tools: [], preset: null, tiers: {}, names: {} };
-  const problems = [];
-  text.split('\n').forEach((line, i) => {
-    const comment = line.match(/^#\s*(harness|git host tools|preset|tiers|model names):\s*(.*)$/);
-    if (comment) {
-      const [, key, value] = comment;
-      const list = value.split(',').map((t) => t.trim()).filter(Boolean);
-      if (key === 'harness') meta.harness = value.trim();
-      else if (key === 'preset') meta.preset = value.trim();
-      else if (key === 'tiers') meta.tiers = Object.fromEntries(list.map((pair) => pair.split('=').map((s) => s.trim())));
-      else if (key === 'model names') meta.names = Object.fromEntries(list.map((pair) => pair.split('=').map((s) => s.trim())));
-      else meta.tools = list;
-      return;
-    }
-    if (!line.trim() || line.startsWith('#')) return;
-    const entry = line.match(/^([a-z ]+):\s*(.+)$/);
-    if (!entry) return problems.push(`line ${i + 1} is not "role: model"`);
-    const name = entry[1].trim();
-    roles[name] = entry[2].split(',').map((m) => parseEntry(m.trim())).filter((e) => e.model);
-    roles[name].filter((e) => !checkEffort(e.effort)).forEach((e) => problems.push(`${name}: effort "${e.effort}" is not one of ${PRESETS.efforts.join(', ')}`));
-  });
-  return { roles, meta, problems };
-}
-
-function formatRoles(roles, meta, specs) {
-  const lines = ['# tblock roles. One line per role, as "model" or "model @ effort". Delete a line to use the session model.'];
-  if (meta.harness) lines.push(`# harness: ${meta.harness}`);
-  if (meta.tools.length) lines.push(`# git host tools: ${meta.tools.join(', ')}`);
-  if (meta.preset) lines.push(`# preset: ${meta.preset}`);
-  const tiers = Object.entries(meta.tiers);
-  if (tiers.length) lines.push(`# tiers: ${tiers.map(([k, v]) => `${k}=${v}`).join(', ')}`);
-  const names = Object.entries(meta.names || {});
-  if (names.length) lines.push(`# model names: ${names.map(([k, v]) => `${k}=${v}`).join(', ')}`);
-  for (const { name } of specs) if (roles[name]) lines.push(`${name}: ${roles[name].map(formatEntry).join(', ')}`);
-  return `${lines.join('\n')}\n`;
+// Which harness a command means: the flag, the harness this shell runs inside, the file's only
+// section, or the one harness whose tiers already hold every model named.
+function pickHarness(file, models = []) {
+  if (harnessFlag) {
+    if (!HARNESSES.includes(harnessFlag)) throw new Error(`--harness takes ${HARNESSES.join(' or ')}, not "${harnessFlag}"`);
+    return harnessFlag;
+  }
+  if (process.env.CLAUDECODE === '1') return 'claude-code';
+  const have = HARNESSES.filter((h) => file.harnesses[h]);
+  if (have.length === 1) return have[0];
+  const known = (h) => new Set([...Object.values(file.harnesses[h].tiers), ...Object.values(file.harnesses[h].roles).flat().map((e) => e.model), 'session']);
+  const fits = models.length ? have.filter((h) => models.every((m) => known(h).has(m))) : [];
+  if (fits.length === 1) return fits[0];
+  throw new Error(`say which harness this is for: add --harness=${HARNESSES.join(' or --harness=')}`);
 }
 
 const family = (model) =>
@@ -144,14 +121,11 @@ function expectedEfforts(roles, specs) {
   return efforts;
 }
 
-function readRolesFile() {
-  if (!existsSync(ROLES_FILE)) return null;
-  return parseRoles(readFileSync(ROLES_FILE, 'utf8'));
-}
+const readRolesFile = () => readRoles(homedir(), PRESETS.efforts);
 
 function writeRolesFile(file, specs) {
   mkdirSync(dirname(ROLES_FILE), { recursive: true });
-  writeFileSync(ROLES_FILE, formatRoles(file.roles, file.meta, specs));
+  writeFileSync(ROLES_FILE, formatRoles(file, specs));
   say(ui.done('Saved roles', ROLES_FILE));
 }
 
@@ -222,10 +196,12 @@ function syncEfforts(roles, specs) {
   return { set, cleared };
 }
 
+// Copilot's agents follow the copilot section whenever it exists, whichever harness was just edited.
 function syncCopilot(file, specs) {
-  if (file.meta.harness !== 'copilot') return;
-  const agents = syncAgents(file.roles, specs, file.meta.names);
-  const efforts = syncEfforts(file.roles, specs);
+  const copilot = file.harnesses.copilot;
+  if (!copilot) return;
+  const agents = syncAgents(copilot.roles, specs, file.meta.names);
+  const efforts = syncEfforts(copilot.roles, specs);
   const counted = (a, aWord, b, bWord) => (a || b ? [a && `${a} ${aWord}`, b && `${b} ${bWord}`].filter(Boolean).join(' · ') : 'up to date');
   const short = (f) => f.replace(/^tblock-/, '').replace(/\.agent\.md$/, '');
   say(ui.done('Copilot agents', `${counted(agents.written.length, 'written', agents.removed.length, 'removed')}  ${AGENTS_DIR}`));
@@ -243,6 +219,21 @@ function pickModel(tiers, fam, tier) {
   return null;
 }
 
+// A panel wants one model per family. With fewer families than seats, as in Claude Code, the spare
+// seats take the family's other tiers, strongest first, so the panel still seats different models.
+function seatPanel(tiers, families, want) {
+  const picks = families.slice(0, want.panel).map((f) => ({ f, ...pickModel(tiers, f, want.tier) }));
+  const used = new Set(picks.map((p) => p.model));
+  const spares = PRESETS.tiers.flatMap((t) => families.map((f) => ({ f, tier: t, model: tiers[`${f}-${t}`], spare: true })));
+  for (const spare of spares) {
+    if (picks.length >= want.panel) break;
+    if (!spare.model || used.has(spare.model)) continue;
+    used.add(spare.model);
+    picks.push(spare);
+  }
+  return picks;
+}
+
 function resolvePreset(name, tiers, specs) {
   const preset = PRESETS.presets[name];
   if (!preset) throw new Error(`no preset "${name}". Presets: ${Object.keys(PRESETS.presets).join(', ')}`);
@@ -255,9 +246,10 @@ function resolvePreset(name, tiers, specs) {
     if (want.tier === 'session') {
       roles[role] = [{ model: 'session', effort: want.effort }];
     } else if (want.panel) {
-      const picks = families.slice(0, want.panel).map((f) => ({ f, ...pickModel(tiers, f, want.tier) }));
-      if (picks.length < want.panel) notes.push(`${role}: ${picks.length} of ${want.panel} families have models`);
-      picks.filter((p) => p.tier !== want.tier).forEach((p) => notes.push(`${role}: no ${p.f}-${want.tier}, used ${p.f}-${p.tier}`));
+      const picks = seatPanel(tiers, families, want);
+      const spare = picks.filter((p) => p.spare).map((p) => p.model);
+      if (families.length < want.panel) notes.push(`${role}: ${families.length} of ${want.panel} families have models${spare.length ? `, so ${spare.join(' and ')} ${spare.length > 1 ? 'fill' : 'fills'} the panel` : ''}`);
+      picks.filter((p) => !p.spare && p.tier !== want.tier).forEach((p) => notes.push(`${role}: no ${p.f}-${want.tier}, used ${p.f}-${p.tier}`));
       roles[role] = picks.map((p) => ({ model: p.model, effort: want.effort }));
     } else {
       const fam = families.includes(want.family) ? want.family : families[0];
@@ -414,11 +406,42 @@ async function showModels() {
 async function detectTiers() {
   const found = await detectModels();
   if (!found.models.length) throw new Error(`no Copilot models found${found.notes.length ? ` (${found.notes.join('; ')})` : ''}. Pass the picker list with --from="<list>", or set tiers by hand: tblock tiers set claude-top=<model>`);
+  // The detected list is Copilot's model picker, so these tiers are always Copilot's.
   const file = readRolesFile() || emptyFile();
-  file.meta.tiers = suggestTiers(found.models);
+  section(file, 'copilot').tiers = suggestTiers(found.models);
   file.meta.names = Object.fromEntries(found.models.map((m) => [m.id, m.name]));
   writeRolesFile(file, roleSpecs());
-  say('', tierGrid(file.meta.tiers), '', ui.hint('tblock preset <name>'), ui.dim('    fills every role from these tiers'));
+  say('', tierGrid(file.harnesses.copilot.tiers), '', ui.hint('tblock preset <name>'), ui.dim('    fills every role from these tiers'));
+}
+
+// A digest of the files agents load, so an install that kept its version number but not its
+// content still shows up as out of date.
+function contentDigest(root) {
+  const hash = createHash('sha1');
+  const walk = (dir) => readdirSync(dir).sort().flatMap((f) => (statSync(join(dir, f)).isDirectory() ? walk(join(dir, f)) : [join(dir, f)]));
+  for (const part of ['skills', 'agents', 'com.github.copilot', 'hooks', 'bin']) {
+    if (!existsSync(join(root, part))) continue;
+    for (const p of walk(join(root, part))) hash.update(relative(root, p).replaceAll('\\', '/')).update(readFileSync(p, 'utf8').replace(/\r\n/g, '\n'));
+  }
+  return hash.digest('hex');
+}
+const differs = (installPath) => Boolean(installPath) && existsSync(installPath) && resolve(installPath) !== resolve(PLUGIN) && contentDigest(installPath) !== contentDigest(PLUGIN);
+
+// VS Code's Copilot installs plugins on disk without the copilot CLI, so read the folder itself.
+function copilotInstall() {
+  const base = join(COPILOT_HOME, 'installed-plugins');
+  if (!existsSync(base)) return null;
+  for (const market of readdirSync(base)) {
+    const path = join(base, market, 'tblock');
+    try { return { path, version: JSON.parse(readFileSync(join(path, 'plugin.json'), 'utf8')).version }; } catch { /* not this folder */ }
+  }
+  return null;
+}
+
+function installCheck(add, label, version, installPath) {
+  if (newer(VERSION, version)) add('WARN', label, `tblock ${version} installed, ${VERSION} available (reinstall to update)`);
+  else if (differs(installPath)) add('WARN', label, `tblock ${version} installed, but its files differ from ${PLUGIN} (reinstall to update)`);
+  else add('PASS', label, `tblock ${version} installed`);
 }
 
 function doctor() {
@@ -426,47 +449,58 @@ function doctor() {
   const add = (level, check, detail) => checks.push({ level, check, detail });
   const specs = roleSpecs();
 
+  let usedInClaude = false;
   const claude = run('claude', ['plugin', 'list', '--json']);
   if (claude.missing) add('SKIP', 'Claude Code', 'not installed');
   else if (!claude.ok) add('WARN', 'Claude Code', 'could not list plugins');
   else {
     const entry = JSON.parse(claude.out).find((p) => p.id.startsWith('tblock@'));
+    usedInClaude = Boolean(entry);
     if (!entry) add('SKIP', 'Claude Code', 'tblock is not installed there');
     else if (entry.readFromFolder) add('PASS', 'Claude Code', `reads tblock from ${entry.readFromFolder} (${entry.folderVersion})`);
-    else if (newer(VERSION, entry.version)) add('WARN', 'Claude Code', `tblock ${entry.version} installed, ${VERSION} available (reinstall to update)`);
-    else add('PASS', 'Claude Code', `tblock ${entry.version} installed`);
+    else installCheck(add, 'Claude Code', entry.version, entry.installPath);
   }
 
   const copilot = run('copilot', ['plugin', 'list']);
-  if (copilot.missing) add('SKIP', 'Copilot', 'copilot CLI not found');
-  else {
-    const line = copilot.out.split('\n').find((l) => /\btblock\b/.test(l));
-    const found = line && line.match(/\d+\.\d+\.\d+/);
-    if (!line) add('WARN', 'Copilot', 'tblock is not in `copilot plugin list`');
-    else if (!found) add('WARN', 'Copilot', `tblock is installed, version unreadable: ${line.trim()}`);
-    else if (newer(VERSION, found[0])) add('WARN', 'Copilot', `tblock ${found[0]} installed, ${VERSION} available (reinstall to update)`);
-    else add('PASS', 'Copilot', `tblock ${found[0]} installed`);
-  }
+  const onDisk = copilotInstall();
+  const line = copilot.out?.split('\n').find((l) => /\btblock\b/.test(l));
+  const listed = line && line.match(/\d+\.\d+\.\d+/)?.[0];
+  if (listed || onDisk) installCheck(add, 'Copilot', listed || onDisk.version, onDisk?.path);
+  else if (copilot.missing) add('SKIP', 'Copilot', 'copilot CLI not found');
+  else if (line) add('WARN', 'Copilot', `tblock is installed, version unreadable: ${line.trim()}`);
+  else add('WARN', 'Copilot', 'tblock is not in `copilot plugin list`');
 
   const file = readRolesFile();
   if (!file) add('WARN', 'Roles', `${ROLES_FILE} not found, so every subagent runs on the session model (run /setup-tblock)`);
   else {
-    const { roles, meta, problems } = file;
-    problems.forEach((p) => add('FAIL', 'Roles', `${ROLES_FILE}: ${p}`));
+    file.problems.forEach((p) => add('FAIL', 'Roles', `${ROLES_FILE}: ${p}`));
+    const sections = HARNESSES.filter((h) => file.harnesses[h]);
     const known = new Set(specs.map((s) => s.name));
-    Object.keys(roles).filter((r) => !known.has(r)).forEach((r) => add('WARN', 'Roles', `unknown role "${r}" is ignored`));
-    const unset = specs.filter((s) => !roles[s.name]).map((s) => s.name);
-    const families = new Set(Object.values(roles).flat().filter((e) => e.model !== 'session').map((e) => family(e.model)));
-    add(unset.length ? 'WARN' : 'PASS', 'Roles', `${Object.keys(roles).length} roles, models from ${families.size} ${families.size === 1 ? 'family' : 'families'}` +
-      (meta.preset ? `, preset ${meta.preset}` : '') + (unset.length ? `; on the session model: ${unset.join(', ')}` : ''));
-    for (const { name, panel } of specs) {
-      const models = (roles[name] || []).map((e) => e.model);
-      if (panel && models.length > 1 && new Set(models.map(family)).size === 1) {
-        add('WARN', 'Roles', `${name}: every entry is ${family(models[0])}, so the panel has no model diversity`);
+    for (const harness of sections) {
+      const { roles } = file.harnesses[harness];
+      const who = sections.length > 1 ? `${HARNESS_NAME[harness]}: ` : '';
+      Object.keys(roles).filter((r) => !known.has(r)).forEach((r) => add('WARN', 'Roles', `${who}unknown role "${r}" is ignored`));
+      const unset = specs.filter((s) => !roles[s.name]).map((s) => s.name);
+      const models = Object.values(roles).flat().map((e) => e.model).filter((m) => m !== 'session');
+      const families = new Set(models.map(family));
+      add(unset.length ? 'WARN' : 'PASS', 'Roles', `${who}${Object.keys(roles).length} roles, models from ${families.size} ${families.size === 1 ? 'family' : 'families'}` +
+        (file.meta.preset ? `, preset ${file.meta.preset}` : '') + (unset.length ? `; on the session model: ${unset.join(', ')}` : ''));
+      if (harness === 'claude-code') {
+        const foreign = [...new Set(models.filter((m) => !runsInClaudeCode(m)))];
+        if (foreign.length) add('WARN', 'Roles', `${who}Claude Code runs only Claude models, so ${foreign.join(', ')} will not start (run: tblock preset ${(file.meta.preset || 'high').split(' ')[0]} --harness=claude-code)`);
+      }
+      for (const { name, panel } of specs) {
+        const seats = (roles[name] || []).map((e) => e.model);
+        if (!panel || seats.length < 2) continue;
+        if (new Set(seats).size < seats.length) add('WARN', 'Roles', `${who}${name}: the same model sits twice, so only its lens differs`);
+        // Claude Code has one family, so there a panel's variety comes from tiers and lenses.
+        else if (harness !== 'claude-code' && new Set(seats.map(family)).size === 1) add('WARN', 'Roles', `${who}${name}: every entry is ${family(seats[0])}, so the panel has no model diversity`);
       }
     }
-    if (meta.harness === 'copilot') {
-      const want = expectedAgents(roles, specs, meta.names);
+    if (!sections.includes('claude-code') && usedInClaude) add('WARN', 'Roles', 'no Claude Code section, so its subagents run on the session model (run: tblock preset high --harness=claude-code)');
+    const copilotRoles = file.harnesses.copilot?.roles;
+    if (copilotRoles) {
+      const want = expectedAgents(copilotRoles, specs, file.meta.names);
       const have = existsSync(AGENTS_DIR) ? readdirSync(AGENTS_DIR).filter((f) => /^tblock-.*\.agent\.md$/.test(f)) : [];
       const wrong = Object.entries(want).filter(([f, text]) => !have.includes(f) || readFileSync(join(AGENTS_DIR, f), 'utf8') !== text).map(([f]) => f);
       const stale = have.filter((f) => !(f in want));
@@ -474,7 +508,7 @@ function doctor() {
       else add('PASS', 'Copilot agents', `${Object.keys(want).length} role agents match ${ROLES_FILE}`);
       if (stale.length) add('WARN', 'Copilot agents', `${stale.join(', ')} match no role (run: tblock roles sync)`);
       try {
-        const wantEfforts = expectedEfforts(roles, specs);
+        const wantEfforts = expectedEfforts(copilotRoles, specs);
         const haveEfforts = currentEfforts(readSettings());
         const off = [...new Set([...Object.keys(wantEfforts), ...Object.keys(haveEfforts)])].filter((id) => wantEfforts[id] !== haveEfforts[id]);
         if (off.length) add('FAIL', 'Copilot efforts', `${off.map((id) => `${id} is ${haveEfforts[id] || 'unset'}, should be ${wantEfforts[id] || 'unset'}`).join('; ')} (run: tblock roles sync)`);
@@ -483,6 +517,7 @@ function doctor() {
         add('FAIL', 'Copilot efforts', error.message);
       }
     }
+    add(file.meta.guard ? 'PASS' : 'SKIP', 'Guard', file.meta.guard ? 'asks before a push, PR, MR, ticket, or publish, and tells each session its roles' : 'off, so pausing before a push rests on the agent alone (run: tblock guard on)');
   }
 
   for (const [tool, label] of [['glab', 'GitLab CLI'], ['gh', 'GitHub CLI']]) {
@@ -515,10 +550,10 @@ function printChecks(checks) {
   say('', ui.tally(counts));
 }
 
-function rolesTable(file) {
+function rolesTable(roles) {
   const rows = [];
   for (const { name } of roleSpecs()) {
-    (file.roles[name] || [{ model: 'session', effort: null }]).forEach((entry, i) => {
+    (roles[name] || [{ model: 'session', effort: null }]).forEach((entry, i) => {
       rows.push([i ? '' : ui.bold(name), ui.model(entry.model, modelFamily(entry.model)), ui.effort(entry.effort)]);
     });
   }
@@ -526,35 +561,44 @@ function rolesTable(file) {
 }
 
 function rolesFooter(meta) {
-  const parts = [meta.preset && `preset ${ui.accent(meta.preset)}`, meta.harness && `harness ${meta.harness}`, meta.tools.length && `tools ${meta.tools.join(', ')}`].filter(Boolean);
-  return parts.length ? ui.dim(`  ${parts.join('  ·  ')}`) : '';
+  const parts = [meta.preset && `preset ${ui.accent(meta.preset)}`, meta.tools.length && `tools ${meta.tools.join(', ')}`, `guard ${meta.guard ? 'on' : 'off'}`].filter(Boolean);
+  return ui.dim(`  ${parts.join('  ·  ')}`);
+}
+
+// Every harness section, or only the one --harness names.
+const shownHarnesses = (file) => HARNESSES.filter((h) => file.harnesses[h] && (!harnessFlag || h === harnessFlag));
+
+function printRoles(file) {
+  for (const harness of shownHarnesses(file)) say(ui.section(HARNESS_NAME[harness]), rolesTable(file.harnesses[harness].roles), '');
+  say(rolesFooter(file.meta));
 }
 
 function showRoles() {
   const file = readRolesFile();
-  if (json) return console.log(JSON.stringify(file ? { roles: file.roles, ...file.meta } : null, null, 2));
+  if (json) return console.log(JSON.stringify(file ? { ...file.meta, harnesses: file.harnesses } : null, null, 2));
   process.stdout.write(ui.header('roles'));
   if (!file) return say(ui.status('SKIP', 'No roles yet', 'every subagent runs on the session model', 0), '', ui.hint('/setup-tblock'));
-  say(rolesTable(file), '', rolesFooter(file.meta));
+  printRoles(file);
 }
 
-const emptyFile = () => ({ roles: {}, meta: { harness: null, tools: [], preset: null, tiers: {}, names: {} } });
 const flagOf = (pairs, name) => pairs.find((p) => p.startsWith(`--${name}=`))?.split('=')[1];
 
 function setRoles(pairs) {
   const specs = roleSpecs();
   const known = new Set(specs.map((s) => s.name));
   const file = readRolesFile() || emptyFile();
-  if (flagOf(pairs, 'harness')) file.meta.harness = flagOf(pairs, 'harness');
   if (flagOf(pairs, 'tools') !== undefined) file.meta.tools = flagOf(pairs, 'tools').split(',').map((t) => t.trim()).filter(Boolean);
-  const changes = pairs.filter((p) => !p.startsWith('--'));
-  for (const pair of changes) {
+  const changes = pairs.filter((p) => !p.startsWith('--')).map((pair) => {
     const [role, value] = pair.split('=');
     if (!known.has(role) || !value) throw new Error(`"${pair}" is not role=model. Roles: ${[...known].join(', ')}`);
     const entries = value.split(',').map((m) => parseEntry(m.trim())).filter((e) => e.model);
     const bad = entries.find((e) => !checkEffort(e.effort));
     if (bad) throw new Error(`effort "${bad.effort}" is not one of ${PRESETS.efforts.join(', ')}`);
-    file.roles[role] = entries;
+    return [role, entries];
+  });
+  if (changes.length || harnessFlag) {
+    const into = section(file, pickHarness(file, changes.flatMap(([, entries]) => entries.map((e) => e.model))));
+    for (const [role, entries] of changes) into.roles[role] = entries;
   }
   if (changes.length && file.meta.preset && !file.meta.preset.endsWith('(edited)')) file.meta.preset = `${file.meta.preset} (edited)`;
   writeRolesFile(file, specs);
@@ -564,31 +608,44 @@ function setRoles(pairs) {
 function setTiers(pairs) {
   const keys = PRESETS.families.flatMap((f) => PRESETS.tiers.map((t) => `${f}-${t}`));
   const file = readRolesFile() || emptyFile();
-  for (const pair of pairs) {
+  const changes = pairs.map((pair) => {
     const [key, model] = pair.split('=');
     if (!keys.includes(key) || !model) throw new Error(`"${pair}" is not tier=model. Tiers: ${keys.join(', ')}`);
-    file.meta.tiers[key] = model.trim();
-  }
+    return [key, model.trim()];
+  });
+  const harness = pickHarness(file);
+  Object.assign(section(file, harness).tiers, Object.fromEntries(changes));
   writeRolesFile(file, roleSpecs());
-  say('', tierGrid(file.meta.tiers));
+  say('', ui.section(HARNESS_NAME[harness]), tierGrid(file.harnesses[harness].tiers));
 }
 
 function showTiers() {
   process.stdout.write(ui.header('tiers'));
-  say(tierGrid(readRolesFile()?.meta.tiers || {}), '', ui.hint('tblock models'), ui.dim('    suggests tiers from your Copilot models'));
+  const file = readRolesFile() || emptyFile();
+  const shown = shownHarnesses(file);
+  for (const harness of shown) say(ui.section(HARNESS_NAME[harness]), tierGrid(file.harnesses[harness].tiers), '');
+  if (!shown.length) say(tierGrid({}), '');
+  say(ui.hint('tblock models'), ui.dim('    suggests tiers from your Copilot models'));
 }
 
+// One preset fills every harness that has tiers, so Claude Code and Copilot never drift apart.
 function applyPreset(name) {
   const specs = roleSpecs();
   const file = readRolesFile() || emptyFile();
-  const { roles, notes } = resolvePreset(name, file.meta.tiers, specs);
-  file.roles = roles;
+  const mapped = HARNESSES.filter((h) => Object.keys(file.harnesses[h]?.tiers || {}).length);
+  const targets = harnessFlag ? [pickHarness(file)] : mapped;
+  if (!targets.length) resolvePreset(name, {}, specs);
+  for (const harness of targets) {
+    const { roles, notes } = resolvePreset(name, section(file, harness).tiers, specs);
+    file.harnesses[harness].roles = roles;
+    notes.forEach((n) => say(ui.note(targets.length > 1 ? `${HARNESS_NAME[harness]}: ${n}` : n)));
+    if (notes.length) say('');
+  }
   file.meta.preset = name;
-  notes.forEach((n) => say(ui.note(n)));
-  if (notes.length) say('');
   writeRolesFile(file, specs);
   syncCopilot(file, specs);
-  say('', rolesTable(file), '', rolesFooter(file.meta));
+  say('');
+  printRoles(file);
 }
 
 const PRESET_BLURBS = {
@@ -610,41 +667,63 @@ function showPresets() {
     say(`  ${' '.repeat(3 + nameWidth)}${shape.join(ui.dim('   '))}`, '');
   }
   if (ui.color) say(`  ${ui.dim('effort')}  ${['low', 'medium', 'high', 'max'].map((e) => `${ui.effort(e, { word: false })} ${ui.dim(e)}`).join('   ')}`, '');
-  say(ui.hint('tblock preset <name>'), ui.dim('    switches every role at once'));
+  say(ui.hint('tblock preset <name>'), ui.dim('    switches every role at once, in every harness you have mapped'));
+}
+
+// The guard is two hooks the plugin ships. They stay silent until this switch is on.
+function guard(to) {
+  const file = readRolesFile() || emptyFile();
+  if (to && to !== 'on' && to !== 'off') throw new Error(`guard takes on or off, not "${to}"`);
+  if (!json) process.stdout.write(ui.header('guard'));
+  if (to) {
+    file.meta.guard = to === 'on';
+    writeRolesFile(file, roleSpecs());
+  }
+  if (json) return console.log(JSON.stringify({ guard: file.meta.guard }));
+  say(ui.status(file.meta.guard ? 'PASS' : 'SKIP', 'Guard', file.meta.guard ? 'on' : 'off', 8), '');
+  say(ui.dim('  On, the harness asks you before an agent runs a push, a PR or MR, a ticket, or a publish,'));
+  say(ui.dim('  and each new session starts knowing its roles and what this repo has set up.'), '');
+  say(ui.hint(`tblock guard ${file.meta.guard ? 'off' : 'on'}`), ui.dim('    new sessions pick it up'));
 }
 
 const COMMANDS = [
-  ['check', [['doctor', 'check the install, roles, Copilot agents, and git tools']]],
+  ['check', [
+    ['doctor', 'check the install, roles, Copilot agents, and git tools'],
+    ['guard on', 'have the harness ask before a push, PR, MR, ticket, or publish (guard off undoes it)'],
+  ]],
   ['watch', [
     ['watch', 'live view of a Copilot or Claude Code session: agents, models, tools, files'],
     ['watch --once', 'print one snapshot instead (--session=<id> picks a session by id prefix)'],
     ['watch --replay', 'play a recorded session back (--replay=<id> picks one by id prefix)'],
   ]],
   ['roles', [
-    ['roles', 'show the model and effort each role uses'],
+    ['roles', 'show the model and effort each role uses, per harness'],
     ['roles set r=m …', 'set roles: r=model, r="model @ effort", r=m1,m2 for a panel'],
     ['roles sync', 'rewrite the Copilot role agents and efforts from the roles file'],
   ]],
   ['models', [
     ['models', 'list your Copilot models and suggest tiers'],
     ['tiers', 'show which model fills each tier'],
-    ['tiers detect', 'save the suggested tiers'],
+    ['tiers detect', 'save the suggested Copilot tiers'],
     ['tiers set k=m …', 'map tiers by hand, e.g. claude-top=claude-opus-5.5'],
   ]],
   ['presets', [
     ['preset', `list presets: ${Object.keys(PRESETS.presets).join(', ')}`],
-    ['preset <name>', "set every role's model and effort at once"],
+    ['preset <name>', "set every role's model and effort at once, in every mapped harness"],
   ]],
   ['log', [
     ['log', 'every agent session since yesterday: task, last reply, MRs, files, and cost'],
     ['log --since=monday', 'since a weekday, today, 3d, or a date; --here keeps this repo only'],
+    ['handoff', "a brief of this repo's newest session, for another session or harness to pick up"],
+    ['handoff --session=<id>', 'brief one session by id prefix; --out=<file> writes it to a file'],
   ]],
 ];
 
 const FLAGS = [
   ['--json', 'output a script or agent can read'],
+  ['--harness=<name>', 'claude-code or copilot: the section of the roles file to read or write'],
   ['--from="<text>"', 'read model names from pasted text, for VS Code on a remote'],
-  ['--harness=, --tools=', 'with roles set: copilot or claude-code; glab,gh'],
+  ['--tools=', 'with roles set: the git host tools found, such as glab,gh'],
 ];
 
 function showHelp() {
@@ -661,6 +740,10 @@ function showHelp() {
 }
 
 const [command, sub, ...rest] = args;
+const homes = {
+  claudeHome: process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'),
+  copilotHome: COPILOT_HOME,
+};
 try {
   if (!command || command === 'help' || command === '--help') {
     showHelp();
@@ -675,8 +758,7 @@ try {
       ui, version: VERSION, once: flags.includes('--once'),
       replay: replay ? replay.slice('--replay='.length) || true : false,
       session: flags.find((f) => f.startsWith('--session='))?.slice('--session='.length),
-      copilotHome: process.env.COPILOT_HOME || join(homedir(), '.copilot'),
-      claudeHome: process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'),
+      ...homes,
     });
   } else if (command === 'doctor') {
     const checks = doctor();
@@ -694,6 +776,7 @@ try {
   } else if (command === 'roles' && sub === 'sync') {
     const file = readRolesFile();
     if (!file) throw new Error(`no roles file at ${ROLES_FILE}; run /setup-tblock or tblock roles set first`);
+    if (!file.harnesses.copilot) throw new Error('the roles file has no Copilot section to sync. Map its models first: tblock tiers detect, then tblock preset <name>');
     process.stdout.write(ui.header('roles sync'));
     syncCopilot(file, roleSpecs());
   } else if (command === 'models' && !sub) {
@@ -711,13 +794,13 @@ try {
   } else if (command === 'preset') {
     process.stdout.write(ui.header(`preset ${sub}`));
     applyPreset(sub);
+  } else if (command === 'guard') {
+    guard(sub);
   } else if (command === 'log') {
     if (!json) process.stdout.write(ui.header('log'));
-    process.stdout.write(log({
-      ui, json, flags: args.slice(1), cwd: process.cwd(), prices: loadPrices(PLUGIN, homedir()),
-      claudeHome: process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'),
-      copilotHome: process.env.COPILOT_HOME || join(homedir(), '.copilot'),
-    }));
+    process.stdout.write(log({ ui, json, flags: args.slice(1), cwd: process.cwd(), prices: loadPrices(PLUGIN, homedir()), ...homes }));
+  } else if (command === 'handoff') {
+    process.stdout.write(handoff({ json, flags: args.slice(1), cwd: process.cwd(), ...homes }));
   } else {
     throw new Error(`unknown command "${args.join(' ')}". Run tblock help to see the commands.`);
   }
