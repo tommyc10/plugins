@@ -25,7 +25,7 @@ Copilot caches installed plugins. After an update, reinstall tblock to pick up t
 
 ## Set up once
 
-Run `/setup-tblock`. It asks for a preset, maps your models to tiers, shows the roles, lets you change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one custom agent per role to `~/.copilot/agents/`, because Copilot sets a subagent's model in its agent file, and each agent's reasoning effort to `~/.copilot/settings.json`, touching only `tblock-` agents.
+Run `/setup-tblock`. It asks for a preset, maps your models to tiers, shows the roles, lets you change any of them, and writes `~/.tblock/roles.md`. The file holds one section per harness, because Claude Code and Copilot name the same model differently, so if you use both, run it once in each. After that one `tblock preset <name>` switches both. For Copilot it also writes one custom agent per role to `~/.copilot/agents/`, because Copilot sets a subagent's model in its agent file, and each agent's reasoning effort to `~/.copilot/settings.json`, touching only `tblock-` agents. Every command that changes a role rewrites those agents, from either harness, so they can't fall behind the roles file.
 
 Then run `/setup-project` in each repo you work in, or say yes when `/setup-tblock` offers it. It sets up log reading for `probe`, ticket labels for `ticket-up`, the Grafana target for `grafana-dashboard`, and a verification skill. The files go in the repo's `.tblock/` folder and hold no secrets, so commit them and the whole team gets the same setup.
 
@@ -40,7 +40,7 @@ Then run `/setup-project` in each repo you work in, or say yes when `/setup-tblo
 
 ### Presets
 
-A preset sets every role's model and reasoning effort at once. Switch any time with `tblock preset <name>`; new sessions pick it up.
+A preset sets every role's model and reasoning effort at once, in every harness you have mapped. Switch any time with `tblock preset <name>`; new sessions pick it up.
 
 | Preset | Use for | Shape |
 | --- | --- | --- |
@@ -48,18 +48,20 @@ A preset sets every role's model and reasoning effort at once. Switch any time w
 | `high` | Features and reviews (the default) | Top models on `hardest` and `judgment`, strong models elsewhere, two-family panels |
 | `efficient` | Everyday bugs and small changes | Strong models on the thinking roles, the session model for `code`, medium effort |
 
-The presets are data in [presets.json](presets.json). After a preset, change any single role with `tblock roles set "hardest=<model> @ max"`.
+The presets are data in [presets.json](presets.json). After a preset, change any single role with `tblock roles set "hardest=<model> @ max"`, adding `--harness=claude-code` or `--harness=copilot` when you run it outside a session.
+
+Claude Code runs only Claude models, so there a panel seats different tiers, such as Sonnet and Opus, and each reviewer in `interrogate` and `ui-council` attacks through its own lens. The lens is what makes a second reviewer on the same family worth running.
 
 ### Choosing models
 
 - Put your strongest model on `hardest` and `judgment`. They run rarely, so their cost matters least.
 - Give `judgment` a different family from `code`, so a second family checks the code agent's work.
 - Use a fast, cheap model for `swarm workers`. Many run at once, reading and searching.
-- Fill every panel role with two or more families. Agreement across families is what makes a review or a shootout worth trusting, and `tblock doctor` warns when a panel has one family.
+- In Copilot, fill every panel role with two or more families. Agreement across families is what makes a review or a shootout worth trusting, and `tblock doctor` warns when a panel there has one family.
 
 Without a roles file, every subagent runs on the session model.
 
-Subagents that do one job inside a playbook, such as a code change or a fix, are delegates. They read a short [delegate brief](skills/tblock-mode/delegate.md) instead of the whole of tblock-mode, stay inside the files they're given, never push or post, and end with a fixed report of what they changed, checked, and left unchecked, which the main agent carries into its reply. Ticket drafts go to the threepio agent instead, a grumbling protocol droid that drafts with [ticket-up](skills/ticket-up/SKILL.md) and never posts.
+Subagents that do one job inside a playbook, such as a code change or a fix, are delegates. They carry a short [delegate brief](skills/tblock-mode/delegate.md) in their own instructions instead of the whole of tblock-mode, stay inside the files they're given, never push or post, and end with a fixed report of what they changed, checked, and left unchecked, which the main agent carries into its reply. Ticket drafts go to the threepio agent instead, a grumbling protocol droid that drafts with [ticket-up](skills/ticket-up/SKILL.md) and never posts.
 
 ## CLI
 
@@ -76,12 +78,14 @@ To find the install folder:
 
 | Command | What it does |
 | --- | --- |
-| `tblock doctor` | Checks the install in each tool, the roles file, the Copilot role agents and their efforts, and the git CLIs. Exits 1 on any FAIL. |
-| `tblock roles` | Shows which model and effort each role uses |
-| `tblock roles set "code=gpt-5 @ medium" reviewers=claude-opus-5,gpt-5` | Sets roles, and in Copilot rewrites the role agents and their efforts |
+| `tblock doctor` | Checks the install in each tool, the roles file per harness, the Copilot role agents and their efforts, and the git CLIs. It reads each installed copy from disk, so it warns when an install kept its version number but its files differ from this one. Exits 1 on any FAIL. |
+| `tblock guard on` | Turns on the two hooks the plugin ships. The harness then asks you before an agent runs a push, a PR or MR, a ticket, or a publish, so the pause no longer rests on the agent alone. Each new session also starts knowing its roles and what the repo has set up. `tblock guard off` undoes it. Tested in Claude Code. Copilot reads the same hook contract, but whether it loads a plugin's `hooks/hooks.json` is not yet checked. |
+| `tblock roles` | Shows which model and effort each role uses, per harness |
+| `tblock roles set "code=gpt-5 @ medium" reviewers=claude-opus-5,gpt-5` | Sets roles for one harness, and rewrites the Copilot role agents and their efforts |
 | `tblock roles sync` | Rewrites the Copilot role agents and efforts from the roles file |
-| `tblock watch` | A live view of the newest Copilot session (CLI or VS Code's agents window) or Claude Code session: the main agent, each subagent with its model and effort, whether the role's model was honoured or the subagent fell back to the session model, every tool call grouped by the prompt it served (earlier prompts fold to one line, and runs of one tool to `Bash ×12`), what the agent said between them, and the files changed with the lines added and removed. When a session hands back to you, its last message shows in full, since that's usually the question it's waiting on. A failed tool says why (`exit 1 · AssertionError: …`), three failures in a row or a working session that goes quiet for three minutes get flagged, the context shows as a gauge against the model's window, and the header carries an estimated cost for Claude models. Every session active in the last half hour gets a tab marked working or your turn: `tab` or `←`/`→` switch, `1`–`9` jump, `o` shows every session as a card, `↑`/`↓` select a step and `⏎` opens it (the full command, its output, or the diff), `esc` steps back, `e` opens every task, `b` rings the bell and `n` raises a desktop notification when a session finishes its turn, and `q` quits. From 150 columns the view splits into two panes. `--replay[=<id prefix>]` plays a recorded session back: space pauses, `←`/`→` seek 30 seconds, `[`/`]` jump between prompts, and `+`/`-` change speed. A session that starts while it runs takes over the view. The window title counts sessions working and waiting, and Windows Terminal shows a progress ring while the session on screen works. `--session=<id prefix>` pins one session and `--once` prints a snapshot of every task. Preview it with `node bin/fixtures/watch-demo.mjs` |
+| `tblock watch` | A live view of the newest Copilot session (CLI or VS Code's agents window) or Claude Code session: the main agent, each subagent with its model and effort, whether the role's model was honoured or the subagent fell back to the session model, every tool call grouped by the prompt it served (earlier prompts fold to one line, and runs of one tool to `Bash ×12`), what the agent said between them, and the files changed with the lines added and removed. Files outside the project fold into a count, and a `git now` line gives git's own count for the folder, which catches what an agent changed through the shell. When a session hands back to you, its last message shows in full, since that's usually the question it's waiting on. A failed tool says why (`exit 1 · AssertionError: …`), three failures in a row, a working session that goes quiet for three minutes, or a run stopped by a rate limit get flagged, the context shows as a gauge against the model's window, and the header carries an estimated cost for Claude models. Every session active in the last half hour gets a tab named for its folder and what it was asked, marked working or your turn with how long it has waited: `tab` or `←`/`→` switch, `1`–`9` jump, `o` shows every session as a card, `↑`/`↓` select a step and `⏎` opens it (the full command, its output, the diff, or every call in a folded run), `esc` steps back, `s` shows the story (what was said, who was spawned, what broke, with the tool calls hidden), `e` opens every task, `?` lists every key, `b` rings the bell and `n` raises a desktop notification when a session finishes its turn, and `q` quits. From 150 columns the view splits into two panes. `--replay[=<id prefix>]` plays a recorded session back: space pauses, `←`/`→` seek 30 seconds, `[`/`]` jump between prompts, and `+`/`-` change speed. A session that starts while it runs takes over the view. The window title counts sessions working and waiting, and Windows Terminal shows a progress ring while the session on screen works. `--session=<id prefix>` pins one session and `--once` prints a snapshot of every task. Preview it with `node bin/fixtures/watch-demo.mjs` |
 | `tblock log` | What every Claude Code and Copilot session did since yesterday, for a standup or a handoff: the task, the opening line of the last reply, MR links, files changed, subagents, and cost. Live sessions are marked, and a reply that ends in a question shows as waiting on you. `--since=monday`, `--since=3d`, or a date widens it, and `--here` keeps only the current repo. Dollars are API list prices from `pricing.json`; override a model in `~/.tblock/pricing.json`. Copilot shows premium requests, which is what it bills. |
+| `tblock handoff` | A brief of this folder's newest earlier session, from either harness: the task, every later message you sent, the last reply, the files changed, the transcript's path, and what the repo holds now. Paste it into a new session, or let the Pickup playbook run it. `--session=<id prefix>` picks a session and `--out=<file>` writes the brief to a file. |
 | `tblock models` | Lists the Copilot models VS Code's picker offers your plan, and suggests tiers (needs Node 22.5+). With VS Code on a remote, add `--from="<text>"` with the picker list in any shape, or Copilot's unknown-model error |
 | `tblock tiers detect` | Maps tiers from those detected models, so you never type picker names |
 | `tblock tiers` and `tblock tiers set claude-top=<model> gpt-fast=<model>` | Show or map which of your models fills each tier |
@@ -91,9 +95,9 @@ Add `--json` for output a script or agent can read. Colour appears only in a ter
 
 ## Use
 
-Start a task with `/tblock-mode <task>`. tblock-mode picks the playbook or skill that fits, opens a todo list from its steps, and tells you which principles shaped each decision. To change a role for one session, say so: "use GPT for code today".
+Start a task with `/tblock-mode <task>`. tblock-mode first sizes the task and says so. A small task, such as a question or a one-file fix, gets the goal, the playbook's steps, and the proof, with no subagents and no ceremony. A standard task gets the full playbook with its todo list. A deep task, such as a migration or shared code, adds a design sketch, an adversarial review, and a decision trail. Say "go deep" or "keep it small" to set the size yourself. Then it picks the playbook or skill that fits and tells you which principles shaped each decision. To change a role for one session, say so: "use GPT for code today".
 
-tblock works without asking on reversible, local work: reading, editing, builds, tests, and local commits. It always stops and asks before pushing, opening or merging a PR or MR, posting to chat or tickets, deploying, or deleting anything.
+tblock works without asking on reversible, local work: reading, editing, builds, tests, and local commits. It always stops and asks before pushing, opening or merging a PR or MR, posting to chat or tickets, deploying, or deleting anything. `tblock guard on` has the harness enforce the push, PR, MR, ticket, and publish part of that.
 
 ## What's inside
 
@@ -109,10 +113,12 @@ tblock works without asking on reversible, local work: reading, editing, builds,
 | [UI-UX](skills/tblock-mode/playbooks/ui-ux.md) | UI work, every state proved in the browser, then a UI council review |
 | [Visual parity](skills/tblock-mode/playbooks/visual-parity.md) | A restyle or migration proved pixel-identical by image diff |
 | [Prototype](skills/tblock-mode/playbooks/prototype.md) | Settle a design question with a throwaway sketch |
+| [Opening an MR](skills/tblock-mode/playbooks/opening-an-mr.md) | Tidy the branch, write the description, and ask before anything leaves the machine |
 | [Babysit](skills/tblock-mode/playbooks/babysit.md) | Drive a PR or MR to merge-ready: conflicts, review threads, CI |
 | [Reviewing a teammate's MR](skills/tblock-mode/playbooks/review-an-mr.md) | Run someone else's MR, keep the findings you can show, and draft comments you approve before they post |
 | [Runtime forensics](skills/tblock-mode/playbooks/runtime-forensics.md) and [Trace forensics](skills/tblock-mode/playbooks/trace-forensics.md) | Diagnose a live symptom, or a captured profile or trace |
 | [Authoring a skill](skills/tblock-mode/playbooks/authoring-a-skill.md) and [Eval](skills/tblock-mode/playbooks/eval.md) | Write skills, and test whether a change helps |
+| [Pause](skills/tblock-mode/playbooks/pause.md) and [Pickup](skills/tblock-mode/playbooks/pickup.md) | Stop with a checkpoint, and resume work an earlier session left, in the same harness or the other |
 
 **Skills:**
 
@@ -141,9 +147,11 @@ node scripts/validate-skills.mjs
 node --test
 ```
 
-The validator checks frontmatter, local links, that every principle is routed from tblock-mode, that every model role is used, that the Claude Code and Copilot copies of each agent match, and that the manifests agree on name and version. `node --test` runs the CLI, probe, validator, and eval scoring tests.
+After editing [delegate.md](skills/tblock-mode/delegate.md), run `node scripts/build-agents.mjs`. It rebuilds the delegate agent for both harnesses with the brief inlined, and the validator fails when they are out of date.
 
-To measure whether a change to a skill helps, run the eval suite with `node evals/run.mjs --model sonnet`. It runs each case with and without tblock, scores tblock's rules, hidden tests, and diff size, and appends the result to `evals/history.jsonl`. See [evals/README.md](evals/README.md).
+The validator checks frontmatter, local links, that every principle is routed from tblock-mode, that every model role is used, that the Claude Code and Copilot copies of each agent match, that the delegate agents are built from the current brief, that every playbook is routed from tblock-mode and listed here, that each hook runs a script that exists, and that the manifests agree on name and version. `node --test` runs the CLI, probe, validator, and eval scoring tests.
+
+To measure whether a change to a skill helps, run the eval suite with `node evals/run.mjs --model sonnet`. It runs each case with and without tblock, scores tblock's rules, hidden tests, and diff size, and appends the result to `evals/history.jsonl`. The shell cases can't run on Windows, so the `evals` workflow runs the whole suite on Linux from the Actions tab. See [evals/README.md](evals/README.md).
 
 ## Credits
 

@@ -14,6 +14,12 @@ const trace = (...lines) => parseTrace([...lines, JSON.stringify({ type: 'result
 const byName = (results) => Object.fromEntries(results.map((r) => [r.name, r]));
 const principles = principleNames(root);
 
+test('a small task has no bro version, so its size line shows that tblock-mode loaded', () => {
+  const r = byName(checkRules(trace(assistant([text('Size: small. You want the slug fixed.')]), assistant([text('Fixed. `node check.mjs` printed 7 passing.')])), { principles }));
+  assert.equal(r['tblock-mode-loaded'].pass, true);
+  assert.equal(byName(checkRules(trace(assistant([text('Fixed it.')])), { principles }))['tblock-mode-loaded'].pass, false);
+});
+
 test('the final reply is the last main-agent text, not a subagent report', () => {
   const t = trace(assistant([text('Plan.')]), assistant([text('Subagent report.')], 'toolu_1'), assistant([text('Done.\n\n**Bro version.** Fixed.')]));
   assert.equal(t.reply, 'Done.\n\n**Bro version.** Fixed.');

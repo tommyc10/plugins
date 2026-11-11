@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { delegateAgents } from './build-agents.mjs';
 
 const list = (dir, test) => (existsSync(dir) ? readdirSync(dir).filter(test).sort().map((f) => join(dir, f)) : []);
 const walk = (dir) => readdirSync(dir).sort().flatMap((f) => {
@@ -110,6 +111,30 @@ export function validate(root) {
     else if (a.body !== b.body || a.data.name !== b.data.name || a.data.description !== b.data.description) {
       errors.push(`agent ${name}: Claude Code and Copilot copies differ in name, description, or body`);
     }
+  }
+
+  if (existsSync(join(root, 'skills/tblock-mode/delegate.md'))) {
+    for (const [path, text] of Object.entries(delegateAgents(root))) {
+      if ((read(join(root, path)) || '').replace(/\r\n/g, '\n') !== text) errors.push(`${path}: out of date with skills/tblock-mode/delegate.md (run: node scripts/build-agents.mjs)`);
+    }
+  }
+
+  // A playbook has no frontmatter, so a link from tblock-mode is the only thing that routes to it.
+  const readme = read(join(root, 'README.md'));
+  for (const file of list(join(root, 'skills/tblock-mode/playbooks'), (f) => f.endsWith('.md'))) {
+    const link = `playbooks/${basename(file)}`;
+    if (mode && !mode.includes(`](${link})`)) errors.push(`${rel(file)}: not linked from tblock-mode, so nothing routes to it`);
+    if (readme && !readme.includes(`tblock-mode/${link})`)) errors.push(`${rel(file)}: not in the README's playbook table`);
+  }
+
+  const hooksFile = join(root, 'hooks/hooks.json');
+  if (existsSync(hooksFile)) {
+    try {
+      const commands = Object.values(JSON.parse(readFileSync(hooksFile, 'utf8')).hooks || {}).flat().flatMap((h) => h.hooks || []).map((h) => h.command || '');
+      for (const [, script] of commands.join('\n').matchAll(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^"\s]+)/g)) {
+        if (!existsSync(join(root, script))) errors.push(`hooks/hooks.json: runs ${script}, which does not exist`);
+      }
+    } catch (e) { errors.push(`hooks/hooks.json: ${e.message}`); }
   }
 
   const presets = read(join(root, 'presets.json'));

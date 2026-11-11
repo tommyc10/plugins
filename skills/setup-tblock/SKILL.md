@@ -1,11 +1,13 @@
 ---
 name: setup-tblock
-description: "Configure which model and reasoning effort each tblock role uses for subagents, in Claude Code or GitHub Copilot, from a preset (extreme, high, efficient) with the option to change single roles. Writes the roles file every tblock skill reads, plus a custom agent and effort level per role in Copilot. Use for /setup-tblock, configuring tblock models or effort, switching presets, or changing them."
+description: "Configure which model and reasoning effort each tblock role uses for subagents, in Claude Code or GitHub Copilot, from a preset (extreme, high, efficient) with the option to change single roles. Writes the roles file every tblock skill reads, with a section per harness, plus a custom agent and effort level per role in Copilot, and offers the guard that asks before a push. Use for /setup-tblock, configuring tblock models or effort, switching presets, or changing them."
 ---
 
 # Setup tblock
 
 Write `~/.tblock/roles.md`, the file every tblock skill that spawns a subagent reads, through tblock's CLI at `bin/tblock.mjs`, two folders above this skill's folder. Ask for a preset, show the roles it produces, and let the user change any of them.
+
+The file holds one section per harness, `## claude-code` and `## copilot`, because the two name the same model differently. This skill fills the section for the harness it runs in, so pass `--harness=<this harness>` on every `tiers set` and `roles set` call. A user of both harnesses runs this skill once in each. After that, `tblock preset <name>` switches both sections at once.
 
 ## Roles
 
@@ -37,7 +39,7 @@ A preset sets every role's model and effort at once, from tiers (top, strong, fa
 
 Claude Code if you have the `Agent` tool. Copilot if you have its custom agent tools or run in `copilot` or VS Code Copilot Chat. Otherwise ask.
 
-- **Claude Code:** the models are the `model` values the `Agent` tool lists: `opus`, `sonnet`, `haiku`, `fable`. Claude Code cannot run OpenAI or Gemini models, so only the claude tiers fill, and panels draw from one family. Say so once.
+- **Claude Code:** the models are the `model` values the `Agent` tool lists: `opus`, `sonnet`, `haiku`, `fable`. Claude Code cannot run OpenAI or Gemini models, so only the claude tiers fill, and panels draw from one family. A preset seats a panel there from different tiers, such as `sonnet` and `opus`, and `interrogate` and `ui-council` give each reviewer its own lens, which is where the variety comes from. Say so once.
 - **Copilot:** find the models in this order, and never ask the user to type or map model names:
   1. Run `node <tblock>/bin/tblock.mjs models --json`. It reads the model picker's list from VS Code's state, for the user's plan, and suggests a tier mapping. It finds nothing when VS Code is connected to a remote (Remote-SSH, WSL, a container, Codespaces), because that state stays beside the VS Code window, or on Node older than 22.5.
   2. If it finds none, ask Copilot itself: call your subagent tool once with model `tblock-list-models` and a one-line task. No model has that name, so the call fails before anything runs, and the error lists every available model as `Name (copilot)`, with any that cost more than the session model under "Unavailable". Pass the whole error text to `node <tblock>/bin/tblock.mjs models --json --from="<error text>"`.
@@ -62,12 +64,12 @@ Run `node <tblock>/bin/tblock.mjs roles` and `node <tblock>/bin/tblock.mjs tiers
 **(b) Map the tiers.** Without asking, propose each family's top, strong, and fast model from step 1. In Claude Code, `opus` is top, `sonnet` strong, and `haiku` fast; `fable` fills `top` if the user prefers it. A tier left out falls back to the nearest one in the same family:
 
 ```
-node <tblock>/bin/tblock.mjs tiers set claude-top=<model> claude-strong=<model> claude-fast=<model>
+node <tblock>/bin/tblock.mjs tiers set --harness=claude-code claude-top=<model> claude-strong=<model> claude-fast=<model>
 ```
 
-In Copilot, show the suggested tiers from `models --json` with each model's picker name, and confirm them with one `AskUserQuestion` whose options are `Use these tiers` and `Change some`, never a free-text box. On `Use these tiers`, run `node <tblock>/bin/tblock.mjs tiers detect`, with the same `--from` text if step 1 used one, which writes the tiers and each model's picker name. On `Change some`, ask which tier, then offer the detected models of that family as options, and write the changes with `tiers set` after `tiers detect`. Use model ids, not picker names: tblock writes both into each Copilot agent, because the agents window and the CLI match ids while VS Code's chat matches picker names.
+In Copilot, show the suggested tiers from `models --json` with each model's picker name, and confirm them with one `AskUserQuestion` whose options are `Use these tiers` and `Change some`, never a free-text box. On `Use these tiers`, run `node <tblock>/bin/tblock.mjs tiers detect`, with the same `--from` text if step 1 used one, which writes Copilot's tiers and each model's picker name. On `Change some`, ask which tier, then offer the detected models of that family as options, and write the changes with `tiers set --harness=copilot` after `tiers detect`. Use model ids, not picker names: tblock writes both into each Copilot agent, because the agents window and the CLI match ids while VS Code's chat matches picker names.
 
-**(c) Apply the preset.** Show any `note:` lines the CLI prints about tiers it had to fall back on:
+**(c) Apply the preset.** It fills every harness that has tiers, so a section the user set up earlier in the other harness moves to the new preset too. Show any `note:` lines the CLI prints about tiers it had to fall back on, or a panel it filled from one family:
 
 ```
 node <tblock>/bin/tblock.mjs preset <name>
@@ -82,15 +84,15 @@ node <tblock>/bin/tblock.mjs preset <name>
 Write all the changes in one call, with a comma-separated list for a panel:
 
 ```
-node <tblock>/bin/tblock.mjs roles set "code=<model> @ medium" "reviewers=<model> @ high,<model> @ high"
+node <tblock>/bin/tblock.mjs roles set --harness=<this harness> "code=<model> @ medium" "reviewers=<model> @ high,<model> @ high"
 ```
 
-### 4. Record the harness and git tools
+### 4. Record the git tools
 
-Record the harness, and which of these exist: a GitLab MCP server, the `glab` CLI, the `gh` CLI. Check the tool list and `command -v`. Record names only, never hosts, tokens, or project paths. In Claude Code add `--harness=claude-code`:
+Record which of these exist: a GitLab MCP server, the `glab` CLI, the `gh` CLI. Check the tool list and `command -v`. Record names only, never hosts, tokens, or project paths:
 
 ```
-node <tblock>/bin/tblock.mjs roles set --harness=claude-code --tools=gh,glab
+node <tblock>/bin/tblock.mjs roles set --tools=gh,glab
 ```
 
 ### 5. Write the roles file
@@ -98,30 +100,42 @@ node <tblock>/bin/tblock.mjs roles set --harness=claude-code --tools=gh,glab
 The CLI writes `~/.tblock/roles.md` on every `preset` and `roles set` call, overwriting the whole file so re-runs stay idempotent. Shape:
 
 ```
-# tblock roles. One line per role, as "model" or "model @ effort". Delete a line to use the session model.
-# harness: claude-code
+# tblock roles. One section per harness; one line per role, as "model" or "model @ effort". Delete a line to use the session model.
 # git host tools: gh, glab
 # preset: high
+# guard: on
+
+## claude-code
 # tiers: claude-top=opus, claude-strong=sonnet, claude-fast=haiku
 code: sonnet @ medium
 hardest: opus @ high
 judgment: opus @ high
-reviewers: opus @ high, sonnet @ high
+reviewers: sonnet @ high, opus @ high
 swarm workers: haiku @ low
-shootout runners: opus @ high, sonnet @ high
-shootout judges: opus @ high, sonnet @ high
+shootout runners: sonnet @ high, opus @ high
+shootout judges: sonnet @ high, opus @ high
+
+## copilot
+# tiers: claude-top=claude-opus-5.5, gpt-strong=gpt-5.2, gpt-fast=gpt-5.2-mini
+code: gpt-5.2 @ medium
 ```
+
+A file written before sections existed is read as one section and rewritten in this shape on the next change.
 
 Without Node, write the file by hand in this shape.
 
 ### 6. Copilot only
 
-Copilot sets a subagent's model in its agent file and its effort in `~/.copilot/settings.json`. Every `preset` and `roles set` call also rewrites one custom agent per role in `~/.copilot/agents/` and its effort level, touching only `tblock-` agents and leaving every other setting as it was. Each agent pins its model with `model-policy: required`, because without it the Copilot runtime behind the agents window runs a subagent on the session model instead. Without Node, tell the user to set effort by hand in `/subagents`. In Claude Code no agent or settings files are written, because the spawning skill passes `model` and `effort` to the `Agent` tool. Skip this step there.
+Copilot sets a subagent's model in its agent file and its effort in `~/.copilot/settings.json`. Every `preset` and `roles set` call, from either harness, also rewrites one custom agent per role in the Copilot section to `~/.copilot/agents/` and its effort level, touching only `tblock-` agents and leaving every other setting as it was. Each agent pins its model with `model-policy: required`, because without it the Copilot runtime behind the agents window runs a subagent on the session model instead. Without Node, tell the user to set effort by hand in `/subagents`. In Claude Code no agent or settings files are written, because the spawning skill passes `model` and `effort` to the `Agent` tool. Skip this step there.
 
-### 7. Confirm
+### 7. Offer the guard
 
-Run `node <tblock>/bin/tblock.mjs doctor` and show its output. Tell the user which files were written and that new sessions pick them up. Re-running this skill updates them, `tblock preset <name>` switches presets later, and `tblock roles set` changes single roles.
+Ask once, with `AskUserQuestion`: "Want the harness itself to ask you before an agent pushes, opens or merges a PR or MR, files a ticket, or publishes?" Offer `Turn the guard on` and `Leave it off`. On yes, run `node <tblock>/bin/tblock.mjs guard on`. It switches on two hooks the plugin ships: one makes those commands a permission prompt, and one tells each new session its roles and what the repo has set up. Say that it is tested in Claude Code, and that `tblock guard off` undoes it. Skip the question when the roles file already says `# guard: on`.
 
-### 8. Offer to set up this repo (optional)
+### 8. Confirm
+
+Run `node <tblock>/bin/tblock.mjs doctor` and show its output. When it warns that an installed copy's files differ, tell the user to reinstall the plugin in that harness. Tell the user which files were written and that new sessions pick them up. Re-running this skill updates them, `tblock preset <name>` switches presets later, and `tblock roles set` changes single roles.
+
+### 9. Offer to set up this repo (optional)
 
 When the session runs inside a git repository, offer once: "Your models are set. Want to set up this repo too, so tblock can read its logs, label its tickets, and prove changes in the running app?" On yes, run [setup-project](../setup-project/SKILL.md). On no, say that `/setup-project` does it later in any repo.

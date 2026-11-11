@@ -1,0 +1,64 @@
+name: evals
+
+# The shell cases can't run on Windows, so this runs the whole suite on Linux, on demand.
+# It spends API credit, so it never runs on a push. Needs the ANTHROPIC_API_KEY repository secret.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Model for both arms
+        default: sonnet
+      runs:
+        description: Runs per arm
+        default: "3"
+      max_cost_usd:
+        description: Stop when the suite has spent this much
+        default: "10"
+      case:
+        description: Case name or glob (empty runs every case)
+        default: ""
+      label:
+        description: Label for the history row
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install the sandbox and Claude Code
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap socat
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+      - name: Run the suite
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MODEL: ${{ inputs.model }}
+          RUNS: ${{ inputs.runs }}
+          MAX_COST: ${{ inputs.max_cost_usd }}
+          CASE: ${{ inputs.case }}
+          LABEL: ${{ inputs.label }}
+        run: |
+          args=(--model "$MODEL" --runs "$RUNS" --max-cost-usd "$MAX_COST" --trust-plugin --threshold 0)
+          if [ -n "$CASE" ]; then args+=(--case "$CASE"); fi
+          if [ -n "$LABEL" ]; then args+=(--label "$LABEL"); fi
+          node evals/run.mjs "${args[@]}"
+      - name: Show the new history row
+        if: always()
+        run: git diff --unified=0 -- evals/history.jsonl | grep '^+{' | cut -c2- | tee history-row.jsonl || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evals-${{ github.run_id }}
+          path: |
+            evals/results/
+            history-row.jsonl

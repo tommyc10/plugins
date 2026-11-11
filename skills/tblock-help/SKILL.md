@@ -27,23 +27,26 @@ Check the state that changes the answer, and mention it only when it does. Run `
 
 - No roles file means `/setup-tblock` hasn't run, so every subagent runs on the session model.
 - A FAIL on Copilot agents or efforts means the files drifted from the roles file; `tblock roles sync` repairs them.
+- A WARN that an installed copy's files differ means that harness runs an older tblock under the same version number. Reinstall the plugin there.
+- A roles file with no section for this harness means its subagents run on the session model. `/setup-tblock` here adds the section.
 - No project verification skill means agents have no scripted way to drive the app. Mention `/create-verification-skill` when the question is about proving a change works.
 
 ## Get set up
 
 1. Install. Copilot CLI: `copilot plugin install tommyc10/tblock`. Claude Code: `claude plugin marketplace add tommyc10/tblock` then `claude plugin install tblock@tblock`. After an update, reinstall in Copilot, because it caches plugins by version.
 2. Point a `tblock` alias at `bin/tblock.mjs` in the install folder. The [README](../../README.md) shows how to find it.
-3. Run [setup-tblock](../setup-tblock/SKILL.md). It asks for a preset (extreme, high, or efficient), applies it, shows the roles, lets the user change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one agent per role and each agent's effort level.
+3. Run [setup-tblock](../setup-tblock/SKILL.md). It asks for a preset (extreme, high, or efficient), applies it, shows the roles, lets the user change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one agent per role and each agent's effort level. The file has a section per harness, so a user of both runs it once in each, and one `tblock preset` then switches both.
 4. In each repo, run [setup-project](../setup-project/SKILL.md). It sets up log reading, ticket labels, the Grafana target, and a verification skill in the repo's `.tblock/` folder, for the team to commit. setup-tblock offers it at the end.
-5. Run `tblock doctor`, then start a real task with tblock-mode, a goal, and a check that can pass or fail.
+5. Optionally run `tblock guard on`. The harness then asks before an agent pushes, opens or merges a PR or MR, files a ticket, or publishes, and each session starts knowing its roles. It is tested in Claude Code.
+6. Run `tblock doctor`, then start a real task with tblock-mode, a goal, and a check that can pass or fail.
 
 Presets set every role's model and effort at once: `extreme` for hard or risky changes, `high` for features and reviews, `efficient` for everyday bugs. `tblock preset <name>` switches, and new sessions pick it up. `tblock roles set "code=sonnet @ high"` changes one role.
 
-If cost is the worry, run `tblock log --since=monday` first. It totals every session's tokens and list-price cost by model, and Copilot's premium requests, so the user sees where the spend went. It usually goes to subagents and review panels. Switch to `tblock preset efficient`, put `code` on `session`, or save tblock-mode for work that needs rigor. In Claude Code, only Claude models run, so panels hold one family; two different Claude models still give two opinions.
+If cost is the worry, run `tblock log --since=monday` first. It totals every session's tokens and list-price cost by model, and Copilot's premium requests, so the user sees where the spend went. It usually goes to subagents and review panels. Switch to `tblock preset efficient`, put `code` on `session`, or save tblock-mode for work that needs rigor. In Claude Code, only Claude models run, so a panel seats different tiers and each reviewer gets its own lens.
 
 ## Start a task with tblock-mode
 
-tblock-mode matches the task to a playbook, opens a todo list from the playbook's steps, runs the skills those steps need, and names the principles that shaped each decision. A good prompt states the goal and how to tell it's done, in a few plain sentences. It doesn't list skills, because a hand-written sequence drops steps the playbook keeps. Read [references/prompting.md](references/prompting.md) before you help word one.
+tblock-mode sizes the task first and says "Size: small", "standard", or "deep". Small is a question or a one-file fix: the goal, the playbook's steps, and the proof, with no subagents, todo list, or bro version. Standard is the full playbook. Deep adds a design sketch, an adversarial review, and a decision trail. "Go deep" or "keep it small" sets the size. Then it matches the task to a playbook, runs the skills its steps need, and names the principles that shaped each decision. A good prompt states the goal and how to tell it's done, in a few plain sentences. It doesn't list skills, because a hand-written sequence drops steps the playbook keeps. Read [references/prompting.md](references/prompting.md) before you help word one.
 
 For a vague or large task, start with `/in-your-own-words <task>` in the same session, so a misreading shows up before any code exists, then send the task to tblock-mode.
 
@@ -129,6 +132,7 @@ Playbooks are step lists inside tblock-mode, not skills, so they have no slash c
 - "why is this leaking", "it spins the CPU", or "it hangs" on a running app runs Runtime forensics. A profile, trace, or heap snapshot you hand over runs Trace forensics. Both diagnose, they don't fix.
 - "prototype a few options" runs Prototype. UI work runs UI-UX. "restyle it, it must look the same" or "migrate the styling" runs Visual parity.
 - "write a skill for <workflow>" runs Authoring a skill. "run the eval playbook" runs Eval.
+- "pause", "stop here", or "hand this off" runs Pause, which commits the work as `wip:` and writes a resume note. "pick up where we left off", "resume", or "continue what Copilot started" runs Pickup, which reads that note or `tblock handoff`'s brief of the earlier session, from either harness.
 
 The Playbooks section of [tblock-mode](../tblock-mode/SKILL.md) lists every playbook and when it applies.
 
@@ -144,6 +148,10 @@ Principles are one-rule skills that tblock-mode reads and cites in its replies. 
 | A new role, preset, or effort had no effect | Start a new session. In Copilot, exit and restart so it reloads the agents, and check `tblock doctor`. |
 | `tblock doctor` shows FAIL on Copilot agents or efforts | Run `tblock roles sync`. |
 | Runs cost more than expected | `tblock preset efficient`, or `session` for `code`. See Get set up. |
+| A small task got the full ceremony, or a risky one got too little | Say "keep it small" or "go deep". tblock-mode states its size in its first message. |
+| It pushed or opened an MR without asking | Run `tblock guard on`, so the harness asks before those commands whatever the agent does. |
+| The session ran out of context, or you want to carry on in the other harness | Start a new session with `/tblock-mode pick up where the last session left off`. `tblock handoff` prints the brief it reads. |
+| Claude Code and Copilot use different presets | Run `tblock preset <name>`. It fills both sections of the roles file. |
 | A fix took two or more rounds of corrections | Run `/reflect` in that session, and `/correct` if it was a repo convention it missed. |
 | A question got treated as the next step of the last task | Say "new task". |
 | The reply claims success from a green build | Ask for the real command, flow, stored value, or screenshot. That's Prove It Works. |

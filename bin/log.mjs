@@ -28,7 +28,7 @@ export function parseSince(text = 'yesterday', now = new Date()) {
 
 const newRun = (harness, id) => ({
   harness, id, title: null, cwd: null, branch: null, started: null, last: null, live: false,
-  prompt: null, reply: null, links: new Set(), files: new Set(), agents: [], usage: new Map(), premium: 0,
+  prompt: null, prompts: [], reply: null, path: null, links: new Set(), files: new Set(), agents: [], usage: new Map(), premium: 0,
 });
 
 const linksIn = (run, text) => { for (const m of String(text).matchAll(LINK)) run.links.add(m[0]); };
@@ -71,7 +71,9 @@ function foldClaude(run, entries, seen, usage) {
     if (e.type === 'user') {
       const text = textOf(m.content);
       linksIn(run, text);
-      if (!run.prompt && !e.isSidechain && !e.isMeta && typeof m.content === 'string') run.prompt = promptOf(text);
+      const typed = !e.isSidechain && !e.isMeta && typeof m.content === 'string' ? promptOf(text) : null;
+      if (typed && !usage) run.prompts.push({ at, text: typed });
+      if (typed && !run.prompt) run.prompt = typed;
     }
     if (e.type === 'assistant' && m.model !== '<synthetic>') {
       if (m.id && m.usage && !seen.has(m.id)) {
@@ -99,6 +101,7 @@ export function readClaudeRuns(claudeHome, since) {
       if (statSync(path).mtimeMs < since.getTime()) continue;
       const id = basename(file, '.jsonl');
       const run = newRun('claude-code', id);
+      run.path = path;
       const seen = new Set();
       foldClaude(run, readLines(path), seen, null);
       const subagents = join(dir, id, 'subagents');
@@ -143,7 +146,8 @@ export function readCopilotRuns(copilotHome, since) {
     }
     Object.assign(run, {
       title: state.title, cwd: state.cwd, branch: state.branch, started: state.started, last: state.last,
-      prompt: state.prompt, premium: state.premium, files: new Set(state.files.keys()), ended: state.ended,
+      prompt: state.prompt, prompts: state.tasks.filter((t) => t.prompt).map((t) => ({ at: t.at, text: t.prompt })), reply: state.says?.text || null, path: s.log,
+      premium: state.premium, files: new Set(state.files.keys()), ended: state.ended,
       agents: [...state.agents.values()].map((a) => ({ name: a.name, model: a.model, usage: byAgent.get(a.key) || emptyUsage() })),
     });
     return run.usage.size || state.turns ? [run] : [];

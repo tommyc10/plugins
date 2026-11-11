@@ -38,7 +38,7 @@ test('roles set writes the roles file and one Copilot agent per entry', () => {
   assert.equal(r.code, 0, r.err);
 
   const roles = readFileSync(join(home, '.tblock', 'roles.md'), 'utf8');
-  assert.match(roles, /^# harness: copilot$/m);
+  assert.match(roles, /^## copilot$/m);
   assert.match(roles, /^# git host tools: gitlab-mcp, glab$/m);
   assert.match(roles, /^code: gpt-5$/m);
   assert.match(roles, /^reviewers: claude-opus-5, gpt-5$/m);
@@ -79,7 +79,7 @@ test('doctor passes a synced setup and fails a hand-edited agent', () => {
 
 test('doctor warns when a panel has one model family', () => {
   const { cli } = sandbox();
-  cli('roles', 'set', 'reviewers=claude-opus-5,claude-sonnet-5');
+  cli('roles', 'set', '--harness=copilot', 'reviewers=claude-opus-5,claude-sonnet-5');
   const warning = find(doctorJson(cli), 'Roles').find((c) => /reviewers/.test(c.detail));
   assert.equal(warning?.level, 'WARN');
 });
@@ -140,7 +140,7 @@ test('an unknown effort is rejected', () => {
 
 test('a preset maps tiers to models and reports what it had to fall back on', () => {
   const { home, cli } = sandbox();
-  cli('tiers', 'set', 'claude-top=opus', 'claude-strong=sonnet', 'gpt-strong=sol', 'gpt-fast=luna');
+  cli('tiers', 'set', '--harness=copilot', 'claude-top=opus', 'claude-strong=sonnet', 'gpt-strong=sol', 'gpt-fast=luna');
 
   assert.equal(cli('preset', 'high').code, 0);
   let roles = readFileSync(join(home, '.tblock', 'roles.md'), 'utf8');
@@ -154,7 +154,7 @@ test('a preset maps tiers to models and reports what it had to fall back on', ()
 
   const extreme = cli('preset', 'extreme');
   assert.equal(extreme.code, 0, extreme.err);
-  assert.match(extreme.out, /reviewers: 2 of 3 families have models/);
+  assert.match(extreme.out, /reviewers: 2 of 3 families have models, so sonnet fills the panel/);
   assert.match(extreme.out, /code: no gpt-top, used gpt-strong/);
   roles = readFileSync(join(home, '.tblock', 'roles.md'), 'utf8');
   assert.match(roles, /^code: sol @ high$/m);
@@ -199,7 +199,7 @@ test('a settings file that is not plain JSON is left alone', () => {
 
 test('the session model does not count as a model family', () => {
   const { cli } = sandbox();
-  cli('roles', 'set', 'code=session', 'hardest=opus', 'reviewers=sonnet');
+  cli('roles', 'set', '--harness=claude-code', 'code=session', 'hardest=opus', 'reviewers=sonnet');
   assert.match(find(doctorJson(cli), 'Roles')[0].detail, /models from 1 family\b/);
 });
 
@@ -359,8 +359,8 @@ test('watch lists every live session as a tab and folds a run of one tool into o
   assert.equal(r.code, 0, r.err);
   const tabs = r.out.split('\n')[2];
   assert.match(tabs, /▸1 /, 'the session on screen is marked');
-  assert.match(tabs, /\/tblock-mode add a severity filter/, 'a Claude Code tab');
-  assert.match(tabs, /Alerts severity filter/, 'a Copilot tab');
+  assert.match(tabs, /dashboard · \/tblock-mode add a sever.* \d+h/, 'a Claude Code tab: its folder, what it was asked, and how long it has waited');
+  assert.match(tabs, /dashboard · Alerts severity filter/, 'a Copilot tab');
 
   const steps = foldSteps(['a', 'b', 'c'].map((text) => ({ agent: 'main', kind: 'search', tool: 'Grep', text })).concat({ agent: 'main', kind: 'shell', tool: 'Bash', text: 'ls' }));
   assert.deepEqual(steps.map((s) => [s.tool, s.times, s.text]), [['Grep', 3, 'c'], ['Bash', 1, 'ls']]);
@@ -470,8 +470,48 @@ test('watch picks a notifier per platform and a reason for each failure', async 
   assert.equal(notifyCommand('aix', 'T', 'B'), null);
   assert.equal(errorLine('Exit code 2\nsrc/a.ts: is_error: true\nTypeError: x is not a function'), 'exit 2 · TypeError: x is not a function');
   assert.equal(errorLine('permission denied'), 'permission denied');
+  assert.equal(errorLine('Exit code 2\n70:  // Case matters: "AssertionError" is an error class\ngrep: bin/x.mjs: No such file or directory'), 'exit 2 · grep: bin/x.mjs: No such file or directory', 'a grep hit is not the reason');
   assert.equal(toolLabel('mcp__claude_ai_Claude_Docs__batch'), 'Claude·batch');
   assert.equal(toolLabel('Bash'), 'Bash');
+});
+
+test('watch tells the story, lists its keys, and counts what git and the project folder hold', async () => {
+  const { createState, applyEvent, render, onKey, initialView, parseGit, trouble } = await import('./watch.mjs');
+  const { createUI } = await import('./ui.mjs');
+  const ui = createUI({ color: false, version: 't', env: {} });
+  const state = createState('s1', null);
+  const at = (n) => new Date(Date.UTC(2026, 0, 1, 12, 0, n)).toISOString();
+  const ev = (n, type, data) => applyEvent(state, { type, data, timestamp: at(n) });
+  ev(0, 'session.start', { startTime: at(0), context: { cwd: 'C:\\work\\app' } });
+  ev(1, 'user.message', { content: 'fix the slug' });
+  ev(1, 'assistant.turn_start', {});
+  ev(2, 'tool.execution_start', { toolCallId: 'a', toolName: 'Bash', arguments: { command: 'cd /c/work/app && npm test' } });
+  ev(3, 'tool.execution_complete', { toolCallId: 'a', success: false, error: 'Exit code 1\nAssertionError: slug' });
+  ev(4, 'tool.execution_start', { toolCallId: 'b', toolName: 'Write', arguments: { file_path: 'C:\\work\\app\\src\\slug.ts' } });
+  ev(5, 'tool.execution_complete', { toolCallId: 'b', success: true, patch: { created: true, added: 4, removed: 0, lines: [] } });
+  ev(6, 'tool.execution_start', { toolCallId: 'c', toolName: 'Write', arguments: { file_path: 'C:\\Users\\me\\AppData\\Temp\\scratch.mjs' } });
+  ev(7, 'tool.execution_complete', { toolCallId: 'c', success: true });
+  ev(8, 'assistant.message', { content: 'Fixed the slug.' });
+  const now = Date.parse(at(9));
+  const draw = (opts) => render(state, ui, { now, cols: 110, rows: 60, ...opts }).join('\n');
+
+  const all = draw({ git: parseGit(' M src/slug.ts\n?? notes.md\n', '4\t1\tsrc/slug.ts\n') });
+  assert.match(all, /Bash\s+exit 1 · AssertionError: slug {2}npm test/, 'a cd into the project drops from the command');
+  assert.match(all, /files {2}1 changed · \+4\n {2}✚ src\/slug\.ts {2}\+4\n {2}\+ 1 outside the project\n {2}git now {2}1 modified · 1 untracked · \+4 −1/, 'a new file is marked new, and scratch files fold into a count');
+
+  const story = draw({ view: { ...initialView(), story: true } });
+  assert.match(story, /says\s+“Fixed the slug\.”/);
+  assert.match(story, /✖ {2}Bash/, 'the story keeps what broke');
+  assert.doesNotMatch(story, /Write/, 'and drops the tool calls');
+  assert.equal(onKey(initialView(), 's', {}).view.story, true);
+  assert.equal(onKey(initialView(), '?', {}).view.layer, 'help');
+  assert.match(draw({ view: { ...initialView(), layer: 'help' } }), /story: only what was said/);
+
+  ev(10, 'session.error', { message: "You've hit your 5-hour limit" });
+  ev(10, 'session.idle', {});
+  assert.deepEqual(trouble(state, now), { level: 'fail', text: "stopped · You've hit your 5-hour limit" }, 'a limit that stopped the run is trouble');
+  ev(11, 'assistant.turn_start', {});
+  assert.equal(trouble(state, now), null, 'until it works again');
 });
 
 test('doctor shows which project files the current repo has', () => {
@@ -485,4 +525,101 @@ test('doctor shows which project files the current repo has', () => {
   const project = JSON.parse(r.stdout).checks.find((c) => c.check === 'Project');
   assert.equal(project.level, 'PASS');
   assert.match(project.detail, /^logs set up; not set up: ticket labels, Grafana/);
+});
+
+const rolesText = (home) => readFileSync(join(home, '.tblock', 'roles.md'), 'utf8');
+
+test('one preset fills Claude Code and Copilot together, and keeps the Copilot agents in step', () => {
+  const { home, cli, agents } = sandbox();
+  cli('tiers', 'set', '--harness=claude-code', 'claude-top=opus', 'claude-strong=sonnet', 'claude-fast=haiku');
+  cli('tiers', 'set', '--harness=copilot', 'claude-top=claude-opus-5.5', 'gpt-strong=gpt-5', 'gpt-fast=gpt-5-mini');
+  const r = cli('preset', 'high');
+  assert.equal(r.code, 0, r.err);
+  const [, claude, copilot] = rolesText(home).split(/^## /m);
+  assert.match(claude, /^claude-code\n# tiers: claude-top=opus/);
+  assert.match(claude, /^hardest: opus @ high$/m);
+  assert.match(copilot, /^hardest: claude-opus-5\.5 @ high$/m);
+  assert.match(copilot, /^code: gpt-5 @ medium$/m);
+  assert.ok(agents().includes('tblock-code.agent.md'));
+
+  // An edit made for Claude Code leaves Copilot's section as it was, and doctor still passes its agents.
+  cli('roles', 'set', '--harness=claude-code', 'code=opus @ high');
+  assert.match(rolesText(home).split(/^## /m)[2], /^code: gpt-5 @ medium$/m);
+  assert.equal(find(doctorJson(cli), 'Copilot agents')[0].level, 'PASS');
+});
+
+test('a Claude Code panel seats different tiers when it has one family', () => {
+  const { home, cli } = sandbox();
+  cli('tiers', 'set', '--harness=claude-code', 'claude-top=opus', 'claude-strong=sonnet', 'claude-fast=haiku');
+  const r = cli('preset', 'high');
+  assert.match(rolesText(home), /^reviewers: sonnet @ high, opus @ high$/m);
+  assert.match(r.out, /reviewers: 1 of 2 families have models, so opus fills the panel/);
+  assert.equal(find(doctorJson(cli), 'Roles').some((c) => /no model diversity/.test(c.detail)), false, 'one family is all Claude Code has, so doctor does not warn about it');
+
+  cli('preset', 'extreme');
+  assert.match(rolesText(home), /^reviewers: opus @ xhigh, sonnet @ xhigh, haiku @ xhigh$/m);
+});
+
+test('a roles file from before sections is read into its harness, and rewritten with one', () => {
+  const { home, cli } = sandbox();
+  mkdirSync(join(home, '.tblock'));
+  writeFileSync(join(home, '.tblock', 'roles.md'), '# harness: claude-code\n# preset: high\n# tiers: claude-top=opus, claude-strong=sonnet\ncode: sonnet @ medium\nreviewers: opus @ high\n');
+  const shown = JSON.parse(cli('roles', '--json').out);
+  assert.deepEqual(shown.harnesses['claude-code'].roles.code, [{ model: 'sonnet', effort: 'medium' }]);
+  assert.equal(shown.harnesses['claude-code'].tiers['claude-top'], 'opus');
+
+  cli('roles', 'set', 'hardest=opus @ max');
+  assert.match(rolesText(home), /^## claude-code\n# tiers: claude-top=opus, claude-strong=sonnet\ncode: sonnet @ medium\nhardest: opus @ max\nreviewers: opus @ high$/m);
+  assert.doesNotMatch(rolesText(home), /# harness:/);
+});
+
+test('a role edit with two harnesses and no way to tell them apart asks which one', () => {
+  const { cli } = sandbox();
+  cli('roles', 'set', '--harness=claude-code', 'code=sonnet');
+  cli('roles', 'set', '--harness=copilot', 'code=gpt-5');
+  const r = cli('roles', 'set', 'hardest=o9');
+  assert.equal(r.code, 2);
+  assert.match(r.err, /add --harness=claude-code or --harness=copilot/);
+  assert.equal(cli('roles', 'set', 'hardest=gpt-5').code, 0, 'a model only Copilot has names the harness');
+});
+
+test('doctor warns when a Claude Code role names a model Claude Code cannot run', () => {
+  const { cli } = sandbox();
+  cli('roles', 'set', '--harness=claude-code', 'code=gpt-5', 'hardest=opus');
+  const warning = find(doctorJson(cli), 'Roles').find((c) => /gpt-5 will not start/.test(c.detail));
+  assert.equal(warning?.level, 'WARN');
+});
+
+test('doctor finds a Copilot install on disk and says when its files differ from this copy', () => {
+  const { home, cli } = sandbox();
+  const install = join(home, '.copilot', 'installed-plugins', 'plugins', 'tblock');
+  mkdirSync(join(install, 'skills', 'tblock-mode'), { recursive: true });
+  const version = JSON.parse(readFileSync(join(PLUGIN, 'plugin.json'), 'utf8')).version;
+  writeFileSync(join(install, 'plugin.json'), JSON.stringify({ name: 'tblock', version }));
+  writeFileSync(join(install, 'skills', 'tblock-mode', 'SKILL.md'), 'an older copy');
+  const check = find(doctorJson(cli), 'Copilot')[0];
+  assert.equal(check.level, 'WARN');
+  assert.ok(check.detail.startsWith(`tblock ${version} installed, but its files differ`), check.detail);
+
+  writeFileSync(join(install, 'plugin.json'), JSON.stringify({ name: 'tblock', version: '0.0.9' }));
+  assert.match(find(doctorJson(cli), 'Copilot')[0].detail, /0\.0\.9 installed, .* available/);
+});
+
+test('handoff briefs a session from its transcript: the task, where it stopped, files, and the transcript path', async () => {
+  const { writeClaudeSession, CLAUDE_DEMO_ID } = await import('./fixtures/watch-claude-session.mjs');
+  const { home, cli } = sandbox();
+  writeClaudeSession(join(home, '.claude'));
+  const r = cli('handoff', `--session=${CLAUDE_DEMO_ID.slice(0, 8)}`);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /^# Handoff: /);
+  assert.match(r.out, /\*\*Session\.\*\* Claude Code `c1aude00-/);
+  assert.match(r.out, /## The task\n\nadd a severity filter/);
+  assert.match(r.out, /## Where it stopped/);
+  assert.match(r.out, /AlertsPage\.tsx/);
+  assert.match(r.out, /\*\*Transcript\.\*\* `.*c1aude00-0000-4000-8000-000000000000\.jsonl`/);
+  assert.match(r.out, /tblock:delegate on claude-sonnet-5-5/);
+
+  const none = cli('handoff', '--session=zzzz');
+  assert.equal(none.code, 2);
+  assert.match(none.err, /no session id starts with "zzzz"/);
 });

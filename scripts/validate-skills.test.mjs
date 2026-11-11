@@ -26,11 +26,14 @@ test('each kind of drift is reported against the file that drifted', () => {
   edit(join(dir, 'skills/why/SKILL.md'), /$/, '\n[gone](missing.md)\n');
   edit(join(dir, 'plugin.json'), /"version": "[^"]+"/, '"version": "0.0.0"');
   edit(join(dir, 'agents/delegate.md'), /$/, '\nextra line\n');
+  writeFileSync(join(dir, 'skills/tblock-mode/playbooks/orphan.md'), '### Orphan\n');
   const { errors } = validate(dir);
   assert.ok(errors.includes('skills/how/SKILL.md: name must match directory'), errors.join('\n'));
   assert.ok(errors.some((e) => /^skills\/why\/SKILL\.md:\d+: missing link target missing\.md$/.test(e)));
   assert.ok(errors.includes('plugin.json: version differs from .claude-plugin/plugin.json'));
   assert.ok(errors.includes('agent delegate: Claude Code and Copilot copies differ in name, description, or body'));
+  assert.ok(errors.includes('agents/delegate.md: out of date with skills/tblock-mode/delegate.md (run: node scripts/build-agents.mjs)'));
+  assert.ok(errors.includes('skills/tblock-mode/playbooks/orphan.md: not linked from tblock-mode, so nothing routes to it'));
 });
 
 test('frontmatter scalars parse the way YAML reads them', () => {

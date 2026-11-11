@@ -3,7 +3,7 @@
 // writes transcripts that watch-claude.mjs turns into the same events.
 // It shows the main agent, each subagent with its model and effort, whether the role's model was
 // honoured, every tool call grouped by the task it served, and the files changed. Node built-ins only.
-import { spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { claudeProjectsDir, createClaudeSource, listClaudeSessions } from './watch-claude.mjs';
@@ -68,8 +68,11 @@ export function errorLine(text = '') {
   const exit = lines[0]?.match(/^(?:Error: )?Exit code (\d+)$/);
   const rest = exit ? lines.slice(1) : lines;
   // Case matters: "AssertionError" is an error class, "is_error" in a line of source is not.
-  const why = rest.find((l) => /\b[A-Z]\w*(Error|Exception)\b/.test(l) || /^(error|fatal)\b/i.test(l))
-    || rest.find((l) => /fail|denied|not found|cannot|unable|invalid|refused/i.test(l)) || rest[0] || '';
+  // A failed grep prints lines of source ("12: // throws AssertionError"); those are hits, not the reason.
+  const said = rest.filter((l) => !/^(\d+[:-]|\S+:\d+[:-]|\/\/|\/\*|\*|#)/.test(l));
+  const pool = said.length ? said : rest;
+  const why = pool.find((l) => /\b[A-Z]\w*(Error|Exception)\b/.test(l) || /^(error|fatal)\b/i.test(l))
+    || pool.find((l) => /fail|denied|not found|cannot|unable|invalid|refused/i.test(l)) || pool[0] || '';
   return [exit && `exit ${exit[1]}`, why].filter(Boolean).join(' · ') || 'failed';
 }
 
@@ -131,6 +134,7 @@ function settle(state, at) {
 }
 function wake(state, at) {
   state.busy = true;
+  state.halt = null;
   state.idleSince = null;
   taskOf(state, at).endAt = null;
 }
@@ -144,6 +148,9 @@ export function applyEvent(state, e) {
   const log = (entry) => {
     const row = { seq: ++state.seq, at, task: state.tasks.length - 1, agent: who?.name || (e.agentId ? `agent ${e.agentId.slice(0, 6)}` : 'main'), family: who ? FAMILY(who.model) : null, ...entry };
     state.activity.push(row);
+    // A task broke only if a failure is the last thing it did; one it recovered from is just a count.
+    const task = state.tasks[state.tasks.length - 1];
+    if (task) task.broke = entry.kind === 'fail';
     return row;
   };
   switch (e.type) {
@@ -248,11 +255,12 @@ export function applyEvent(state, e) {
       }
       if (d.patch && call.row?.full) {
         const file = state.files.get(call.row.full);
-        if (file) Object.assign(file, { added: file.added + d.patch.added, removed: file.removed + d.patch.removed, counted: true });
+        if (file) Object.assign(file, { kind: d.patch.created ? 'create' : file.kind, added: file.added + d.patch.added, removed: file.removed + d.patch.removed, counted: true });
       }
       if (error) {
         state.errors += 1;
         taskOf(state, at).errors += 1;
+        taskOf(state, at).broke = true;
         const why = errorLine(error);
         if (row) Object.assign(row, { kind: 'fail', icon: '✖', tone: 'fail', error: why, text: `${why}  ${row.text}` });
         else log({ kind: 'fail', icon: '✖', tone: 'fail', tool: call.name, text: why, error: why, output: tail(error) });
@@ -291,6 +299,8 @@ export function applyEvent(state, e) {
       state.errors += 1;
       taskOf(state, at).errors += 1;
       log({ kind: 'fail', icon: '✖', tone: 'fail', tool: 'error', text: d.message || d.errorType, full: d.message });
+      // Shown as the reason it stopped until the session works again.
+      if (!who) state.halt = String(d.message || d.errorType || 'error').replace(/\s+/g, ' ');
       break;
     case 'session.shutdown':
       settle(state, at);
@@ -328,6 +338,8 @@ const span = (ms) => {
   const s = Math.round(ms / 1000);
   return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s` : `${Math.floor(s / 3600)}h ${String(Math.floor(s / 60) % 60).padStart(2, '0')}m`;
 };
+// A wait in one unit, for places with no room for two: 45s, 12m, 3h.
+const brief = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m` : `${Math.floor(s / 3600)}h`; };
 const count = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(n % 1e6 ? 1 : 0)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const stripLen = (s) => String(s).replace(/\x1b\[[0-9;]*m/g, '').length;
@@ -362,9 +374,45 @@ export function sessionLabel(state) {
   return text.replace(/^\/tblock:/, '/');
 }
 
+// A tab reads as the folder the session runs in, then what it was asked.
+export function tabNames(states) {
+  const folder = states.map((s) => (s.cwd || '').replace(/[\\/]+$/, '').split(/[\\/]/).pop() || null);
+  return states.map((s, i) => ({ name: folder[i] || sessionLabel(s), label: folder[i] ? sessionLabel(s) : '' }));
+}
+
+// What git says the folder holds now. Agents also change files through the shell, which no tool call names.
+export function parseGit(status = '', numstat = '') {
+  const rows = String(status).split('\n').filter((l) => l.trim());
+  const untracked = rows.filter((r) => r.startsWith('??')).length;
+  let added = 0;
+  let removed = 0;
+  for (const l of String(numstat).split('\n')) {
+    const m = l.match(/^(\d+)\t(\d+)\t/);
+    if (m) { added += Number(m[1]); removed += Number(m[2]); }
+  }
+  return { changed: rows.length - untracked, untracked, added, removed };
+}
+const GIT = { windowsHide: true, timeout: 4000, encoding: 'utf8' };
+function repoState(cwd, done) {
+  execFile('git', ['-C', cwd, 'status', '--porcelain'], GIT, (err, status) => {
+    if (err) return done(null);
+    return execFile('git', ['-C', cwd, 'diff', '--numstat', 'HEAD'], GIT, (e, numstat) => done(parseGit(status, e ? '' : numstat)));
+  });
+}
+function repoStateSync(cwd) {
+  try {
+    const run = (args) => execFileSync('git', ['-C', cwd, ...args], { ...GIT, stdio: ['ignore', 'pipe', 'ignore'] });
+    const status = run(['status', '--porcelain']);
+    let numstat = '';
+    try { numstat = run(['diff', '--numstat', 'HEAD']); } catch { /* no commits yet */ }
+    return parseGit(status, numstat);
+  } catch { return null; }
+}
+
 // Something that needs a look: an agent failing again and again, or a busy session that has gone silent.
 const SILENT_MS = 3 * 60 * 1000;
 export function trouble(state, now = Date.now()) {
+  if (state.halt && !state.busy) return { level: 'fail', text: `stopped · ${state.halt}` };
   for (const [agent, s] of state.streak) {
     if (s.count >= 3) return { level: 'fail', text: `${agent === 'main' ? '' : `${agent} `}failed ${s.count}× in a row · ${s.tool} · ${s.error}` };
   }
@@ -387,23 +435,26 @@ export function foldSteps(entries) {
       last.at = entry.at;
       last.text = entry.text;
       last.latest = entry;
-    } else out.push({ ...entry, key: entry.seq, times: 1, foldable, latest: entry });
+      last.calls.push(entry);
+    } else out.push({ ...entry, key: entry.seq, times: 1, foldable, latest: entry, calls: [entry] });
   }
   return out;
 }
 
-// The folded steps of one task, without the prompt itself.
-export const stepsOf = (state, i) => foldSteps(state.activity.filter((a) => a.task === i && a.kind !== 'you'));
+// The folded steps of one task, without the prompt itself. The story keeps what was said, who was
+// spawned, and what broke, and drops the tool calls between them.
+const STORY = new Set(['say', 'agent', 'done', 'fail', 'note']);
+export const stepsOf = (state, i, story = false) => foldSteps(state.activity.filter((a) => a.task === i && a.kind !== 'you' && (!story || STORY.has(a.kind))));
 
 // The steps the cursor can move through: the latest task's, or every task's when they are all open.
-export function selectable(state, expand) {
+export function selectable(state, expand, story = false) {
   const last = state.tasks.length - 1;
   if (last < 0) return [];
-  return (expand ? state.tasks.map((_, i) => i) : [last]).flatMap((i) => stepsOf(state, i));
+  return (expand ? state.tasks.map((_, i) => i) : [last]).flatMap((i) => stepsOf(state, i, story));
 }
 
-// What the viewer has open. layer: feed (following, or browsing with a selection), detail, or overview.
-export const initialView = () => ({ layer: 'feed', selected: null, expand: false, bell: false, notify: false });
+// What the viewer has open. layer: feed (following, or browsing with a selection), detail, overview, or help.
+export const initialView = () => ({ layer: 'feed', selected: null, expand: false, story: false, bell: false, notify: false });
 
 const KEYS = { up: ['\x1b[A', 'k'], down: ['\x1b[B', 'j'], enter: ['\r', '\n'], first: ['g', '\x1b[H', '\x1b[1~'], last: ['G', '\x1b[F', '\x1b[4~'], next: ['\t', '\x1b[C'], prev: ['\x1b[Z', '\x1b[D'] };
 const is = (key, name) => KEYS[name].includes(key);
@@ -415,16 +466,19 @@ export function onKey(view, key, { steps = [], tabs = 1 } = {}) {
   const at = keys.indexOf(v.selected);
   if (key === 'q' || key === 'Q' || key === '\x03') return { view: v, act: 'quit' };
   if (key === '\x1b') {
-    if (v.layer === 'detail' || v.layer === 'overview') return { view: { ...v, layer: 'feed' }, act: 'clear' };
+    if (v.layer !== 'feed') return { view: { ...v, layer: 'feed' }, act: 'clear' };
     if (v.selected != null) return { view: { ...v, selected: null }, act: 'clear' };
     return { view: v, act: 'quit' };
   }
+  if (key === '?' || key === 'h' || key === 'H') return { view: { ...v, layer: v.layer === 'help' ? 'feed' : 'help' }, act: 'clear' };
+  if (v.layer === 'help') return { view: { ...v, layer: 'feed' }, act: 'clear' };
   if (key === 'o' || key === 'O') return { view: { ...v, layer: v.layer === 'overview' ? 'feed' : 'overview' }, act: 'clear' };
   if (/^[1-9]$/.test(key) && Number(key) <= tabs) return { view: { ...v, layer: 'feed', selected: null }, act: `tab:${Number(key) - 1}` };
   if (is(key, 'next') && tabs > 1 && v.layer !== 'detail') return { view: { ...v, selected: null }, act: 'tab:+1' };
   if (is(key, 'prev') && tabs > 1 && v.layer !== 'detail') return { view: { ...v, selected: null }, act: 'tab:-1' };
   if (v.layer === 'overview') return { view: v, act: null };
   if (key === 'e' || key === 'E') return { view: { ...v, expand: !v.expand, selected: null }, act: 'clear' };
+  if (key === 's' || key === 'S') return { view: { ...v, story: !v.story, selected: null, layer: 'feed' }, act: 'clear' };
   if (key === 'b' || key === 'B') return { view: { ...v, bell: !v.bell }, act: null };
   if (key === 'n' || key === 'N') return { view: { ...v, notify: !v.notify }, act: null };
   if (!keys.length) return { view: v, act: null };
@@ -481,18 +535,25 @@ function windowed(items, room, focus, ui, indent, noun) {
 // the task feed what's left; from 150 columns the feed takes the left pane and the agents the right.
 // `tabs` lists the sessions the viewer can switch between; `view` is what's selected or open.
 export function render(state, ui, opts = {}) {
-  const { now = Date.now(), cols = 100, rows = 40, following = true, version = '', tabs = [], pin = false, replay = null } = opts;
+  const { now = Date.now(), cols = 100, rows = 40, following = true, version = '', tabs = [], pin = false, replay = null, git = null, once = false } = opts;
   const view = { ...initialView(), expand: !!opts.expand, bell: !!opts.bell, ...opts.view };
   const width = Math.max(40, cols - 1);
   const wide = width >= 150 && view.layer !== 'overview';
-  // Paths inside the project print relative to it.
+  // Paths inside the project print relative to it, and so do the project's paths inside a command:
+  // "cd /c/code/app && npm test" reads as "npm test".
+  const rootOf = (s) => (s.cwd || '').replace(/\\/g, '/').replace(/\/$/, '').toLowerCase();
   const relTo = (s) => {
-    const root = (s.cwd || '').replace(/\\/g, '/').replace(/\/$/, '').toLowerCase();
+    const root = rootOf(s);
+    const quote = (p) => p.split('/').map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\\\/]+');
+    // Git Bash spells C:/code as /c/code.
+    const inCommand = root && new RegExp(`(^|[\\s"'=(])(?:${quote(root)}|${quote(root.replace(/^([a-z]):/, '/$1'))})(?:[\\\\/]+|(?=["'\\s;&|)]|$))`, 'gi');
     return (text) => {
       const norm = String(text || '').replace(/\\/g, '/');
       // Only paths (no spaces, a slash in them) get slashes swapped; commands print as they ran.
       if (root && norm.toLowerCase().startsWith(`${root}/`)) return norm.slice(root.length + 1);
-      return /^\S+$/.test(norm) && norm.includes('/') ? ui.tildify(norm) : ui.tildify(text || '');
+      if (/^\S+$/.test(norm) && norm.includes('/')) return ui.tildify(norm);
+      const local = inCommand ? String(text || '').replace(inCommand, (m, pre) => (/[\\/]$/.test(m) ? pre : `${pre}.`)).replace(/(^| {2})cd\s+(["']?)\.\2\s*(&&|;)\s*/, '$1') : text || '';
+      return ui.tildify(local);
     };
   };
   const rel = relTo(state);
@@ -523,16 +584,23 @@ export function render(state, ui, opts = {}) {
   head.push('', `${left}${' '.repeat(Math.max(2, width - stripLen(left) - stripLen(corner) - 2))}${corner}`);
 
   // Session tabs: every live session with what it's doing, the one on screen highlighted.
+  // Each tab is named for its folder, with what it was asked where there's room, and how long a
+  // session has waited on you. Tabs wrap onto more rows before they get too narrow to read.
   if (tabs.length > 1) {
-    const room = Math.max(8, Math.floor((width - 4) / tabs.length) - 6);
+    const perRow = Math.min(tabs.length, Math.max(1, Math.floor((width - 2) / 34)));
+    const cellW = Math.floor((width - 2) / perRow) - 2;
+    const names = tabNames(tabs.map((t) => t.state));
     const cells = tabs.map((t, i) => {
-      const label = `${i + 1} ${glyph(t.state, i * 53)} ${ui.clip(sessionLabel(t.state), room)}`;
-      return t.state.id === state.id ? ui.bold(`${ui.tone('accent', '▸')}${label}`) : ui.dim(` ${label}`);
+      const { name, label } = names[i];
+      const wait = phase(t.state) === 'your turn' ? ` ${brief(now - (t.state.idleSince || now))}` : '';
+      const cell = `${i + 1} ${glyph(t.state, i * 53)} ${ui.clip(label ? `${name} · ${label}` : name, cellW - 5 - wait.length)}`;
+      return ui.pad(t.state.id === state.id ? ui.bold(`${ui.tone('accent', '▸')}${cell}${wait}`) : `${ui.dim(` ${cell}`)}${wait ? ui.tone('warn', wait) : ''}`, cellW);
     });
-    head.push(`  ${cells.join('  ')}`);
+    for (let i = 0; i < cells.length; i += perRow) head.push(`  ${cells.slice(i, i + perRow).join('  ')}`.trimEnd());
   }
   // Where it runs. Copilot and Claude Code name an untitled session after its prompt, which the task feed shows.
-  const titled = state.title && !(state.prompt || '').startsWith(state.title.replace(/\s*(…|\.\.\.)$/, '').slice(0, 40));
+  const stem = (state.title || '').replace(/\s*(…|\.\.\.)$/, '').slice(0, 40);
+  const titled = state.title && !state.tasks.some((t) => (t.prompt || '').startsWith(stem));
   const where = [state.harness === 'claude-code' ? 'Claude Code' : 'Copilot', titled && state.title, state.cwd && ui.tildify(state.cwd), state.branch && `⎇ ${state.branch}`].filter(Boolean).join('  ·  ');
   head.push(`  ${ui.dim(ui.clip(where || state.id, width - 4))}`, '');
 
@@ -547,14 +615,17 @@ export function render(state, ui, opts = {}) {
     footer.push(`  ${bar}  ${ui.dim(`${Math.round(frac * 100)}%`)}`);
   }
   const facts = [
-    replay ? `replay ${state.id.slice(0, 8)}` : following ? 'following new sessions' : `session ${state.id.slice(0, 8)}`,
+    replay ? `replay ${state.id.slice(0, 8)}` : following && !once ? 'following new sessions' : `session ${state.id.slice(0, 8)}`,
+    view.story && 'story: tool calls hidden',
     state.premium && `${state.premium} premium`,
     state.errors && plural(state.errors, 'error'),
   ].filter(Boolean);
+  // The hints that drop first on a narrow terminal sit at the end; ? lists every key.
   const keys = view.layer === 'overview' ? [`1-${Math.min(9, tabs.length)} open`, 'o back', 'q quit']
-    : view.layer === 'detail' ? ['↑↓ step', 'esc back', 'q quit']
-      : replay ? ['space play', '←→ 30s', '[ ] task', '+- speed', '↑↓ select', 'q quit']
-        : [tabs.length > 1 && 'tab switch', tabs.length > 1 && 'o overview', '↑↓ select', '⏎ open', `e ${view.expand ? 'fold' : 'expand'}`, `b bell ${view.bell ? 'on' : 'off'}`, `n notify ${view.notify ? 'on' : 'off'}`, 'q quit'].filter(Boolean);
+    : view.layer === 'help' ? ['any key back', 'q quit']
+      : view.layer === 'detail' ? ['↑↓ step', 'esc back', 'q quit']
+        : replay ? ['space play', '←→ 30s', '[ ] task', '+- speed', '↑↓ select', 'q quit']
+          : ['? keys', '↑↓ select', '⏎ open', tabs.length > 1 && 'tab switch', tabs.length > 1 && 'o overview', `s ${view.story ? 'all steps' : 'story'}`, `e ${view.expand ? 'fold' : 'expand'}`, `b bell ${view.bell ? 'on' : 'off'}`, `n notify ${view.notify ? 'on' : 'off'}`, 'q quit'].filter(Boolean);
   const factText = `  ${facts.join('  ·  ')}`;
   // Hints that don't fit drop from the end, but quitting is always shown.
   const fitted = [...keys];
@@ -570,6 +641,7 @@ export function render(state, ui, opts = {}) {
   };
 
   if (view.layer === 'overview') return finish(overview(tabs.length ? tabs : [{ state }], state, ui, { now, width, glyph, contextLine, relTo }));
+  if (view.layer === 'help') return finish(help(ui, width, tabs.length > 1));
 
   // The main agent: model, effort, totals, the context it holds, what it last said, and what it's doing.
   const agentBlock = (w) => {
@@ -617,7 +689,7 @@ export function render(state, ui, opts = {}) {
       const t0 = Math.min(...shownAgents.map((a) => a.started || now));
       const t1 = Math.max(...shownAgents.map((a) => (a.status === 'running' ? now : (a.started || now) + (a.duration || 0))), t0 + 1000);
       const laneCells = w >= 110 ? 24 : 12;
-      const rowsOut = shownAgents.map((a) => {
+      const build = (compact, laneN = laneCells) => shownAgents.map((a) => {
         const icon = a.status === 'running' ? ui.tone('accent', ui.spinner(now + a.name.length * 37))
           : a.status === 'failed' ? ui.tone('fail', '✖') : a.status === 'cancelled' ? ui.dim('◌') : ui.tone('ok', '✔');
         const verdict = modelVerdict(a.source);
@@ -631,10 +703,20 @@ export function render(state, ui, opts = {}) {
           ui.dim(time),
           ui.dim(`${a.tools} tools${a.tokens ? ` · ${count(a.tokens)} tok` : ''}`),
           verdict ? ui.tone(verdict.level, `${verdict.level === 'ok' ? '✔' : verdict.level === 'warn' ? '▲' : '○'} ${verdict.text}`) : '',
-          lane(ui, a, t0, t1, laneCells, now),
+          ...(laneN ? [lane(ui, a, t0, t1, laneN, now)] : []),
         ];
       });
-      out.push(...ui.table(rowsOut, { gap: compact ? 2 : 3 }).split('\n'));
+      // A row that would run off the edge gives up lane cells first, then the lane, then the counts.
+      const widest = (table, gap) => Math.max(...ui.table(table, { gap }).split('\n').map(stripLen));
+      let table = build(compact);
+      let gap = compact ? 2 : 3;
+      if (!compact && widest(table, 3) > w) {
+        const spare = laneCells - (widest(table, 3) - w);
+        table = build(false, spare >= 6 ? spare : 0);
+        if (widest(table, 3) > w) { table = build(true); gap = 2; }
+      }
+      const lines = ui.table(table, { gap }).split('\n');
+      out.push(...lines);
     }
     for (const a of shownAgents.filter((x) => x.error)) out.push(`     ${ui.tone('fail', '✖')} ${ui.dim(ui.clip(`${a.name}: ${a.error}`, w - 8))}`);
     const earlier = agents.length - shownAgents.length;
@@ -645,12 +727,18 @@ export function render(state, ui, opts = {}) {
 
   // Files the agents changed, with the lines added and removed where the harness recorded a patch.
   const filesBlock = (w, max = 6) => {
-    const files = [...state.files.entries()];
-    if (!files.length) return [];
+    // Scratch files, memory notes, and anything else outside the project fold into one count.
+    const root = rootOf(state);
+    const every = [...state.files.entries()];
+    const files = root ? every.filter(([f]) => { const p = f.replace(/\\/g, '/').toLowerCase(); return p.startsWith(`${root}/`) || !/^([a-z]:|\/|~)/.test(p); }) : every;
+    const outside = every.length - files.length;
+    const repo = git && (git.changed || git.untracked) ? git : null;
+    if (!every.length && !repo) return [];
     const added = files.reduce((n, [, f]) => n + f.added, 0);
     const removed = files.reduce((n, [, f]) => n + f.removed, 0);
+    const lines = (a, r) => [a && `+${a}`, r && `−${r}`].filter(Boolean).join(' ');
     const stat = (f) => (f.counted ? `${f.added ? ui.tone('ok', `+${f.added}`) : ''}${f.added && f.removed ? ' ' : ''}${f.removed ? ui.tone('fail', `−${f.removed}`) : ''}` : '');
-    const out = [ui.section(`files  ${files.length} changed${added || removed ? ` · +${added} −${removed}` : ''}`, w)];
+    const out = [ui.section(`files  ${files.length} changed${added || removed ? ` · ${lines(added, removed)}` : ''}`, w)];
     const colW = w >= 90 ? Math.floor((w - 4) / 2) : w - 4;
     const shown = files.slice(-max).map(([f, info]) => {
       const s = stat(info);
@@ -660,6 +748,9 @@ export function render(state, ui, opts = {}) {
     if (files.length > max) out.push(ui.dim(`  ↑ ${plural(files.length - max, 'earlier file')}`));
     const perRow = colW < w - 4 ? 2 : 1;
     for (let i = 0; i < shown.length; i += perRow) out.push(`  ${perRow === 2 ? ui.pad(shown[i], colW + 2) : shown[i]}${perRow === 2 ? shown[i + 1] || '' : ''}`.trimEnd());
+    if (outside) out.push(ui.dim(`  + ${outside} outside the project`));
+    // Git's own count catches what the shell changed, which no edit call names.
+    if (repo) out.push(`  ${ui.dim('git now')}  ${ui.dim([repo.changed && `${repo.changed} modified`, repo.untracked && `${repo.untracked} untracked`, lines(repo.added, repo.removed)].filter(Boolean).join(' · '))}`);
     out.push('');
     return out;
   };
@@ -686,7 +777,7 @@ export function render(state, ui, opts = {}) {
     const factsWidth = Math.min(44, Math.max(0, ...state.tasks.map((t, i) => factsOf(t, i).length)));
     const taskLine = (t, i, open) => {
       const isLatest = i === state.tasks.length - 1;
-      const icon = isLatest ? glyph(state) : t.errors ? ui.tone('fail', '✖') : ui.tone('ok', '✔');
+      const icon = isLatest ? glyph(state) : t.broke ? ui.tone('fail', '✖') : ui.tone('ok', '✔');
       const tf = ui.clip(factsOf(t, i), factsWidth);
       const prompt = t.prompt ? `“${t.prompt}”` : 'before the first prompt';
       const lead = `  ${ui.dim(open ? '▾' : '▸')} ${icon} ${ui.dim(clock(t.at).slice(0, 5))}  `;
@@ -698,20 +789,20 @@ export function render(state, ui, opts = {}) {
     };
 
     const out = [ui.section(view.layer === 'detail' ? 'step' : `tasks  ${state.tasks.length}`, w)];
-    if (view.layer === 'detail') return [...out, ...detail(selectable(state, view.expand).find((s) => s.key === view.selected), w, room - 1)];
+    if (view.layer === 'detail') return [...out, ...detail(selectable(state, view.expand, view.story).find((s) => s.key === view.selected), w, room - 1)];
     if (!state.tasks.length) return [...out, ui.dim('  waiting for the agent…')];
     if (view.expand) {
       const items = [];
       let focus = null;
       state.tasks.forEach((t, i) => {
         items.push(taskLine(t, i, true));
-        for (const s of stepsOf(state, i)) { if (s.key === view.selected) focus = items.length; items.push(stepLine(s)); }
+        for (const s of stepsOf(state, i, view.story)) { if (s.key === view.selected) focus = items.length; items.push(stepLine(s)); }
       });
       return [...out, ...windowed(items, room - 1, focus, ui, '  ', 'line')];
     }
     const last = state.tasks.length - 1;
     let older = state.tasks.slice(0, last).map((t, i) => taskLine(t, i, false));
-    const steps = stepsOf(state, last);
+    const steps = stepsOf(state, last, view.story);
     // Earlier tasks keep at most a third of the room; the latest task's steps get the rest.
     const olderRoom = Math.min(older.length, Math.max(1, Math.floor(room / 3)));
     if (older.length > olderRoom) older = [ui.dim(`  ↑ ${plural(older.length - olderRoom + 1, 'earlier task')}`), ...older.slice(older.length - olderRoom + 1)];
@@ -728,6 +819,12 @@ export function render(state, ui, opts = {}) {
     const took = e.end && e.at ? span(e.end - e.at) : e.kind === 'fail' || e.kind === 'say' ? '' : state.running.has(e.call) ? `running ${span(now - e.at)}` : '';
     out.push(`  ${e.tone ? ui.tone(e.tone, e.icon) : e.icon}  ${ui.bold(e.tool || e.kind)}${step.times > 1 ? ui.dim(` ×${step.times}, showing the latest`) : ''}   ${ui.dim([e.agent, clock(e.at), took].filter(Boolean).join(' · '))}`);
     if (e.error) out.push(`     ${ui.tone('fail', `✖ ${e.error}`)}`);
+    // A folded run lists each call, newest last, before the latest one's output.
+    if (step.times > 1) {
+      const calls = step.calls.slice(-10);
+      out.push('', `  ${ui.dim(step.calls.length > calls.length ? `calls  the last ${calls.length} of ${step.calls.length}` : 'calls')}`);
+      for (const c of calls) out.push(`    ${ui.dim(clock(c.at))}  ${ui.clip(rel(c.text), w - 18)}`);
+    }
     const body = (label, text, tone) => {
       if (!text) return;
       out.push('', `  ${ui.dim(label)}`);
@@ -769,18 +866,43 @@ export function render(state, ui, opts = {}) {
   return finish(body);
 }
 
+// Every key and glyph on one screen.
+function help(ui, width, many) {
+  const rows = [
+    ['↑ ↓  j k', 'select a step'],
+    ['⏎', 'open it: the full command, its output, the diff, or what was said'],
+    ['g  G', 'first step · back to following the newest'],
+    ['esc', 'step back'],
+    ['s', 'story: only what was said, who was spawned, and what broke'],
+    ['e', 'open every task, not just the latest'],
+    ...(many ? [['tab  ← →', 'next and previous session'], ['1-9', 'jump to a session'], ['o', 'every session as a card']] : []),
+    ['b', 'ring the bell when a session hands back to you'],
+    ['n', 'raise a desktop notification then too'],
+    ['q', 'quit'],
+  ].map(([k, what]) => [ui.bold(k), ui.dim(what)]);
+  const marks = [
+    [ui.tone('accent', ui.spinner(0)), 'working'], [ui.tone('warn', '●'), 'your turn, with how long it has waited'],
+    [ui.tone('fail', '▲'), 'failed three times in a row, or went quiet'], [ui.dim('■'), 'ended'],
+    [ui.tone('ok', '✔'), 'the subagent ran on its role\'s model'], [ui.tone('warn', '▲'), 'it fell back to the session model'],
+  ].map(([m, what]) => [m, ui.dim(what)]);
+  return [ui.section('keys', width), ...ui.table(rows, { indent: 4 }).split('\n'), '', ui.section('marks', width), ...ui.table(marks, { indent: 4 }).split('\n'), '',
+    ui.dim('    tblock watch --replay plays a session back · --session=<id> pins one · --once prints a snapshot')];
+}
+
 // Every session at once, one card each: what it's doing, its context, and anything wrong.
 function overview(tabs, active, ui, { now, width, glyph, contextLine, relTo }) {
   const perRow = Math.max(1, Math.floor((width - 2) / 44));
   const cardW = Math.floor((width - 2) / perRow) - 2;
+  const names = tabNames(tabs.map((t) => t.state));
   const cards = tabs.map((t, i) => {
     const s = t.state;
+    const title = names[i].label ? `${names[i].name} · ${names[i].label}` : names[i].name;
     const rel = relTo(s);
     const p = phase(s);
     const doing = [...s.running.values()].filter((r) => r.agent === 'main' && r.kind !== 'agent').at(-1);
     const bad = trouble(s, now);
     const lines = [
-      `${s.id === active.id ? ui.tone('accent', '▸') : ' '}${ui.bold(`${i + 1}`)} ${glyph(s, i * 53)} ${ui.bold(ui.clip(sessionLabel(s), cardW - 6))}`,
+      `${s.id === active.id ? ui.tone('accent', '▸') : ' '}${ui.bold(`${i + 1}`)} ${glyph(s, i * 53)} ${ui.bold(ui.clip(title, cardW - 6))}`,
       `   ${s.model ? ui.model(s.model, FAMILY(s.model)) : ui.dim('model unknown')}  ${ui.dim(`${p}${p === 'working' ? ` ${span(now - (s.tasks.at(-1)?.at || now))}` : p === 'your turn' ? ` ${span(now - (s.idleSince || now))}` : ''}`)}`,
       `   ${contextLine(s, 12) || ui.dim('no context yet')}`,
       `   ${doing ? `${ui.tone('accent', '→')} ${doing.name} ${ui.dim(ui.clip(rel(doing.target), cardW - doing.name.length - 8))}` : s.says ? ui.dim(ui.clip(`“${s.says.text.replace(/\s+/g, ' ')}”`, cardW - 4)) : ui.dim('…')}`,
@@ -815,6 +937,15 @@ function open(s) {
   const state = fresh(s);
   const read = sourceOf(s);
   return { id: s.id, state, pull: () => read().forEach((e) => applyEvent(state, e)) };
+}
+
+// The sessions a viewer would see right now, read once: for a snapshot, and for trying a layout out.
+export function snapshot({ copilotHome, claudeHome, prefix = null, now = Date.now() }) {
+  const list = allSessions(copilotHome, claudeHome);
+  const first = prefix ? list.find((s) => s.id.startsWith(prefix)) : list[0];
+  if (!first) return null;
+  const tabs = [first, ...list.filter((s) => s !== first && now - s.mtime < LIVE_MS)].slice(0, MAX_TABS).map((s) => { const v = open(s); v.pull(); return v; });
+  return { active: tabs[0], tabs, git: tabs[0].state.cwd ? repoStateSync(tabs[0].state.cwd) : null };
 }
 
 // A finished log played back on a virtual clock: seek anywhere, and the state is the fold up to then.
@@ -936,16 +1067,26 @@ export async function watch({ ui, copilotHome, claudeHome, version, session, onc
   const tabs = () => [...views.values()];
 
   if (once || !tty) {
-    process.stdout.write(`${render(active.state, ui, { cols: process.stdout.columns || 100, rows: 1000, following: !session, version, tabs: tabs(), expand: true }).join('\n')}\n`);
+    const git = active.state.cwd ? repoStateSync(active.state.cwd) : null;
+    process.stdout.write(`${render(active.state, ui, { cols: process.stdout.columns || Number(env.COLUMNS) || 100, rows: 1000, following: !session, once: true, version, tabs: tabs(), expand: true, git }).join('\n')}\n`);
     return;
   }
+
+  // Git's view of the folder on screen, asked again every few seconds without holding up a frame.
+  const repos = new Map();
+  const askGit = (cwd, now) => {
+    const was = repos.get(cwd);
+    if (!cwd || (was && now - was.asked < 5000)) return;
+    repos.set(cwd, { ...was, asked: now });
+    repoState(cwd, (state) => repos.set(cwd, { asked: repos.get(cwd).asked, state }));
+  };
 
   const term = screen(env);
   let view = initialView();
   const show = (v) => { active = v; term.write('\x1b[2J'); };
   term.keys((key) => {
     const list = tabs();
-    const { view: next, act } = onKey(view, key, { steps: selectable(active.state, view.expand), tabs: list.length });
+    const { view: next, act } = onKey(view, key, { steps: selectable(active.state, view.expand, view.story), tabs: list.length });
     view = next;
     if (act === 'quit') term.stop();
     else if (act === 'clear') term.write('\x1b[2J');
@@ -986,7 +1127,8 @@ export async function watch({ ui, copilotHome, claudeHome, version, session, onc
     const stuck = tabs().filter((v) => trouble(v.state, now)).length;
     const title = `tblock watch · ${[working && `${working} working`, waiting && `${waiting} your turn`, stuck && `${stuck} need a look`].filter(Boolean).join(' · ') || 'quiet'}`;
     const { columns, rows } = process.stdout;
-    const lines = render(active.state, ui, { now, cols: columns, rows, following: !session, version, tabs: tabs(), view, pin: true });
+    askGit(active.state.cwd, now);
+    const lines = render(active.state, ui, { now, cols: columns, rows, following: !session, version, tabs: tabs(), view, pin: true, git: repos.get(active.state.cwd)?.state });
     const busy = active.state.busy;
     term.draw(ui, lines, `${title !== lastTitle ? `\x1b]0;${title}\x07` : ''}${busy !== lastBusy ? term.progress(busy) : ''}${ring && view.bell ? '\x07' : ''}`);
     lastTitle = title;
@@ -1010,7 +1152,7 @@ function playBack(s, { ui, version, env }) {
     if (key === '[') { rp.seek([...rp.marks].reverse().find((m) => m < t - 1000) ?? rp.t0); term.write('\x1b[2J'); return; }
     if (key === '+' || key === '=') { speed = SPEEDS[Math.min(SPEEDS.length - 1, SPEEDS.indexOf(speed) + 1)]; return; }
     if (key === '-' || key === '_') { speed = SPEEDS[Math.max(0, SPEEDS.indexOf(speed) - 1)]; return; }
-    const { view: next, act } = onKey(view, key, { steps: selectable(rp.state, view.expand), tabs: 1 });
+    const { view: next, act } = onKey(view, key, { steps: selectable(rp.state, view.expand, view.story), tabs: 1 });
     view = next;
     if (act === 'quit') term.stop();
     else if (act === 'clear') term.write('\x1b[2J');
