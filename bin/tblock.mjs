@@ -111,15 +111,21 @@ function expectedAgents(roles, specs, names) {
   return files;
 }
 
-function expectedEfforts(roles, specs) {
-  const efforts = {};
+// What tblock writes to Copilot's settings.json per role agent. A model set there outranks the
+// agent file's frontmatter, so a role keeps its model even when Copilot passes over the frontmatter.
+const SETTINGS_KEYS = { effortLevel: 'effort', model: 'model' };
+
+function expectedSettings(roles, specs, key) {
+  const out = {};
   for (const { name, panel } of specs) {
-    (roles[name] || []).forEach(({ effort }, i) => {
-      if (effort) efforts[agentName(name, i, panel)] = effort;
+    (roles[name] || []).forEach((entry, i) => {
+      const value = entry[SETTINGS_KEYS[key]];
+      if (value && value !== 'session') out[agentName(name, i, panel)] = value;
     });
   }
-  return efforts;
+  return out;
 }
+const expectedEfforts = (roles, specs) => expectedSettings(roles, specs, 'effortLevel');
 
 const readRolesFile = () => readRoles(homedir(), PRESETS.efforts);
 
@@ -150,8 +156,8 @@ function syncAgents(roles, specs, names) {
   return { written, removed };
 }
 
-// Copilot reads per-subagent effort from settings.json, and `copilot config` refuses to set it.
-// tblock owns only the effortLevel of tblock-* agents; every other key is left as it was.
+// Copilot reads per-subagent effort and model from settings.json, and `copilot config` refuses to set them.
+// tblock owns only the effortLevel and model of tblock-* agents; every other key is left as it was.
 function readSettings() {
   if (!existsSync(SETTINGS_FILE)) return {};
   const text = readFileSync(SETTINGS_FILE, 'utf8');
@@ -163,29 +169,32 @@ function readSettings() {
   }
 }
 
-function currentEfforts(settings) {
+function currentSettings(settings, key) {
   const agents = settings.subagents?.agents || {};
-  return Object.fromEntries(Object.entries(agents).filter(([id, v]) => id.startsWith('tblock-') && v?.effortLevel).map(([id, v]) => [id, v.effortLevel]));
+  return Object.fromEntries(Object.entries(agents).filter(([id, v]) => id.startsWith('tblock-') && v?.[key]).map(([id, v]) => [id, v[key]]));
 }
+const currentEfforts = (settings) => currentSettings(settings, 'effortLevel');
 
-function syncEfforts(roles, specs) {
-  const want = expectedEfforts(roles, specs);
+function syncSettings(roles, specs) {
   const settings = readSettings();
   const agents = { ...(settings.subagents?.agents || {}) };
   const set = [];
   const cleared = [];
-  for (const [id, entry] of Object.entries(agents)) {
-    if (id.startsWith('tblock-') && entry?.effortLevel && !(id in want)) {
-      const { effortLevel, ...others } = entry;
-      if (Object.keys(others).length) agents[id] = others;
-      else delete agents[id];
-      cleared.push(id);
+  for (const key of Object.keys(SETTINGS_KEYS)) {
+    const want = expectedSettings(roles, specs, key);
+    for (const [id, entry] of Object.entries(agents)) {
+      if (id.startsWith('tblock-') && entry?.[key] && !(id in want)) {
+        const { [key]: _gone, ...others } = entry;
+        if (Object.keys(others).length) agents[id] = others;
+        else delete agents[id];
+        cleared.push(`${id} ${key}`);
+      }
     }
-  }
-  for (const [id, effort] of Object.entries(want)) {
-    if (agents[id]?.effortLevel !== effort) {
-      agents[id] = { ...(agents[id] || {}), effortLevel: effort };
-      set.push(`${id}=${effort}`);
+    for (const [id, value] of Object.entries(want)) {
+      if (agents[id]?.[key] !== value) {
+        agents[id] = { ...(agents[id] || {}), [key]: value };
+        set.push(`${id} ${key}=${value}`);
+      }
     }
   }
   if (set.length || cleared.length) {
@@ -201,13 +210,13 @@ function syncCopilot(file, specs) {
   const copilot = file.harnesses.copilot;
   if (!copilot) return;
   const agents = syncAgents(copilot.roles, specs, file.meta.names);
-  const efforts = syncEfforts(copilot.roles, specs);
+  const settings = syncSettings(copilot.roles, specs);
   const counted = (a, aWord, b, bWord) => (a || b ? [a && `${a} ${aWord}`, b && `${b} ${bWord}`].filter(Boolean).join(' · ') : 'up to date');
   const short = (f) => f.replace(/^tblock-/, '').replace(/\.agent\.md$/, '');
   say(ui.done('Copilot agents', `${counted(agents.written.length, 'written', agents.removed.length, 'removed')}  ${AGENTS_DIR}`));
   say(...ui.changes('+', agents.written.map(short)), ...ui.changes('-', agents.removed.map(short)));
-  say(ui.done('Copilot efforts', `${counted(efforts.set.length, 'set', efforts.cleared.length, 'cleared')}  ${SETTINGS_FILE}`));
-  say(...ui.changes('+', efforts.set.map(short)), ...ui.changes('-', efforts.cleared.map(short)));
+  say(ui.done('Copilot models and efforts', `${counted(settings.set.length, 'set', settings.cleared.length, 'cleared')}  ${SETTINGS_FILE}`));
+  say(...ui.changes('+', settings.set.map(short)), ...ui.changes('-', settings.cleared.map(short)));
 }
 
 // A tier the user hasn't mapped falls back to the nearest one, preferring the cheaper on a tie.
@@ -513,6 +522,11 @@ function doctor() {
         const off = [...new Set([...Object.keys(wantEfforts), ...Object.keys(haveEfforts)])].filter((id) => wantEfforts[id] !== haveEfforts[id]);
         if (off.length) add('FAIL', 'Copilot efforts', `${off.map((id) => `${id} is ${haveEfforts[id] || 'unset'}, should be ${wantEfforts[id] || 'unset'}`).join('; ')} (run: tblock roles sync)`);
         else add('PASS', 'Copilot efforts', `${Object.keys(wantEfforts).length} effort levels match ${ROLES_FILE}`);
+        const wantModels = expectedSettings(copilotRoles, specs, 'model');
+        const haveModels = currentSettings(readSettings(), 'model');
+        const offModels = [...new Set([...Object.keys(wantModels), ...Object.keys(haveModels)])].filter((id) => wantModels[id] !== haveModels[id]);
+        if (offModels.length) add('FAIL', 'Copilot models', `${offModels.map((id) => `${id} is ${haveModels[id] || 'unset'}, should be ${wantModels[id] || 'unset'}`).join('; ')} (run: tblock roles sync)`);
+        else add('PASS', 'Copilot models', `${Object.keys(wantModels).length} subagent models match ${ROLES_FILE}`);
       } catch (error) {
         add('FAIL', 'Copilot efforts', error.message);
       }

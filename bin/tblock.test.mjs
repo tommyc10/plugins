@@ -130,6 +130,36 @@ test('an effort level reaches Copilot settings without touching anything else th
   assert.equal(settings.subagents.agents['tblock-reviewers-2'].effortLevel, 'xhigh');
 });
 
+test('a role model reaches Copilot settings, where it outranks the agent file', () => {
+  const { home, cli } = sandbox();
+  const r = cli('roles', 'set', '--harness=copilot', 'code=gpt-5 @ high', 'judgment=session', 'reviewers=claude-opus-5,gpt-5@xhigh');
+  assert.equal(r.code, 0, r.err);
+  const agents = settingsOf(home).subagents.agents;
+  assert.equal(agents['tblock-code'].model, 'gpt-5');
+  assert.equal(agents['tblock-reviewers-1'].model, 'claude-opus-5');
+  assert.equal(agents['tblock-reviewers-2'].model, 'gpt-5');
+  assert.equal(agents['tblock-judgment'], undefined, 'a session role leaves the model to Copilot');
+
+  cli('roles', 'set', 'code=session');
+  assert.equal(settingsOf(home).subagents.agents['tblock-code']?.model, undefined, 'moving a role to session clears its model');
+});
+
+test('doctor fails when a Copilot subagent model drifts, and sync repairs it', () => {
+  const { home, cli } = sandbox();
+  cli('roles', 'set', '--harness=copilot', 'code=gpt-5');
+  assert.equal(find(doctorJson(cli), 'Copilot models')[0].level, 'PASS');
+
+  const settings = settingsOf(home);
+  settings.subagents.agents['tblock-code'].model = 'gpt-4.1';
+  writeFileSync(join(home, '.copilot', 'settings.json'), JSON.stringify(settings));
+  const drift = find(doctorJson(cli), 'Copilot models')[0];
+  assert.equal(drift.level, 'FAIL');
+  assert.match(drift.detail, /tblock-code is gpt-4\.1, should be gpt-5/);
+
+  cli('roles', 'sync');
+  assert.equal(find(doctorJson(cli), 'Copilot models')[0].level, 'PASS');
+});
+
 test('an unknown effort is rejected', () => {
   const { home, cli } = sandbox();
   const r = cli('roles', 'set', 'code=gpt-5@turbo');
