@@ -26,7 +26,7 @@ Infer the need from the message and the conversation. A named situation, such as
 Check the state that changes the answer, and mention it only when it does. Run `node <tblock>/bin/tblock.mjs doctor`, where `<tblock>` is two folders above this skill's folder:
 
 - No roles file means `/setup-tblock` hasn't run, so every subagent runs on the session model.
-- A FAIL on Copilot agents or efforts means the files drifted from the roles file; `tblock roles sync` repairs them.
+- A FAIL on Copilot agents, models, or efforts means the files drifted from the roles file; `tblock roles sync` repairs them.
 - A WARN that an installed copy's files differ means that harness runs an older tblock under the same version number. Reinstall the plugin there.
 - A roles file with no section for this harness means its subagents run on the session model. `/setup-tblock` here adds the section.
 - No project verification skill means agents have no scripted way to drive the app. Mention `/create-verification-skill` when the question is about proving a change works.
@@ -146,7 +146,8 @@ Principles are one-rule skills that tblock-mode reads and cites in its replies. 
 | It didn't use subagents | Some harnesses only spawn subagents the user asks for. Say "use the tblock delegate" or name the skill. |
 | A subagent changed files outside its job, pushed, or came back with only "done" | It ran as a generic agent instead of the tblock delegate. In Copilot, run `tblock roles sync` so each role agent carries the delegate instructions; in Claude Code, say "use the tblock delegate". |
 | A new role, preset, or effort had no effect | Start a new session. In Copilot, exit and restart so it reloads the agents, and check `tblock doctor`. |
-| `tblock doctor` shows FAIL on Copilot agents or efforts | Run `tblock roles sync`. |
+| `tblock doctor` shows FAIL on Copilot agents, models, or efforts | Run `tblock roles sync`. |
+| In Copilot, subagents ran on the session model instead of their role's model | Run `tblock roles sync` so each role's model is in `~/.copilot/settings.json`, check the model names match ones `/model` lists, then start a new session. Copilot can also move subagents to the session model when the session runs on a cheaper model, so try the session on a premium model. |
 | Runs cost more than expected | `tblock preset efficient`, or `session` for `code`. See Get set up. |
 | A small task got the full ceremony, or a risky one got too little | Say "keep it small" or "go deep". tblock-mode states its size in its first message. |
 | It pushed or opened an MR without asking | Run `tblock guard on`, so the harness asks before those commands whatever the agent does. |

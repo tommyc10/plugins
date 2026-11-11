@@ -126,7 +126,7 @@ Without Node, write the file by hand in this shape.
 
 ### 6. Copilot only
 
-Copilot sets a subagent's model in its agent file and its effort in `~/.copilot/settings.json`. Every `preset` and `roles set` call, from either harness, also rewrites one custom agent per role in the Copilot section to `~/.copilot/agents/` and its effort level, touching only `tblock-` agents and leaving every other setting as it was. Each agent pins its model with `model-policy: required`, because without it the Copilot runtime behind the agents window runs a subagent on the session model instead. Without Node, tell the user to set effort by hand in `/subagents`. In Claude Code no agent or settings files are written, because the spawning skill passes `model` and `effort` to the `Agent` tool. Skip this step there.
+Copilot sets a subagent's model in its agent file, and its model and effort in `~/.copilot/settings.json`, which outranks the agent file. Every `preset` and `roles set` call, from either harness, also rewrites one custom agent per role in the Copilot section to `~/.copilot/agents/`, and its model and effort level in settings, touching only `tblock-` agents and leaving every other setting as it was. Each agent pins its model with `model-policy: required`, because without it the Copilot runtime behind the agents window runs a subagent on the session model instead. Without Node, tell the user to set effort by hand in `/subagents`. In Claude Code no agent or settings files are written, because the spawning skill passes `model` and `effort` to the `Agent` tool. Skip this step there.
 
 ### 7. Offer the guard
 
