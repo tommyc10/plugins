@@ -1,0 +1,1 @@
+{ "touch": ["src/cart.js", "src/invoice.js", "src/quote.js", "src/pricing.js", "checks/**"] }

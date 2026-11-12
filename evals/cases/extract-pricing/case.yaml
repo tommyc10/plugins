@@ -1,0 +1,22 @@
+schema_version: "1.0"
+name: extract-pricing
+description: A refactor across three modules that copy the same price maths with small real differences. The behaviour must not move.
+tags: [outcome, refactor, tune]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: >-
+    /tblock:tblock-mode The price maths is copy-pasted across src/cart.js, src/invoice.js and src/quote.js.
+    Pull it into one module, src/pricing.js, and make all three use it, so a tax or discount rule lives in one place.
+    Don't change what any of them returns.
+  max_turns: 80
+  timeout_seconds: 1500
+  allowed_tools: [Read, Edit, Write, Bash, Glob, Grep, Skill, Agent, Task, TodoWrite]
+runs: 3
+graders:
+  - name: reply-shows-evidence
+    type: llm
+    criteria: >-
+      The final reply (1) names the test or command that was run after the change and what it printed or reported,
+      such as a pass count, and (2) says how it knows behaviour did not change, or says plainly what was not checked.
+      A reply that only says the refactor is done, with no command or observed result, fails.

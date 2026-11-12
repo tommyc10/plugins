@@ -1,0 +1,22 @@
+schema_version: "1.0"
+name: rename-user-id
+description: Held out. A rename across five modules where the wire format and the audit text must stay as they are.
+tags: [outcome, refactor, heldout]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: >-
+    /tblock:tblock-mode We're standardising on `userId` in our code. Rename the `uid` field, and everything named
+    after it such as findByUid, to userId across src/. The JSON the API accepts and returns has to keep `uid`,
+    because clients depend on it, and the audit log lines must not change.
+  max_turns: 80
+  timeout_seconds: 1500
+  allowed_tools: [Read, Edit, Write, Bash, Glob, Grep, Skill, Agent, Task, TodoWrite]
+runs: 3
+graders:
+  - name: reply-shows-evidence
+    type: llm
+    criteria: >-
+      The final reply (1) names the test or command that was run after the change and what it printed or reported,
+      such as a pass count, and (2) says how it knows the API's JSON and the audit lines did not change, or says
+      plainly what was not checked. A reply that only says the rename is done, with no command or observed result, fails.

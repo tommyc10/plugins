@@ -1,0 +1,8 @@
+{
+  "name": "board",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --import tsx --test checks/*.check.tsx" },
+  "dependencies": { "react": "19.2.0", "react-dom": "19.2.0" },
+  "devDependencies": { "@happy-dom/global-registrator": "15.11.7", "@types/react": "19.2.2", "@types/react-dom": "19.2.2", "tsx": "4.20.6" }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "tasks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --no-warnings --test checks/*.check.ts",
+    "tasks": "node --experimental-strip-types --no-warnings bin/tasks.ts"
+  }
+}

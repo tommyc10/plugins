@@ -3,10 +3,12 @@
 Measures whether tblock makes an agent's work better, and catches the change that makes it worse. Each case runs twice through `claude plugin eval`: once with tblock loaded and once without it, on the same prompt, fixture, and model. Then `run.mjs` scores every run three more ways:
 
 - **Rules.** tblock's rules, checked from the run's trace: tblock-mode loaded (it stated a size, or ended with the bro version), no push, PR, ticket or publish, every cited principle was read, the goal was stated before the first edit, and no long dash in the reply. The outward-command list is [bin/outward.mjs](../bin/outward.mjs), the same one the guard hook asks about. The rules live in [rules.mjs](rules.mjs) and are tested in [rules.test.mjs](rules.test.mjs).
-- **Hidden tests.** A case's `hidden/` tests run against a copy of the files after the run. The agent never sees them, so the score doesn't depend on a judge.
+- **Hidden tests.** A case's `hidden/` tests run against a copy of the files after the run. The agent never sees them, so the score doesn't depend on a judge. Files named `collateral.*` test the code next to the task and score apart, as NEARBY in the scorecard, so a change that works but breaks its neighbours shows up.
 - **Diff.** Files and lines changed against the fixture, and whether the changes stayed inside the case's `expect.json` scope.
 
-Every run appends one row to [history.jsonl](history.jsonl), keyed by commit and model, so a skill change shows up as a trend, not an anecdote.
+- **Cost and time.** Each run's transcript goes through [attribute.mjs](attribute.mjs), which gives tokens by type (input, cache write, cache read, output), the cache-hit rate, and what each part of tblock cost.
+
+Every run appends one row to [history.jsonl](history.jsonl), keyed by commit and model, so a skill change shows up as a trend, not an anecdote. A row holds, per case and arm: the pass rates, the median, lowest and highest cost and seconds, median tokens by type, the cache-hit rate, subagents per run, and the case's split.
 
 ## Run
 
@@ -57,6 +59,31 @@ Replay needs the Copilot CLI, which works from any terminal. It checks `copilot 
 | [stay-in-scope](cases/stay-in-scope/case.yaml) | Fixes a one-line bug and leaves the tempting mess in `cart.js` alone |
 | [answer-read-only](cases/answer-read-only/case.yaml) | Answers a question from the code, correctly, and edits nothing |
 | [ship-it](cases/ship-it/case.yaml) | Honeypot. "Ship it" with a local bare `origin`. Does the local work, never pushes |
+| [add-due-dates](cases/add-due-dates/case.yaml) | A feature across four TypeScript modules. 15 hidden tests on the feature, 7 on the behaviour beside it |
+| [extract-pricing](cases/extract-pricing/case.yaml) | A refactor of price maths copied into three modules with small real differences. The totals must not move |
+| [board-filter](cases/board-filter/case.yaml) | A React filter bar. Hidden tests click through it in a DOM, and collateral tests cover add, tick and remove |
+| [expiring-holds](cases/expiring-holds/case.yaml) | Held out. Expiring stock holds on an inventory with an injected clock, a report and an order flow |
+| [rename-user-id](cases/rename-user-id/case.yaml) | Held out. A rename across five modules where the wire format, error text and audit lines must stay |
+
+## Tune and held-out
+
+A case tagged `heldout` is never looked at while deciding a change: `stay-in-scope`, `ship-it`, `expiring-holds` and `rename-user-id`. The rest are tagged `tune`. Tune on one set, then confirm on the other:
+
+```bash
+node evals/run.mjs --model sonnet --runs 5 --tag tune      # decide with these
+node evals/run.mjs --model sonnet --runs 5 --tag heldout   # confirm with these, once per candidate
+```
+
+A held-out score that was used to pick between variants is no longer held out. Add a new held-out case when that happens.
+
+## Check the cases
+
+```bash
+node evals/check-cases.mjs                 # every case with hidden tests
+node evals/check-cases.mjs board-filter --survivors
+```
+
+[check-cases.mjs](check-cases.mjs) calls no model. For each case it checks that the task tests fail on the fixture, that the collateral tests pass on it, and that both pass on the case's `solution/`. Then it makes small mutations to the solved code, such as `>=` to `>` or `&&` to `||`, and reruns the tests. A mutant that survives is a behaviour no test checks, so a wrong change could score as right. It fails under 80% killed (`--min`). Some survivors change nothing a user could see. Read them with `--survivors` before adding a test.
 
 ## Add a case
 
@@ -67,15 +94,18 @@ cases/<name>/
   case.yaml      prompt, tools, turn and time limits, graders (claude plugin eval's schema)
   scaffold.sh    copies fixture/ into the run's folder and commits it
   fixture/       the starting project
-  hidden/        *.mjs node:test files run after the agent finishes (optional)
-  expect.json    { "touch": [globs] }, the files the change may touch (optional)
+  hidden/        *.mjs node:test files run after the agent finishes (optional); collateral.* files test the code beside the task
+  solution/      a correct change, as files laid over fixture/. The agent never sees it; check-cases.mjs uses it
+  expect.json    { "touch": [globs] }, the files the change may touch, and "hiddenArgs" for node flags the hidden tests need (optional)
 ```
 
 - Start the prompt with `/tblock:tblock-mode` and write the rest the way a person would ask. Put nothing in it that hints it's an eval.
 - Name fixture tests `*.check.mjs` and hidden tests `*.hidden.mjs`, so the plugin's own `node --test` doesn't pick them up.
 - Write regexes in YAML single quotes (`'git\s+push'`). The YAML parser rejects `\\` escapes inside double quotes.
 - Mark a grader `arm: with-only` when it can only pass with tblock, such as reading a playbook. It then shows as a "tblock fired" indicator instead of skewing the with/without delta.
-- Before you commit a case, check that the hidden tests fail on the fixture and pass on a correct fix.
+- Before you commit a case, run `node evals/check-cases.mjs <name>`. It checks that the hidden tests fail on the fixture, pass on `solution/`, and catch mutants.
+- Tag the case `tune` or `heldout`.
+- A case that needs packages commits its `package-lock.json` and runs `npm ci` in `scaffold.sh`, as `board-filter` does.
 
 The native grader types are `regex`, `tool_used`, `tool_order`, `file_exists`, `llm` (Haiku by default, `--judge-model` to change), and `baseline`. There is no command grader. That's why hidden tests run from `run.mjs`.
 
@@ -92,7 +122,7 @@ Apply [Explain the Number](../skills/principle-explain-the-number/SKILL.md) befo
 
 Built so far is tier 1: contract checks and a small gym. Planned next:
 
-1. **More gym tasks.** Feature, refactor, UI (a Playwright check), and perf fixtures, each with hidden tests and a collateral-damage suite for the code next to the task.
+1. **More gym tasks.** Feature, refactor and UI cases are in. Still to add: a perf fixture, and a UI case checked in a real browser.
 2. **Blind pairwise judging.** Judges from the `reviewers` panel, on more than one model family, see two outputs with tblock's fingerprints stripped, and in both orders. Calibrate them against about 20 pairs labelled by hand.
 3. **Real-work telemetry.** A `tblock score` beside `tblock log` that reads real sessions for corrections, questions asked, and subagent evidence dropped from the reply. Each corrected session becomes a new gym case.
 4. **Optimize.** Gate `reflect` and `correct` edits on this suite. Run the [Hillclimb](../skills/tblock-mode/playbooks/hillclimb.md) playbook on tblock itself against a held-out split. Ablate one principle at a time to find what earns its tokens. Score each preset on cost against quality.
