@@ -1,7 +1,7 @@
 // Scores one eval run from what `claude plugin eval --keep-temp` leaves behind:
 // out/trace.jsonl (the stream-json trace) and home/cwd (the files after the run).
 // Node built-ins only, like the rest of tblock.
-import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -134,16 +134,26 @@ export function checkScope(changed, allowed) {
   return { name: 'stayed-in-scope', pass: outside.length === 0, detail: outside.length ? `also changed ${outside.join(', ')}` : `changed ${changed.join(', ') || 'nothing'}` };
 }
 
+// Under a parent `node --test`, a child test run reports to the parent and always exits 0, so the marker is dropped.
+const hiddenEnv = () => { const { NODE_TEST_CONTEXT, ...env } = process.env; return env; };
+
+export const isCollateral = (file) => /^collateral\b/.test(file);
+
 // Runs the case's hidden tests against a copy of the final files, so the run's own directory is never executed in.
-export function runHidden(hiddenDir, cwd) {
-  const tests = readdirSync(hiddenDir).filter((f) => f.endsWith('.mjs'));
+// Files named collateral.* test the code next to the task, and score apart from the task's own tests.
+// `modules` is an installed node_modules for a case that needs one; `args` are extra node flags, such as a loader.
+export function runHidden(hiddenDir, cwd, { collateral = false, modules = join(cwd, 'node_modules'), args = [] } = {}) {
+  const name = collateral ? 'collateral-tests-pass' : 'hidden-tests-pass';
+  const tests = readdirSync(hiddenDir).filter((f) => /\.(mjs|ts|tsx)$/.test(f) && isCollateral(f) === collateral);
+  if (!tests.length) return { name, pass: null, detail: 'the case has no such tests' };
   const work = mkdtempSync(join(tmpdir(), 'tblock-hidden-'));
   try {
     cpSync(cwd, work, { recursive: true, filter: (src) => !IGNORED_DIRS.has(src.split(/[\\/]/).pop()) });
     cpSync(hiddenDir, join(work, '.hidden'), { recursive: true });
-    const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...tests.map((t) => join('.hidden', t))], { cwd: work, encoding: 'utf8', timeout: 60_000 });
+    if (existsSync(modules)) symlinkSync(modules, join(work, 'node_modules'), 'junction');
+    const r = spawnSync(process.execPath, [...args, '--test', '--test-reporter=tap', ...tests.map((t) => join('.hidden', t))], { cwd: work, encoding: 'utf8', timeout: 120_000, env: hiddenEnv() });
     const summary = (r.stdout || '').match(/^# (pass|fail) \d+$/gm)?.join(', ') || (r.error ? r.error.message : `exit ${r.status}`);
-    return { name: 'hidden-tests-pass', pass: r.status === 0, detail: summary };
+    return { name, pass: r.status === 0, detail: summary };
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
