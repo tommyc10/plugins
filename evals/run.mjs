@@ -20,6 +20,18 @@ const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const out = join(evals, 'results', stamp);
 mkdirSync(out, { recursive: true });
 
+// A run cannot reach the npm registry, so a case with a lockfile gets its packages installed here, once, for scaffold.sh to copy in.
+// They live outside evals/, because claude plugin eval refuses an eval directory that holds hard-linked files, as npm installs do.
+for (const name of readdirSync(join(evals, 'cases'))) {
+  const fixture = join(evals, 'cases', name, 'fixture');
+  const deps = join(root, '.eval-deps', name);
+  if (!existsSync(join(fixture, 'package-lock.json')) || existsSync(join(deps, 'node_modules'))) continue;
+  mkdirSync(deps, { recursive: true });
+  for (const file of ['package.json', 'package-lock.json']) cpSync(join(fixture, file), join(deps, file));
+  const npm = spawnSync('npm', ['ci', '--silent', '--no-audit', '--no-fund'], { cwd: deps, stdio: 'inherit', shell: process.platform === 'win32' });
+  if (npm.status !== 0) { console.error(`npm ci failed for the ${name} case.`); process.exit(1); }
+}
+
 const git = (...a) => spawnSync('git', a, { cwd: root, encoding: 'utf8' }).stdout.trim();
 // claude plugin eval refuses any run granted a shell it cannot sandbox, which on Windows is every run, so only shell-free cases run there.
 const grants = process.platform === 'win32' ? ['Edit', 'Write'] : ['Bash', 'Edit', 'Write'];
