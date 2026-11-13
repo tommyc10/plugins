@@ -1,6 +1,6 @@
 ---
 name: probe
-description: "Read an application's logs through the commands a project lists in .tblock/probe.json: fetch a narrow slice, mask secrets, and report the first error, how often it repeats, and the code it points to. Use for /probe, 'check the logs', 'what does the log say', reproducing or investigating a runtime failure, or proving a run left no errors. Also sets up probe for a project."
+description: "Read an app's logs through the project's probe commands and report the first error. Use when the user asks to check the logs, investigates a runtime failure, or sets up probe."
 ---
 
 # Probe

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { attributeSession, attributeTranscript, bucketOfPath } from './attribute.mjs';
+import { alwaysOnSizes, attributeSession, attributeTranscript, bucketOfPath } from './attribute.mjs';
 
 const prices = { 'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.1, cacheWrite5m: 2.5, cacheWrite1h: 4 } };
 const usage = (write, read, output, thinking = 0) => ({ input_tokens: 2, cache_creation_input_tokens: write, cache_read_input_tokens: read, output_tokens: output, output_tokens_details: { thinking_tokens: thinking }, cache_creation: { ephemeral_1h_input_tokens: write } });
@@ -73,4 +73,18 @@ test('a session adds its subagents and reports the cache-hit rate and repeated r
 
 test('a model with no price is flagged, never counted as free', () => {
   assert.equal(attributeTranscript(session(), { prices: {} }).unpriced, true);
+});
+
+test('the always-on size counts skills the model may invoke and agents, never hidden skills', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'alwayson-'));
+  try {
+    const skill = (name, fm) => { mkdirSync(join(dir, 'skills', name), { recursive: true }); writeFileSync(join(dir, 'skills', name, 'SKILL.md'), `---\n${fm}\n---\nbody\n`); };
+    skill('listed', 'name: listed\ndescription: Do a thing. Use when asked.');
+    skill('hidden', 'name: hidden\ndescription: A long hidden description that must not count.\ndisable-model-invocation: true');
+    mkdirSync(join(dir, 'agents'));
+    writeFileSync(join(dir, 'agents', 'helper.md'), '---\nname: helper\ndescription: Helps.\n---\nbody\n');
+    const sizes = alwaysOnSizes(dir);
+    assert.equal(sizes.alwaysOnChars, 'listed: Do a thing. Use when asked.\nhelper: Helps.'.length);
+    assert.equal(sizes.alwaysOn, Math.round(sizes.alwaysOnChars / 3.3));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

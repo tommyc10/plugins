@@ -1,6 +1,7 @@
 ---
 name: better-typography
-description: Sets and reviews how text renders, from the type scale and spacing to font features, wrapping, truncation and punctuation.
+description: "Set and review type scale, spacing, font features, wrapping, and truncation. Use when the user asks about fonts, text rendering, or typography."
+disable-model-invocation: true
 ---
 
 # Typography

@@ -1,6 +1,6 @@
 ---
 name: tblock-mode
-description: "Rigorous engineering with simple code and verified results. Use for /tblock-mode or requests to work in this style; routes investigations, refactors, design, explanations, change risk, competing attempts, parallel fan-out, multi-model review, large open-ended work, features, bug fixes, performance work, runtime and trace diagnosis, UI work, prototypes, babysitting a PR or MR to merge-ready, writing, skill authoring and evaluation, and verification or formal verification setup or upkeep."
+description: "Rigorous engineering with simple code and verified results. Use when the user asks for tblock-mode or to work in this style."
 disable-model-invocation: true
 ---
 

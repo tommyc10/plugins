@@ -1,6 +1,6 @@
 ---
 name: prototype
-description: Build multiple genuinely different versions of a UI piece you describe, rendered behind a visual picker so you can flip through them live and promote the one that feels right.
+description: "Build several different versions of a UI piece behind a live picker. Use when the user wants to compare design options for a component."
 disable-model-invocation: true
 ---
 

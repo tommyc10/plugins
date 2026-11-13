@@ -1,6 +1,6 @@
 ---
 name: setup-tblock
-description: "Configure which model and reasoning effort each tblock role uses for subagents, in Claude Code or GitHub Copilot, from a preset (extreme, high, efficient) with the option to change single roles. Writes the roles file every tblock skill reads, with a section per harness, plus a custom agent and effort level per role in Copilot, and offers the guard that asks before a push. Use for /setup-tblock, configuring tblock models or effort, switching presets, or changing them."
+description: "Choose the model and effort for each tblock role, starting from a preset. Use when the user asks to set up tblock, switch presets, or change its models or effort."
 ---
 
 # Setup tblock
@@ -19,9 +19,9 @@ The file holds one section per harness, `## claude-code` and `## copilot`, becau
 | `reviewers` | A panel for `interrogate` and `ui-council`: one adversary or reviewer per entry, from different model families | one Anthropic and one OpenAI model |
 | `swarm workers` | `swarm` workers and `how` explorers | fastest capable model |
 | `shootout runners` | A panel for `shootout`, and for `swarm` model races: one attempt per entry | one Anthropic and one OpenAI model |
-| `shootout judges` | A panel for `shootout`: judges whose family differs from the runner they judge, where possible | one Anthropic and one OpenAI model |
+| `shootout judges` | A pool for `shootout`: it spawns one judge per run, picked from a family that differs from the runners where possible | one Anthropic and one OpenAI model |
 
-A panel's list length sets how many agents it runs. `session` as a model means the role runs on the parent chat model. Each entry may carry an effort, written `model @ effort`, from `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`.
+A panel's list length sets how many agents it runs. The `shootout judges` list is a pool to pick from, so its length never adds judges. `session` as a model means the role runs on the parent chat model. Each entry may carry an effort, written `model @ effort`, from `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`.
 
 ## Presets
 
@@ -79,7 +79,8 @@ node <tblock>/bin/tblock.mjs preset <name>
 
 - **Model:** the current model first, then the confirmed models from step 1 that suit the role, then `session`.
 - **Effort:** the current effort first, then the levels either side of it.
-- **Panels** (`reviewers`, `shootout runners`, `shootout judges`): ask how many agents the panel runs, from 1 to 3, then each entry's model and effort. Offer a different family per entry where step 1 found more than one.
+- **Panels** (`reviewers`, `shootout runners`): ask how many agents the panel runs, from 1 to 3, then each entry's model and effort. Offer a different family per entry where step 1 found more than one.
+- **Judge pool** (`shootout judges`): ask how many models to choose from, from 1 to 3, then each entry's model and effort. Shootout spawns one of them per run, so offer families that differ from the runners.
 
 Write all the changes in one call, with a comma-separated list for a panel:
 

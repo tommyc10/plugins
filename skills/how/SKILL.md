@@ -1,6 +1,6 @@
 ---
 name: how
-description: "Use for \"how does X work\", code walkthroughs before changing something, and placement / ownership / layering questions (\"where should this live\", \"which package owns this\", \"is this the right layer\"). Explains subsystem architecture, runtime flow, onboarding mental models."
+description: "Explain how code works: architecture, runtime flow, and where things belong. Use when the user asks how something works or where code should live."
 disable-model-invocation: true
 ---
 

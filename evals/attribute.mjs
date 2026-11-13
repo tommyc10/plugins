@@ -7,6 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadPrices, normalizeModel } from '../bin/usage.mjs';
+import { parseFrontmatter } from '../scripts/validate-skills.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TBLOCK_SKILLS = new Set(existsSync(join(root, 'skills')) ? readdirSync(join(root, 'skills')) : []);
@@ -30,6 +31,25 @@ export function bucketOfPath(path) {
   }
   if (skill.startsWith('principle-')) return `principle: ${skill.slice('principle-'.length)}`;
   return rest === 'SKILL.md' ? `skill: ${skill}` : `skill: ${skill} (${rest.split('/')[0]})`;
+}
+
+// What the plugin puts in every session before any file is read: the name and description of each skill the model
+// may invoke, and of each agent. Estimated at the same chars per token as the rest of this file.
+export function alwaysOnSizes(pluginRoot = root) {
+  const entries = [];
+  const skills = join(pluginRoot, 'skills');
+  for (const name of existsSync(skills) ? readdirSync(skills) : []) {
+    const file = join(skills, name, 'SKILL.md');
+    const fm = existsSync(file) && parseFrontmatter(readFileSync(file, 'utf8'));
+    if (fm && fm.data['disable-model-invocation'] !== true) entries.push(`${fm.data.name || name}: ${fm.data.description || ''}`);
+  }
+  const agents = join(pluginRoot, 'agents');
+  for (const f of existsSync(agents) ? readdirSync(agents).filter((x) => x.endsWith('.md')) : []) {
+    const fm = parseFrontmatter(readFileSync(join(agents, f), 'utf8'));
+    if (fm) entries.push(`${fm.data.name}: ${fm.data.description || ''}`);
+  }
+  const chars = entries.join('\n').length;
+  return { alwaysOn: Math.round(chars / CHARS_PER_TOKEN), alwaysOnChars: chars };
 }
 
 const toolBucket = (name) => (name === 'Read' ? 'tool output: file reads' : name === 'Bash' ? 'tool output: commands'

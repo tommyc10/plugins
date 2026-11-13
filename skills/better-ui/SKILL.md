@@ -1,6 +1,7 @@
 ---
 name: better-ui
-description: Polishes surfaces, icons and motion with exact values for border radius, optical alignment, shadows, icon states and animation.
+description: "Polish surfaces and icons with exact values for radius, alignment, shadows, and states. Use when the user asks to polish how a component looks."
+disable-model-invocation: true
 ---
 
 # UI polish

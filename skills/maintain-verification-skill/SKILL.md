@@ -1,6 +1,7 @@
 ---
 name: maintain-verification-skill
-description: "Audit a project's existing verification skill and feature map against source and the running app, then repair proven documentation or harness drift. Use for verification upkeep or an audit of the verify skill."
+description: "Audit and repair a project's verification skill against the code and the running app. Use when the user asks to update or audit the verify skill."
+disable-model-invocation: true
 ---
 
 # Maintain a verification skill

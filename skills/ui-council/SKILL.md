@@ -1,6 +1,6 @@
 ---
 name: ui-council
-description: "Use for \"ui council\", \"review this UI\", \"is this UI any good\", or the UI-UX playbook's council step. Reviewers on different models each open the running app through one lens, design system, breaker, or experience, and only findings backed by a capture or a repro survive. Reports; does not fix."
+description: "Reviewers on different models test the running app through one lens each, keeping only proven findings. Use when the user asks for a UI council, or at the UI-UX council step."
 disable-model-invocation: true
 ---
 

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const FRONTMATTER = `---
 name: delegate
-description: "Worker for one bounded job inside a tblock-mode run: a code change, a fix, or a helper task. The agent running tblock-mode keeps the playbook and spawns a fresh delegate for each job; never use a delegate to run tblock-mode itself. It carries tblock's delegate brief, and ends with a fixed report of what it changed, checked, and left unchecked."
+description: "Does one bounded job in a tblock-mode run and ends with a fixed report. Spawned by tblock-mode for code changes, fixes, and helper tasks; never runs tblock-mode itself."
 ---
 `;
 
@@ -20,6 +20,7 @@ export function delegateAgents(root) {
   const body = brief
     .replace(/\[([^\]]+)\]\(\.\.\/(principle-[a-z0-9-]+)\/SKILL\.md\)/g, '$1 (`$2`)')
     .replace(/\[tblock-mode\]\(SKILL\.md\)/g, "tblock-mode's SKILL.md")
+    .replace(/\[standard\.md\]\(standard\.md\)/g, '`standard.md`')
     .replace(/^(# tblock delegate\n\n[^\n]+\n)/, `$1\n${WHERE}\n`);
   if (/\]\((?!https?:)/.test(body)) throw new Error('skills/tblock-mode/delegate.md has a local link build-agents.mjs does not rewrite');
   const text = `${FRONTMATTER}\n${body.trimEnd()}\n\n<!-- Built from skills/tblock-mode/delegate.md by scripts/build-agents.mjs. Edit that file, then rebuild. -->\n`;

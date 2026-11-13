@@ -1,6 +1,6 @@
 ---
 name: shootout
-description: "Spawn N parallel candidates at the same task, pick a base, graft the strongest parts of the losers into it. Use for /shootout, 'shoot it out', or when one attempt at a non-trivial artifact would lock in the wrong shape."
+description: "Run parallel attempts at one task, pick a base, and graft in the best of the rest. Use when the user asks for a shootout, or one attempt could lock in the wrong shape."
 disable-model-invocation: true
 ---
 

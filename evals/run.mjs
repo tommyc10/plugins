@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { checkRules, checkScope, diffDirs, parseTrace, principleNames, runHidden } from './rules.mjs';
-import { attributeSession, median } from './attribute.mjs';
+import { alwaysOnSizes, attributeSession, median } from './attribute.mjs';
 import { loadPrices } from '../bin/usage.mjs';
 
 const evals = dirname(fileURLToPath(import.meta.url));
@@ -48,6 +48,8 @@ if (!existsSync(join(out, 'eval.json'))) { console.error(`No eval.json in ${out}
 const result = JSON.parse(readFileSync(join(out, 'eval.json'), 'utf8'));
 const principles = principleNames(root);
 const prices = loadPrices(root, homedir());
+// Only the with-plugin arm carries tblock's skill and agent listings.
+const pluginSizes = alwaysOnSizes(root);
 const scored = [];
 
 // A kept run holds the agent's files under home/cwd, sealed read-only under sealed/ on newer CLIs, and its transcript under config/.
@@ -104,7 +106,7 @@ for (const c of result.cases) {
         row.tools = trace.tools.length;
         row.reply = trace.reply;
         if (transcript) {
-          const a = attributeSession(transcript, { prices });
+          const a = attributeSession(transcript, { prices, sizes: arm === 'with' ? pluginSizes : {} });
           row.tokens = a.usage;
           row.cacheHit = a.cacheHitRate;
           row.subagents = a.subagents;

@@ -24,12 +24,14 @@
    | Adds anything a person operates: controls, focus, forms, announcements | [better-accessibility](../../better-accessibility/SKILL.md) |
    | Makes anything move, appear, disappear, or redraw, including an existing transition it now triggers | [animate](../../animate/SKILL.md), then [review-animations](../../review-animations/SKILL.md) on the result |
    | Has motion that drops frames or feels janky | [animation-performance](../../animation-performance/SKILL.md) |
+   | Moves several elements together: a stagger, a sequence, a hero entrance, or a view swap | [choreograph](../../choreograph/SKILL.md) |
+   | Is dragged, swiped, flung, or dismissed with a gesture, such as a drawer or sheet | [gestures](../../gestures/SKILL.md) |
    | Has states that are hard to reach by hand | [state-machine](../../state-machine/SKILL.md), to render each state from step 2 on a throwaway page |
    | Shows data that can be long, missing, huge, or empty | [break-ui](../../break-ui/SKILL.md) |
    | Has more than one plausible design | [prototype](../../prototype/SKILL.md) |
    | Must look exactly as it did, such as a restyle, migration, or refactor of a component | the [Visual parity](visual-parity.md) playbook |
 
-   For motion across a whole page or codebase rather than one change, [find-animation-opportunities](../../find-animation-opportunities/SKILL.md) proposes where motion belongs, and [improve-animations](../../improve-animations/SKILL.md) audits what is there and plans fixes. Both are read-only.
+   For motion across a whole page or codebase rather than one change, [find-animation-opportunities](../../find-animation-opportunities/SKILL.md) proposes where motion belongs, and [improve-animations](../../improve-animations/SKILL.md) audits what is there and plans fixes. Both are read-only. When an app feels slow or over-animated, [remove-animations](../../remove-animations/SKILL.md) strips the motion it doesn't need. When someone describes an effect but can't name it, [animation-vocabulary](../../animation-vocabulary/SKILL.md) gives its exact term. For a full review of a screen or the whole interface rather than this change, use [better-interface](../../better-interface/SKILL.md).
 
    Skipping a row that applies needs a one-line reason in the todo list.
 6. Prove it in a real browser, in every state from step 2, per [Prove It Works](../../principle-prove-it-works/SKILL.md). Capture a screenshot or interaction record for each. Then go through the design doc's done-checklist item by item against the diff, and run [interface-review](../../interface-review/SKILL.md) on the change.

@@ -1,6 +1,6 @@
 ---
 name: learn-taste
-description: Turn a session's design corrections into rules, with their why, in DESIGN.md, a project skill, or a lint check.
+description: "Turn a session's design corrections into rules, with their reasons. Use when the user asks to capture their design taste."
 disable-model-invocation: true
 ---
 
