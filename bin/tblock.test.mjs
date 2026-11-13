@@ -379,11 +379,12 @@ test('watch reads a Claude Code session: the prompt, each subagent with its mode
 });
 
 test('watch lists every live session as a tab and folds a run of one tool into one line', async () => {
-  const { writeClaudeSession } = await import('./fixtures/watch-claude-session.mjs');
   const { writeWatchSession } = await import('./fixtures/watch-session.mjs');
+  const { claudeSessionRecords, writeClaudeSession } = await import('./fixtures/watch-claude-session.mjs');
   const { foldSteps } = await import('./watch.mjs');
   const { home, cli } = sandbox({}, {});
-  writeClaudeSession(join(home, '.claude'));
+  // Start five hours back: a fixed start date makes the wait grow, which shortens the tab label until the match fails.
+  writeClaudeSession(join(home, '.claude'), claudeSessionRecords({ start: Date.now() - 5 * 3600_000 }));
   writeWatchSession(join(home, '.copilot'));
   const r = cli('watch', '--once');
   assert.equal(r.code, 0, r.err);
