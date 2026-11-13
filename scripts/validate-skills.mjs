@@ -76,7 +76,8 @@ export function validate(root) {
   }
 
   const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : null);
-  const mode = read(join(root, 'skills/tblock-mode/SKILL.md'));
+  // tblock-mode is an entry file and standard.md, which the entry sends standard and deep work to.
+  const mode = ['SKILL.md', 'standard.md'].map((f) => read(join(root, 'skills/tblock-mode', f)) || '').join('\n') || null;
   if (mode) {
     const routed = new Set([...mode.matchAll(/\]\(\.\.\/(principle-[a-z0-9-]+)\/SKILL\.md\)/g)].map((m) => m[1]));
     [...names].filter((n) => n.startsWith('principle-') && !routed.has(n)).sort()

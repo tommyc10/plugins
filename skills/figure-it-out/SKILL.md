@@ -28,7 +28,7 @@ Decompose into atomic, independently-landable units. Sequence riskiest-unknown-f
 
 - Build the verification harness before the work, with the baseline captured from the pre-change state, so the check reads as "old value vs new value".
 - For one-way-door design decisions, run a [shootout](../shootout/SKILL.md). Skip it for mechanical work whose shape is already concrete. A second shootout over a settled design is over-engineering, per the [Laziness Protocol](../principle-laziness-protocol/SKILL.md).
-- Decide what fans out. Parallelize only across seams, and give each worker its own worktree or branch so no two write the same file. Don't over-fan. Spawn per the Subagents section of tblock-mode.
+- Decide what fans out. Parallelize only across seams, and give each worker its own worktree or branch so no two write the same file. Don't over-fan. Spawn per the Subagents section of [tblock-mode's standard.md](../tblock-mode/standard.md).
 - Write the designed phase list down. That list is what the human reviews.
 
 Then execute the design. Add its steps to the todo list as concrete items between the Phase C and Phase D entries. Run each under the Phase C loop discipline, and weave the Phase D log through them, a row as each step lands, rather than saving the whole trail for the end.

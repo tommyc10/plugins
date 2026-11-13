@@ -1,0 +1,23 @@
+schema_version: "1.0"
+name: add-due-dates
+description: A feature across four TypeScript modules, with hidden tests for the feature and for the behaviour next to it.
+tags: [outcome, feature, tune]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: >-
+    /tblock:tblock-mode Add due dates to tasks. `tasks add "Pay rent" --due 2026-12-01` should store the date,
+    and `list` should show it on that task's line. Overdue tasks that aren't done go first in `list`, and their
+    line starts with `!`. `list --overdue` shows only those. A date that isn't a real YYYY-MM-DD date is an
+    error and saves nothing. Old tasks.json files without due dates must still load.
+  max_turns: 80
+  timeout_seconds: 1500
+  allowed_tools: [Read, Edit, Write, Bash, Glob, Grep, Skill, Agent, Task, TodoWrite]
+runs: 3
+graders:
+  - name: reply-shows-evidence
+    type: llm
+    criteria: >-
+      The final reply (1) names the test or command that was run after the change and what it printed or reported,
+      such as a pass count, and (2) says plainly what was not checked, or that nothing was left unchecked.
+      A reply that only says the feature works, with no command or observed result, fails.

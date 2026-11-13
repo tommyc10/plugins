@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Investigate the motivation and intent behind code. The companion `how` skill answers what the code does and how it works. `why` answers what forces led to its shape.
 
-Each spawn below names a tblock role. Spawn per the Subagents section of the **tblock-mode** skill.
+Each spawn below names a tblock role. Spawn per the Subagents section of [tblock-mode's standard.md](../tblock-mode/standard.md).
 
 Every spawn is a full agent with MCP access, never a read-only kind that strips MCP tools, because the investigators and the synthesizer's citation spot-checks need them. Every brief still says "do not edit files".
 

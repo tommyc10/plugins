@@ -1,0 +1,59 @@
+{
+  "about": "Phase 3 ablations on the five tune cases, Sonnet 5.5, tblock arm only, 5 runs per case per variant. Cost and seconds are the mean across cases of each case's median run. Preference is the blind pairwise judges (Sonnet 5.5 and Opus 5.5, both orders) preferring the variant over the baseline, with a bootstrap 95% interval. The baseline's own row is it judged against itself, which is the noise band.",
+  "variants": [
+    {
+      "name": "Baseline",
+      "commit": "f816bd6",
+      "kept": true,
+      "costUsd": 0.1694,
+      "seconds": 41.8,
+      "hiddenPass": 1,
+      "collateralPass": 1,
+      "prefer": 0.52,
+      "preferLow": 0.34,
+      "preferHigh": 0.69,
+      "note": "Judged against itself: the noise band"
+    },
+    {
+      "name": "No bro version",
+      "commit": "f57a70b",
+      "kept": false,
+      "costUsd": 0.17,
+      "seconds": 37.4,
+      "hiddenPass": 1,
+      "collateralPass": 1,
+      "prefer": 0.52,
+      "preferLow": 0.33,
+      "preferHigh": 0.7,
+      "worstCase": {
+        "case": "add-due-dates",
+        "prefer": 0.2,
+        "preferLow": 0,
+        "preferHigh": 0.43,
+        "pairs": 10
+      },
+      "note": "Rejected: judges preferred the baseline 32 of 40 times on add-due-dates"
+    },
+    {
+      "name": "Split entry",
+      "commit": "cd69dcc",
+      "kept": true,
+      "costUsd": 0.1484,
+      "seconds": 34,
+      "hiddenPass": 1,
+      "collateralPass": 1,
+      "prefer": 0.53,
+      "preferLow": 0.36,
+      "preferHigh": 0.69,
+      "note": "Kept. Held-out: hidden and collateral tests 100%, cost -27% on small runs, +11% on standard runs, about -9% overall",
+      "heldout": {
+        "baselineCostUsd": 0.142,
+        "costUsd": 0.129,
+        "hiddenPass": 1,
+        "collateralPass": 1,
+        "smallCostChange": -0.27,
+        "standardCostChange": 0.11
+      }
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 schema_version: "1.0"
 name: fix-bug
 description: A one-line bug with a hidden test suite. Checks routing to Bug fix, reproduce-before-edit, and evidence in the reply.
-tags: [contract, outcome]
+tags: [contract, outcome, tune]
 context:
   scaffold_script: scaffold.sh
 execution:
