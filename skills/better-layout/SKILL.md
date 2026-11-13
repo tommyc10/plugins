@@ -1,6 +1,7 @@
 ---
 name: better-layout
-description: Sets grouping, alignment, reading order, responsive structure and room for translated text, so a layout holds up when it is resized, translated or mirrored.
+description: "Set grouping, alignment, reading order, and responsive structure. Use when a layout breaks on resize, translation, or right-to-left, or the user asks to fix layout."
+disable-model-invocation: true
 ---
 
 # Layout

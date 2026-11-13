@@ -1,6 +1,7 @@
 ---
 name: better-interface
-description: Reviews a screen, flow or whole interface across accessibility, layout, writing, typography, color and UI polish, and returns one ranked report.
+description: "Review a screen or flow across accessibility, layout, writing, type, color, and polish, in one ranked report. Use when the user asks for a full interface review."
+disable-model-invocation: true
 ---
 
 # Interface

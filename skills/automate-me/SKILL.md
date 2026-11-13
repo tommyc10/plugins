@@ -1,6 +1,6 @@
 ---
 name: automate-me
-description: "Use for \"automate me\", \"create/update/refresh my -mode skill\", \"turn/capture my preferences or working style into a skill\", or wanting agents to follow how the user works. Drafts or revises a personal -mode skill with the harness's skill-authoring skill and unslop, optionally pulling fresh evidence from recent transcripts."
+description: "Write or update a personal -mode skill from how the user works. Use when the user asks to automate them or capture their working style."
 disable-model-invocation: true
 ---
 

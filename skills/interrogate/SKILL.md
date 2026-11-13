@@ -1,6 +1,6 @@
 ---
 name: interrogate
-description: "Use for \"interrogate\", \"adversarial review\", \"multi-model review\", \"challenge this\", \"stress test this code\", \"find blind spots\", or \"tear this apart\". Adversaries each attack a change or design through one lens, and only findings proven by a run survive."
+description: "Adversarial review: each reviewer attacks a change through one lens, and only proven findings survive. Use when the user asks to interrogate, challenge, or stress-test a change."
 disable-model-invocation: true
 ---
 

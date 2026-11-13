@@ -1,6 +1,6 @@
 ---
 name: delegate
-description: "Worker for one bounded job inside a tblock-mode run: a code change, a fix, or a helper task. The agent running tblock-mode keeps the playbook and spawns a fresh delegate for each job; never use a delegate to run tblock-mode itself. It carries tblock's delegate brief, and ends with a fixed report of what it changed, checked, and left unchecked."
+description: "Does one bounded job in a tblock-mode run and ends with a fixed report. Spawned by tblock-mode for code changes, fixes, and helper tasks; never runs tblock-mode itself."
 ---
 
 # tblock delegate

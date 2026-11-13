@@ -1,6 +1,6 @@
 ---
 name: setup-tblock
-description: "Configure which model and reasoning effort each tblock role uses for subagents, in Claude Code or GitHub Copilot, from a preset (extreme, high, efficient) with the option to change single roles. Writes the roles file every tblock skill reads, with a section per harness, plus a custom agent and effort level per role in Copilot, and offers the guard that asks before a push. Use for /setup-tblock, configuring tblock models or effort, switching presets, or changing them."
+description: "Choose the model and effort for each tblock role, starting from a preset. Use when the user asks to set up tblock, switch presets, or change its models or effort."
 ---
 
 # Setup tblock

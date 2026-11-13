@@ -1,6 +1,7 @@
 ---
 name: better-writing
-description: Writes and reviews interface copy, from labels and errors to empty states and confirmations, so it matches the product's voice and tells people what to do next.
+description: "Write and review interface copy: labels, errors, empty states, and confirmations. Use when the user asks for UI text or microcopy."
+disable-model-invocation: true
 ---
 
 # Writing

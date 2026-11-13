@@ -1,6 +1,6 @@
 ---
 name: tblock-help
-description: "Guides users through tblock: setup, presets and model roles, the tblock CLI, starting a task with tblock-mode, picking the right skill or playbook, and fixing a run that went wrong. Use for /tblock-help, 'how do I use tblock', 'which tblock skill', or a question about tblock itself."
+description: "Answer questions about tblock: setup, presets, the CLI, and which skill to use. Use when the user asks how to use tblock, or a tblock run went wrong."
 ---
 
 # tblock help

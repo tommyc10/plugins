@@ -1,6 +1,6 @@
 ---
 name: ticket-up
-description: "Write the GitLab or GitHub tickets for finished work: one for the task, plus a labelled ticket for each real follow-up, all approved together before anything is created. Reads labels from .tblock/tickets.json. Use for /ticket-up, 'make the tickets', 'raise a ticket for this', 'ticket the follow-ups', or finishing a task in a project with that file. Also sets up tickets for a project."
+description: "Draft GitHub or GitLab tickets for finished work and its follow-ups. Use when the user asks to make or raise tickets, or to set up tickets for a project."
 ---
 
 # Ticket up

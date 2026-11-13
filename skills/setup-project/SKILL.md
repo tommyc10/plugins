@@ -1,6 +1,7 @@
 ---
 name: setup-project
-description: "Set up tblock for the repository you are in: log reading for probe, ticket labels for ticket-up, the Grafana target for grafana-dashboard, and a verification skill. Writes the project's .tblock folder for the team to commit. Use for /setup-project, 'set up this repo for tblock', or after /setup-tblock."
+description: "Set up tblock for this repository: logs, tickets, Grafana, and verification. Use when the user asks to set up a repo for tblock."
+disable-model-invocation: true
 ---
 
 # Setup project

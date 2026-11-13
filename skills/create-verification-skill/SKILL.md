@@ -1,6 +1,7 @@
 ---
 name: create-verification-skill
-description: "Create a project-local skill for launching, driving, and proving real app behavior, including a feature map. Use when asked to set up verification or create a control skill for a project."
+description: "Create a project skill that launches, drives, and proves the app works. Use when the user asks to set up verification for a project."
+disable-model-invocation: true
 ---
 
 # Create a verification skill

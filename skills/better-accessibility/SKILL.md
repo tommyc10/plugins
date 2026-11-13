@@ -1,6 +1,7 @@
 ---
 name: better-accessibility
-description: Reviews and fixes keyboard and focus behavior, ARIA, accessible names, forms, screen-reader announcements, motion and zoom against WCAG 2.2.
+description: "Review and fix keyboard, focus, ARIA, forms, and screen-reader behavior against WCAG 2.2. Use when the user asks about accessibility."
+disable-model-invocation: true
 ---
 
 # Accessibility

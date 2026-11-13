@@ -1,6 +1,6 @@
 ---
 name: state-machine
-description: Renders every state of a component you choose on a throwaway page, with mock data and a switcher, so you can work on each state.
+description: "Render every state of a component on a throwaway page with a switcher. Use when the user wants to see or work on each state of a component."
 disable-model-invocation: true
 ---
 

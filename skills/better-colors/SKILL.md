@@ -1,6 +1,7 @@
 ---
 name: better-colors
-description: Builds and checks color systems by generating palettes, naming semantic tokens, converting between formats and measuring contrast.
+description: "Build and check color systems: palettes, semantic tokens, formats, and contrast. Use when the user asks for colors, a palette, or a contrast check."
+disable-model-invocation: true
 ---
 
 # Colors

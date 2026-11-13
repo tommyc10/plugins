@@ -1,6 +1,6 @@
 ---
 name: grafana-dashboard
-description: "Build or update a Grafana dashboard for a project, starting from the metrics and logs its code emits: inventory them in code, confirm each series in the datasource, then author, push, snapshot, and revise with gcx. Reads the project's Grafana context, folder, and datasources from .tblock/grafana.json. Use for /grafana-dashboard, 'make a dashboard for this service', 'add panels for the new metrics', or a feature that adds metrics. Also sets up Grafana for a project."
+description: "Build or update a Grafana dashboard from the metrics and logs a project's code emits. Use when the user asks for a dashboard or new panels, or to set up Grafana."
 ---
 
 # Grafana Dashboard
