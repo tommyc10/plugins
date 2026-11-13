@@ -20,6 +20,7 @@ export function delegateAgents(root) {
   const body = brief
     .replace(/\[([^\]]+)\]\(\.\.\/(principle-[a-z0-9-]+)\/SKILL\.md\)/g, '$1 (`$2`)')
     .replace(/\[tblock-mode\]\(SKILL\.md\)/g, "tblock-mode's SKILL.md")
+    .replace(/\[standard\.md\]\(standard\.md\)/g, '`standard.md`')
     .replace(/^(# tblock delegate\n\n[^\n]+\n)/, `$1\n${WHERE}\n`);
   if (/\]\((?!https?:)/.test(body)) throw new Error('skills/tblock-mode/delegate.md has a local link build-agents.mjs does not rewrite');
   const text = `${FRONTMATTER}\n${body.trimEnd()}\n\n<!-- Built from skills/tblock-mode/delegate.md by scripts/build-agents.mjs. Edit that file, then rebuild. -->\n`;
