@@ -58,10 +58,11 @@ AGENTS.md repointed from ./<rule>.md to rules/<rule>.md, where the files are.
 
 ---
 
-These skills are Emil Kowalski's, from https://github.com/emilkowalski/skills (commit 2d22863),
+These skills are Emil Kowalski's, from https://github.com/emilkowalski/skills (commit 0f2e23b),
 included unchanged under his license: animate, emil-design-eng, review-animations,
 break-ui, animation-performance, improve-animations, find-animation-opportunities,
-and prototype.
+prototype, pick-ui-library, animation-vocabulary, choreograph, gestures, learn-taste,
+and remove-animations.
 
 MIT License
 
