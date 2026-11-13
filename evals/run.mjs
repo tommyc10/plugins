@@ -16,8 +16,11 @@ const root = resolve(evals, '..');
 const argv = process.argv.slice(2);
 const labelAt = argv.indexOf('--label');
 const label = labelAt >= 0 ? argv.splice(labelAt, 2)[1] : null;
+// --rescore <results folder> scores a finished batch again from what it kept, without running anything.
+const rescoreAt = argv.indexOf('--rescore');
+const rescore = rescoreAt >= 0 ? resolve(argv.splice(rescoreAt, 2)[1]) : null;
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-const out = join(evals, 'results', stamp);
+const out = rescore || join(evals, 'results', stamp);
 mkdirSync(out, { recursive: true });
 
 // A run cannot reach the npm registry, so a case with a lockfile gets its packages installed here, once, for scaffold.sh to copy in.
@@ -38,8 +41,8 @@ const grants = process.platform === 'win32' ? ['Edit', 'Write'] : ['Bash', 'Edit
 if (process.platform === 'win32') console.log('Windows has no sandbox for Bash, so cases that need it will be refused. Run those on Linux, macOS, or WSL.\n');
 const args = ['plugin', 'eval', root, '--keep-temp', '--scaffold', '--allow-tools', ...grants,
   '--json', join(out, 'eval.json'), '--output-dir', out, ...(argv.includes('--publish-report') ? [] : ['--no-publish']), ...argv];
-console.log(`claude ${args.join(' ')}\n`);
-const run = spawnSync('claude', args, { stdio: 'inherit', shell: process.platform === 'win32' });
+if (!rescore) console.log(`claude ${args.join(' ')}\n`);
+const run = rescore ? { status: 0 } : spawnSync('claude', args, { stdio: 'inherit', shell: process.platform === 'win32' });
 if (!existsSync(join(out, 'eval.json'))) { console.error(`No eval.json in ${out}; claude exited ${run.status}.`); process.exit(run.status || 1); }
 
 const result = JSON.parse(readFileSync(join(out, 'eval.json'), 'utf8'));
@@ -58,6 +61,22 @@ function openKept(temp) {
 }
 const KEPT = /[\\/](claude-eval-[^\\/]+|e-[A-Za-z0-9]{6})$/;
 
+// Copies a run's final files, trace and transcript into results/ before anything is scored, so every score can be
+// recomputed with --rescore, and blind pairwise judging has something to read. True when the copy is there.
+function keep(temp, tracePath, kept) {
+  if (temp && tracePath && existsSync(tracePath)) {
+    const { cwd, transcript } = openKept(temp);
+    cpSync(cwd, join(kept, 'files'), { recursive: true, filter: (src) => !/[\\/](\.git|\.origin\.git|node_modules)$/.test(src) });
+    cpSync(tracePath, join(kept, 'trace.jsonl'));
+    if (transcript) {
+      cpSync(transcript, join(kept, 'transcript.jsonl'));
+      const subagents = join(transcript.replace(/\.jsonl$/, ''), 'subagents');
+      if (existsSync(subagents)) cpSync(subagents, join(kept, 'transcript', 'subagents'), { recursive: true });
+    }
+  }
+  return existsSync(join(kept, 'files'));
+}
+
 for (const c of result.cases) {
   const caseDir = resolve(root, c.dir);
   const expect = existsSync(join(caseDir, 'expect.json')) ? JSON.parse(readFileSync(join(caseDir, 'expect.json'), 'utf8')) : {};
@@ -66,18 +85,21 @@ for (const c of result.cases) {
   for (const [arm, runs] of Object.entries(c.arms || {})) {
     runs.forEach((r, i) => {
       const row = { case: c.name, split, arm, run: i + 1, native: r.score, error: r.error, cost: r.costUsd, seconds: r.durationSeconds, checks: [] };
+      const kept = join(out, 'runs', `${c.name}-${arm}-${i + 1}`);
       const temp = r.tracePath ? dirname(dirname(r.tracePath)) : null;
       // A run that never started still passes every "must not" grader, so it can't count toward any score.
       if (r.error || !r.turns) row.invalid = String(r.error || 'the agent took no turns').split(' · ')[0];
-      else if (temp && existsSync(r.tracePath)) {
-        const trace = parseTrace(readFileSync(r.tracePath, 'utf8'));
-        const { cwd, transcript } = openKept(temp);
+      else if (keep(temp, r.tracePath, kept)) {
+        const cwd = join(kept, 'files');
+        const transcript = [join(kept, 'transcript.jsonl')].find((f) => existsSync(f));
+        const trace = parseTrace(readFileSync([join(kept, 'trace.jsonl'), transcript].find((f) => f && existsSync(f)), 'utf8'));
         row.checks.push(...checkRules(trace, { principles, plugin: arm === 'with' }));
         const diff = diffDirs(join(caseDir, 'fixture'), cwd);
         row.diff = { files: diff.changed.length, added: diff.added, removed: diff.removed };
         if (expect.touch) row.checks.push(checkScope(diff.changed, expect.touch));
         if (existsSync(join(caseDir, 'hidden'))) {
-          for (const collateral of [false, true]) row.checks.push(runHidden(join(caseDir, 'hidden'), cwd, { collateral, args: expect.hiddenArgs }));
+          const modules = join(root, '.eval-deps', c.name, 'node_modules');
+          for (const collateral of [false, true]) row.checks.push(runHidden(join(caseDir, 'hidden'), cwd, { collateral, modules, args: expect.hiddenArgs }));
         }
         row.tools = trace.tools.length;
         row.reply = trace.reply;
@@ -88,14 +110,14 @@ for (const c of result.cases) {
           row.subagents = a.subagents;
           row.buckets = Object.fromEntries(a.rows.slice(0, 12).map((b) => [b.bucket, Number(b.cost.toFixed(5))]));
         }
-        // The final files and transcript stay in results/, for blind pairwise judging and later attribution.
-        const kept = join(out, 'runs', `${c.name}-${arm}-${i + 1}`);
-        cpSync(cwd, join(kept, 'files'), { recursive: true, filter: (src) => !/[\\/](\.git|\.origin\.git|node_modules)$/.test(src) });
-        if (transcript) cpSync(transcript, join(kept, 'transcript.jsonl'));
       } else {
         row.checks.push({ name: 'trace-found', pass: false, detail: 'no trace kept for this run' });
       }
-      if (temp && KEPT.test(temp)) rmSync(temp, { recursive: true, force: true });
+      if (temp && KEPT.test(temp) && existsSync(temp)) {
+        // The kept folder is read-only in places. A folder that will not go is left behind, never a reason to lose the scores.
+        spawnSync('chmod', ['-R', 'u+rwx', temp]);
+        try { rmSync(temp, { recursive: true, force: true }); } catch { console.error(`Could not remove ${temp}.`); }
+      }
       scored.push(row);
     });
   }
