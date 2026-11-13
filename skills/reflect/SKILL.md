@@ -24,7 +24,7 @@ That covers the legacy flat (`<id>.jsonl`), current nested (`<id>/<id>.jsonl`), 
 
 One message, three subagents, each a full agent with MCP access, never a read-only kind. Reviewers need MCP access to look up the tickets, chat threads, and observability traces the transcript references.
 
-Each reviewer and the synthesizer use a tblock role. Spawn per the Subagents section of the **tblock-mode** skill.
+Each reviewer and the synthesizer use a tblock role. Spawn per the Subagents section of [tblock-mode's standard.md](../tblock-mode/standard.md).
 
 | Lens | Role | Prompt template |
 |---|---|---|

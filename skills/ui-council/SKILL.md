@@ -17,7 +17,7 @@ Reviewers open the running UI and try to find what is wrong with it, each throug
 
 ## Fan out
 
-Take the reviewers from the `reviewers` role, per the Subagents section of the [tblock-mode](../tblock-mode/SKILL.md) skill, one per entry, as full agents that can drive a browser. With no roles file, run two reviewers on the session model and say that the council has no model diversity. Give each reviewer one lens:
+Take the reviewers from the `reviewers` role, per the Subagents section of [tblock-mode's standard.md](../tblock-mode/standard.md), one per entry, as full agents that can drive a browser. With no roles file, run two reviewers on the session model and say that the council has no model diversity. Give each reviewer one lens:
 
 | Lens | Looks for |
 | --- | --- |

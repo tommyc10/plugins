@@ -14,7 +14,7 @@ Every candidate gets the same prompt, so the prompt is the contract.
 
 1. State the artifact each candidate is producing.
 2. Derive the rubric, 3-6 concrete gradeable criteria for what success looks like on *this* task. It is the picker's tool in Phase D. Candidates only see the task.
-3. Pick the runners from the `shootout runners` role, per the Subagents section of the [tblock-mode](../tblock-mode/SKILL.md) skill. One runner per entry. With no roles file, run two candidates on the session model and say that the shootout has no model diversity. Spawn more runners when the shootout covers multiple design directions. Use the same model N times when the work is generation-bound rather than judgment-sensitive.
+3. Pick the runners from the `shootout runners` role, per the Subagents section of [tblock-mode's standard.md](../tblock-mode/standard.md). One runner per entry. With no roles file, run two candidates on the session model and say that the shootout has no model diversity. Spawn more runners when the shootout covers multiple design directions. Use the same model N times when the work is generation-bound rather than judgment-sensitive.
 4. Give each candidate its own output location, a git worktree where possible, otherwise `/tmp/shootout-<slug>/candidate-<n>/`. Candidates never share a file they write.
 
 ## Phase B: Fan out

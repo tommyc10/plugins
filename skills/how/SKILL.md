@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Explore the codebase to answer "how does X work?" questions. Produce architectural explanations at the level of a senior engineer onboarding onto a subsystem, enough to build a working mental model, not so much that it reads like annotated source code.
 
-Spawn subagents per the Subagents section of the [tblock-mode](../tblock-mode/SKILL.md) skill. Explorers use the `swarm workers` role and the explainer uses the `judgment` role. Every spawn is read-only: its brief says "do not edit files", and you check `git status` afterward. When delegation is unavailable, do each step yourself in order.
+Spawn subagents per the Subagents section of [tblock-mode's standard.md](../tblock-mode/standard.md). Explorers use the `swarm workers` role and the explainer uses the `judgment` role. Every spawn is read-only: its brief says "do not edit files", and you check `git status` afterward. When delegation is unavailable, do each step yourself in order.
 
 ## 1. Assess complexity
 

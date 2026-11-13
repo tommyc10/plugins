@@ -37,7 +37,7 @@ export function parseTrace(text) {
 export function principleNames(root) {
   const names = new Map();
   const add = (slug, name) => { if (!names.has(slug)) names.set(slug, new Set()); names.get(slug).add(name.trim()); };
-  const mode = readFileSync(join(root, 'skills/tblock-mode/SKILL.md'), 'utf8');
+  const mode = ['SKILL.md', 'standard.md'].filter((f) => existsSync(join(root, 'skills/tblock-mode', f))).map((f) => readFileSync(join(root, 'skills/tblock-mode', f), 'utf8')).join('\n');
   for (const [, title, slug] of mode.matchAll(/\[([^\]]+)\]\(\.\.\/(principle-[a-z0-9-]+)\/SKILL\.md\)/g)) add(slug, title);
   for (const dir of readdirSync(join(root, 'skills')).filter((d) => d.startsWith('principle-'))) {
     const heading = readFileSync(join(root, 'skills', dir, 'SKILL.md'), 'utf8').match(/^# (.+)$/m);
