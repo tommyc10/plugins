@@ -94,6 +94,8 @@ It fills every harness that has tiers, so a section the user set up earlier in t
 node <tblock>/bin/tblock.mjs roles set --harness=<this harness> "code=<model> @ medium" "reviewers=<model> @ high,<model> @ high"
 ```
 
+  Then run `node <tblock>/bin/tblock.mjs roles` and show the final table, marking each role that changed. Don't ask again; move on to step 4.
+
 ### 4. Record the git tools
 
 Record which of these exist: a GitLab MCP server, the `glab` CLI, the `gh` CLI. Check the tool list and `command -v`. Record names only, never hosts, tokens, or project paths:
