@@ -80,7 +80,15 @@ It fills every harness that has tiers, so a section the user set up earlier in t
 **(d) Show the roles and confirm.** Run `node <tblock>/bin/tblock.mjs roles` and show every role with its model and effort. Ask with `AskUserQuestion`, offering `Accept`, `Think harder`, `Think less`, and `Change specific roles`:
 
 - **Think harder** or **Think less:** apply the preset again with the effort moved one step, adding to any shift the preset already has, so `balanced +1` and `Think harder` give `--effort=+2`. Keep the `--keep-edits` choice from (c). Then show the roles and ask again.
-- **Change specific roles:** for each role the user names, ask its model (the current one first, then the confirmed models that suit it, then `session`), then its effort (the current one first, then the levels either side). For a panel or the judge pool, first ask how many entries, from 1 to 3, and offer a different family per entry where step 1 found more than one. Write all the changes in one call, with a comma-separated list for a panel:
+- **Change specific roles:** two `AskUserQuestion` calls, never free text for role names.
+  1. One multi-select question, "Which do you want to change?", with these four groups. Show each group's current value in its description:
+     - `Thinking`: `hardest` and `judgment`
+     - `Coding`: `code`
+     - `Searching`: `swarm workers`
+     - `Panels`: `reviewers`, `shootout runners`, and `shootout judges`
+  2. One call with a question per picked group, up to four. Each option is a whole value: a model and effort together, such as `opus @ high (current)`. Offer the current value first, then up to three that suit the group, drawn from the confirmed models and `session`: the same model one effort step up or down, or a stronger or lighter model. For `Panels`, each option is a line-up, such as `sonnet + opus @ high (current)`, `opus + sonnet + haiku @ high`, or `opus @ high` alone, and from different families where step 1 found more than one. The answer applies to every role in the group. When the user types a value for one role in "Other", such as `judgment: opus @ max`, change only that role.
+
+  Write all the changes in one call, with a comma-separated list for a panel:
 
 ```
 node <tblock>/bin/tblock.mjs roles set --harness=<this harness> "code=<model> @ medium" "reviewers=<model> @ high,<model> @ high"
