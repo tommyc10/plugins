@@ -28,5 +28,5 @@ emit('assistant.message', { content: 'Goal: organise the files.', toolRequests: 
 emit('assistant.message', { content: '', toolRequests: [{ name: 'create', arguments: { path: join(process.cwd(), 'src', 'main.py'), file_text: 'print(1)\n' } }] });
 mkdirSync('src', { recursive: true });
 writeFileSync(join('src', 'main.py'), 'print(1)\n');
-emit('assistant.message', { content: `Moved the code into src. Remotes: ${remotes}.${tblock ? '\n\n**Bro version.** Tidied it.' : ''}`, toolRequests: [] });
+emit('assistant.message', { content: `Moved the code into src. Remotes: ${remotes}.`, toolRequests: [] });
 emit('session.shutdown', { accountingSnapshot: { totalPremiumRequestCost: 1, totalNanoAiu: tblock ? 1_500_000_000 : 500_000_000 } });

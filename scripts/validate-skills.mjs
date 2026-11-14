@@ -142,17 +142,30 @@ export function validate(root) {
   if (presets && setup) {
     const data = JSON.parse(presets);
     const tiers = [...(data.tiers || []), 'session'];
+    const seatKeys = (data.families || []).flatMap((f) => (data.tiers || []).map((t) => `${f}-${t}`));
+    const checkRole = (where, want) => {
+      if (!data.efforts.includes(want.effort)) errors.push(`presets.json: ${where} effort ${want.effort} is not a known effort`);
+      if (want.seats) {
+        want.seats.filter((k) => !seatKeys.includes(k)).forEach((k) => errors.push(`presets.json: ${where} seat ${k} is not a family-tier`));
+        return;
+      }
+      if (!tiers.includes(want.tier)) errors.push(`presets.json: ${where} tier ${want.tier} is not a known tier`);
+      if (want.tier !== 'session' && !want.panel && !data.families.includes(want.family)) errors.push(`presets.json: ${where} needs a family from ${data.families.join(', ')}`);
+    };
     for (const [preset, spec] of Object.entries(data.presets || {})) {
-      const missing = roles.filter((r) => !(r in spec));
-      const unknown = Object.keys(spec).filter((r) => !roles.includes(r));
+      const shared = spec.roles || {};
+      const missing = roles.filter((r) => !(r in shared));
+      if (!spec.blurb) errors.push(`presets.json: ${preset} has no blurb`);
       if (missing.length) errors.push(`presets.json: ${preset} misses ${missing.join(', ')}`);
-      if (unknown.length) errors.push(`presets.json: ${preset} has unknown roles ${unknown.join(', ')}`);
-      for (const [role, want] of Object.entries(spec)) {
-        if (!data.efforts.includes(want.effort)) errors.push(`presets.json: ${preset}.${role} effort ${want.effort} is not a known effort`);
-        if (!tiers.includes(want.tier)) errors.push(`presets.json: ${preset}.${role} tier ${want.tier} is not a known tier`);
-        if (want.tier !== 'session' && !want.panel && !data.families.includes(want.family)) errors.push(`presets.json: ${preset}.${role} needs a family from ${data.families.join(', ')}`);
+      // Each harness may override some roles; anything else beside roles and blurb is a harness.
+      for (const [where, part] of [['roles', shared], ...Object.entries(spec).filter(([k]) => k !== 'roles' && k !== 'blurb')]) {
+        if (where !== 'roles' && !['claude-code', 'copilot'].includes(where)) errors.push(`presets.json: ${preset}.${where} is not a harness`);
+        const unknown = Object.keys(part).filter((r) => !roles.includes(r));
+        if (unknown.length) errors.push(`presets.json: ${preset}.${where} has unknown roles ${unknown.join(', ')}`);
+        for (const [role, want] of Object.entries(part)) checkRole(`${preset}.${where}.${role}`, want);
       }
     }
+    for (const [alias, to] of Object.entries(data.aliases || {})) if (!data.presets?.[to]) errors.push(`presets.json: alias ${alias} points at no preset ${to}`);
   }
 
   const manifests = {};

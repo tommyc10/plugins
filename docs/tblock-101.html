@@ -521,7 +521,7 @@ td:first-child { color:var(--fg); font-weight:500; white-space:nowrap; }
 
         <div class="grid g2">
           <div class="card stack faq" style="gap:0">
-            <details open><summary>Does it use more tokens?</summary><p>Yes, mostly on helpers and review panels. The efficient preset keeps that down, and for a one-line edit you can skip tblock-mode. A cheap answer that's wrong costs more once you count the fix.</p></details>
+            <details open><summary>Does it use more tokens?</summary><p>Yes, mostly on helpers and review panels. The lean preset keeps that down, and for a one-line edit you can skip tblock-mode. A cheap answer that's wrong costs more once you count the fix.</p></details>
             <details><summary>Can it push or deploy by itself?</summary><p>No. Pushing, PRs, tickets, deploys and deletes always wait for a clear yes, and a yes covers that one action only.</p></details>
             <details><summary>What if my project has no tests?</summary><p>Its proof is only as good as the checks it can run. It says what it could not check instead of claiming a pass, and it can set up a verification skill for the project.</p></details>
             <details><summary>How do I find the right skill?</summary><p>Ask <code>/tblock-help</code>. It maps what you want to do onto the skill or playbook that does it, and fixes runs that went wrong.</p></details>
@@ -629,8 +629,8 @@ const FLOW = [
     code: 'order #4471  total £100.00  <span class="c">✓ matches expected</span>\ntest refunds_count_once  <span class="c">fail before → pass after</span>', by: ['Prove It Works', 'tdd', 'Test Behavior, Not Implementation'] },
   { t: 'It gets the change reviewed', d: 'For a fix it doesn\'t fully trust, reviewers on different model families try to break it. Only findings they prove with a run survive. UI changes get the UI council, which reviews the running page.',
     code: 'reviewer A (Claude)  1 finding  → verified\nreviewer B (GPT)     0 findings\n<b>verified:</b> partial refunds on split orders untested', by: ['interrogate', 'ui-council', 'blast-radius'] },
-  { t: 'It replies with evidence', d: 'The reply says what failed, the root cause, the fix, before and after evidence, and what it did not check. It names each principle that shaped a decision, then ends with a plain bro version.',
-    code: '<b>Not checked.</b> Split orders with partial refunds.\n<b>Principles.</b> Fix Root Causes moved the fix from\nsummary() to lineItems().\n<b>Bro version.</b> Refunds were taken off twice. Fixed\nthe first place, proved it on the real order.', by: ['unslop', 'technical-writing'] },
+  { t: 'It replies with evidence', d: 'The reply says what failed, the root cause, the fix, before and after evidence, and what it did not check. It names each principle that shaped a decision.',
+    code: '<b>Not checked.</b> Split orders with partial refunds.\n<b>Principles.</b> Fix Root Causes moved the fix from\nsummary() to lineItems().', by: ['unslop', 'technical-writing'] },
   { t: 'It asks before anything leaves', d: 'Local commits are fine. Pushing, opening a PR, or creating a ticket waits for your yes. Threepio can draft the ticket, but a person approves it.',
     code: 'Ready to push <b>fix/refund-double-count</b> and open a PR.\nOK to go ahead?', by: ['Opening an MR playbook', 'threepio', 'ticket-up'] }
 ];
@@ -814,17 +814,17 @@ const ROLES = [
   ['shootout judges', 'judging shootout attempts']
 ];
 const PRESETS = {
-  efficient: { note: 'Everyday bugs and small changes. Strong models on the thinking roles, your session model for code, medium effort.',
+  lean: { note: 'Everyday bugs and small changes. Strong models on the thinking roles, your session model for code, medium effort.',
     hardest: { family: 'claude', tier: 'strong', effort: 'medium' }, judgment: { family: 'claude', tier: 'strong', effort: 'medium' }, code: { tier: 'session', effort: 'medium' }, 'swarm workers': { family: 'gpt', tier: 'fast', effort: 'low' }, reviewers: { panel: 2, tier: 'strong', effort: 'medium' }, 'shootout runners': { panel: 2, tier: 'strong', effort: 'medium' }, 'shootout judges': { panel: 2, tier: 'strong', effort: 'medium' } },
-  high: { note: 'The default, for features and reviews. Top models where judgment matters, strong models elsewhere, two-family panels.',
+  balanced: { note: 'The default, for features and reviews. Top models where judgment matters, strong models elsewhere, two-family panels.',
     hardest: { family: 'claude', tier: 'top', effort: 'high' }, judgment: { family: 'claude', tier: 'top', effort: 'high' }, code: { family: 'gpt', tier: 'strong', effort: 'medium' }, 'swarm workers': { family: 'gpt', tier: 'fast', effort: 'low' }, reviewers: { panel: 2, tier: 'strong', effort: 'high' }, 'shootout runners': { panel: 2, tier: 'strong', effort: 'high' }, 'shootout judges': { panel: 2, tier: 'strong', effort: 'high' } },
-  extreme: { note: 'Hard design and risky changes. Top models at high to max effort, three-family panels.',
+  max: { note: 'Hard design and risky changes. Top models at high to max effort, three-family panels.',
     hardest: { family: 'claude', tier: 'top', effort: 'max' }, judgment: { family: 'claude', tier: 'top', effort: 'max' }, code: { family: 'gpt', tier: 'top', effort: 'high' }, 'swarm workers': { family: 'gpt', tier: 'strong', effort: 'medium' }, reviewers: { panel: 3, tier: 'top', effort: 'xhigh' }, 'shootout runners': { panel: 3, tier: 'top', effort: 'xhigh' }, 'shootout judges': { panel: 3, tier: 'top', effort: 'xhigh' } }
 };
 const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 const FAM = { claude: 'Claude', gpt: 'GPT' };
-let preset = store.get('tb101-preset') || 'high';
-if (!PRESETS[preset]) preset = 'high';
+let preset = store.get('tb101-preset') || 'balanced';
+if (!PRESETS[preset]) preset = 'balanced';
 $('#preset-seg').innerHTML = Object.keys(PRESETS).map((p) => `<button type="button" aria-pressed="${p === preset}" data-preset="${p}">${p}</button>`).join('');
 $('#preset-seg').addEventListener('click', (e) => { const b = e.target.closest('[data-preset]'); if (!b) return; preset = b.dataset.preset; store.set('tb101-preset', preset); $$('[data-preset]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); renderPreset(); });
 function renderPreset() {

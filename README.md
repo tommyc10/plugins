@@ -1,158 +1,191 @@
+<div align="center">
+
 # tblock
 
-Engineering skills, playbooks, and principles for coding agents in GitHub Copilot and Claude Code. tblock makes the agent name the data shape before it writes code, keep diffs small, prove changes in the running app, and show you that evidence. It started from [pstack](https://github.com/cursor/plugins/tree/main/pstack) and adds a UI focus, model roles, and asks before anything outward-facing.
+**engineering skills, playbooks and principles for coding agents**
 
-New here? Open [docs/tblock-101.html](docs/tblock-101.html) in a browser for an interactive tour.
+for claude code and github copilot
 
-## Install
+</div>
 
-GitHub Copilot CLI:
+---
 
-```bash
-copilot plugin install tommyc10/tblock
-```
+tblock makes your agent work the way a careful engineer does:
 
-GitHub Copilot in VS Code: add `tommyc10/tblock` to `chat.plugins.marketplaces`, then install `tblock` from Agent Plugins.
+- **name the data shape** before writing code
+- **keep diffs small** and inside the files the task needs
+- **prove it works** in the running app, and show you the evidence
+- **ask first** before anything leaves your machine: a push, a pr, a ticket, a deploy
 
-Claude Code:
+it started from [pstack](https://github.com/cursor/plugins/tree/main/pstack) and adds a ui focus, model roles, and a guard on outward-facing actions. new here? open [docs/tblock-101.html](docs/tblock-101.html) in a browser for a short interactive tour.
+
+## install
+
+**claude code**
 
 ```bash
 claude plugin marketplace add tommyc10/tblock
 claude plugin install tblock@tblock
 ```
 
-Copilot caches installed plugins. After an update, reinstall tblock to pick up the new version.
-
-## Set up once
-
-Run `/setup-tblock`. It asks for a preset, maps your models to tiers, shows the roles, lets you change any of them, and writes `~/.tblock/roles.md`. The file holds one section per harness, because Claude Code and Copilot name the same model differently, so if you use both, run it once in each. After that one `tblock preset <name>` switches both. For Copilot it also writes one custom agent per role to `~/.copilot/agents/`, because Copilot sets a subagent's model in its agent file, and each agent's model and reasoning effort to `~/.copilot/settings.json`, where the model outranks the agent file, touching only `tblock-` agents. Every command that changes a role rewrites those agents, from either harness, so they can't fall behind the roles file.
-
-Then run `/setup-project` in each repo you work in, or say yes when `/setup-tblock` offers it. It sets up log reading for `probe`, ticket labels for `ticket-up`, the Grafana target for `grafana-dashboard`, and a verification skill. The files go in the repo's `.tblock/` folder and hold no secrets, so commit them and the whole team gets the same setup.
-
-| Role | Used by |
-| --- | --- |
-| `code` | Delegated changes in Feature, Bug fix, Perf issue, and Hillclimb |
-| `hardest` | Cross-cutting design, concurrency, and subtle algorithms |
-| `judgment` | Explanations and judging other agents' work |
-| `reviewers` | The `interrogate` and `ui-council` panels, one reviewer per model |
-| `swarm workers` | `swarm` workers and `how` explorers |
-| `shootout runners` and `shootout judges` | `shootout` attempts and their judges |
-
-### Presets
-
-A preset sets every role's model and reasoning effort at once, in every harness you have mapped. Switch any time with `tblock preset <name>`; new sessions pick it up.
-
-| Preset | Use for | Shape |
-| --- | --- | --- |
-| `extreme` | Hard design, risky changes | Top models at high to max effort, three-family panels |
-| `high` | Features and reviews (the default) | Top models on `hardest` and `judgment`, strong models elsewhere, two-family panels |
-| `efficient` | Everyday bugs and small changes | Strong models on the thinking roles, the session model for `code`, medium effort |
-
-The presets are data in [presets.json](presets.json). After a preset, change any single role with `tblock roles set "hardest=<model> @ max"`, adding `--harness=claude-code` or `--harness=copilot` when you run it outside a session.
-
-Claude Code runs only Claude models, so there a panel seats different tiers, such as Sonnet and Opus, and each reviewer in `interrogate` and `ui-council` attacks through its own lens. The lens is what makes a second reviewer on the same family worth running.
-
-### Choosing models
-
-- Put your strongest model on `hardest` and `judgment`. They run rarely, so their cost matters least.
-- Give `judgment` a different family from `code`, so a second family checks the code agent's work.
-- Use a fast, cheap model for `swarm workers`. Many run at once, reading and searching.
-- In Copilot, fill every panel role with two or more families. Agreement across families is what makes a review or a shootout worth trusting, and `tblock doctor` warns when a panel there has one family.
-
-Without a roles file, every subagent runs on the session model.
-
-Subagents that do one job inside a playbook, such as a code change or a fix, are delegates. They carry a short [delegate brief](skills/tblock-mode/delegate.md) in their own instructions instead of the whole of tblock-mode, stay inside the files they're given, never push or post, and end with a fixed report of what they changed, checked, and left unchecked, which the main agent carries into its reply. Ticket drafts go to the threepio agent instead, a grumbling protocol droid that drafts with [ticket-up](skills/ticket-up/SKILL.md) and never posts.
-
-## CLI
-
-tblock ships a small Node CLI at `bin/tblock.mjs`, with no dependencies. Point an alias at it inside your install folder:
+**github copilot cli**
 
 ```bash
-alias tblock="node <install folder>/bin/tblock.mjs"
+copilot plugin install tommyc10/tblock
 ```
 
-To find the install folder:
+**github copilot in vs code**: add `tommyc10/tblock` to `chat.plugins.marketplaces`, then install `tblock` from agent plugins.
 
-- **Copilot CLI:** run `find ~/.copilot ~/.copilot-local-plugins -path '*bin/tblock.mjs' 2>/dev/null`. Use the path under `installed-plugins` or `.copilot-local-plugins`, not the one under `Library/Caches`, and drop the `/bin/tblock.mjs` end.
-- **Claude Code:** the `installPath` that `claude plugin list --json` shows for `tblock@tblock`.
+copilot caches plugins, so reinstall tblock after an update.
 
-| Command | What it does |
+## set up
+
+```
+/setup-tblock      pick a preset, review your models, done
+/setup-project     per repo: logs, ticket labels, grafana, verification
+```
+
+`/setup-tblock` writes `~/.tblock/roles.md` and offers to add a `tblock` command to your terminal. if you use both claude code and copilot, run it once in each, since they name models differently. after that, `tblock preset <name>` switches both.
+
+`/setup-project` writes to the repo's `.tblock/` folder. it holds no secrets, so commit it and your team shares the setup.
+
+## use
+
+```
+/tblock-mode <task>
+```
+
+tblock-mode sizes the task, says so, and picks the playbook that fits:
+
+| size | what you get |
 | --- | --- |
-| `tblock doctor` | Checks the install in each tool, the roles file per harness, the Copilot role agents with their models and efforts, and the git CLIs. It reads each installed copy from disk, so it warns when an install kept its version number but its files differ from this one. Exits 1 on any FAIL. |
-| `tblock guard on` | Turns on the two hooks the plugin ships. The harness then asks you before an agent runs a push, a PR or MR, a ticket, or a publish, so the pause no longer rests on the agent alone. Each new session also starts knowing its roles and what the repo has set up. `tblock guard off` undoes it. Tested in Claude Code. Copilot reads the same hook contract, but whether it loads a plugin's `hooks/hooks.json` is not yet checked. |
-| `tblock roles` | Shows which model and effort each role uses, per harness |
-| `tblock roles set "code=gpt-5 @ medium" reviewers=claude-opus-5,gpt-5` | Sets roles for one harness, and rewrites the Copilot role agents with their models and efforts |
-| `tblock roles sync` | Rewrites the Copilot role agents, models, and efforts from the roles file |
-| `tblock watch` | A live view of the newest Copilot session (CLI or VS Code's agents window) or Claude Code session: the main agent, each subagent with its model and effort, whether the role's model was honoured or the subagent fell back to the session model, every tool call grouped by the prompt it served (earlier prompts fold to one line, and runs of one tool to `Bash ×12`), what the agent said between them, and the files changed with the lines added and removed. Files outside the project fold into a count, and a `git now` line gives git's own count for the folder, which catches what an agent changed through the shell. When a session hands back to you, its last message shows in full, since that's usually the question it's waiting on. A failed tool says why (`exit 1 · AssertionError: …`), three failures in a row, a working session that goes quiet for three minutes, or a run stopped by a rate limit get flagged, the context shows as a gauge against the model's window, and the header carries an estimated cost for Claude models. Every session active in the last half hour gets a tab named for its folder and what it was asked, marked working or your turn with how long it has waited: `tab` or `←`/`→` switch, `1`–`9` jump, `o` shows every session as a card, `↑`/`↓` select a step and `⏎` opens it (the full command, its output, the diff, or every call in a folded run), `esc` steps back, `s` shows the story (what was said, who was spawned, what broke, with the tool calls hidden), `e` opens every task, `?` lists every key, `b` rings the bell and `n` raises a desktop notification when a session finishes its turn, and `q` quits. From 150 columns the view splits into two panes. `--replay[=<id prefix>]` plays a recorded session back: space pauses, `←`/`→` seek 30 seconds, `[`/`]` jump between prompts, and `+`/`-` change speed. A session that starts while it runs takes over the view. The window title counts sessions working and waiting, and Windows Terminal shows a progress ring while the session on screen works. `--session=<id prefix>` pins one session and `--once` prints a snapshot of every task. Preview it with `node bin/fixtures/watch-demo.mjs` |
-| `tblock log` | What every Claude Code and Copilot session did since yesterday, for a standup or a handoff: the task, the opening line of the last reply, MR links, files changed, subagents, and cost. Live sessions are marked, and a reply that ends in a question shows as waiting on you. `--since=monday`, `--since=3d`, or a date widens it, and `--here` keeps only the current repo. Dollars are API list prices from `pricing.json`; override a model in `~/.tblock/pricing.json`. Copilot shows premium requests, which is what it bills. |
-| `tblock handoff` | A brief of this folder's newest earlier session, from either harness: the task, every later message you sent, the last reply, the files changed, the transcript's path, and what the repo holds now. Paste it into a new session, or let the Pickup playbook run it. `--session=<id prefix>` picks a session and `--out=<file>` writes the brief to a file. |
-| `tblock models` | Lists the Copilot models VS Code's picker offers your plan, and suggests tiers (needs Node 22.5+). With VS Code on a remote, add `--from="<text>"` with the picker list in any shape, or Copilot's unknown-model error |
-| `tblock tiers detect` | Maps tiers from those detected models, so you never type picker names |
-| `tblock tiers` and `tblock tiers set claude-top=<model> gpt-fast=<model>` | Show or map which of your models fills each tier |
-| `tblock preset` and `tblock preset <name>` | List the presets, or apply one |
+| small | a question or one-file fix: the goal, the steps, the proof. no subagents |
+| standard | the full playbook with a todo list |
+| deep | a migration or shared code: adds a design sketch, an adversarial review and a decision trail |
 
-Add `--json` for output a script or agent can read. Colour appears only in a terminal: `NO_COLOR` turns it off, and `FORCE_COLOR=1` keeps it on when piping, for a preview.
+say "go deep" or "keep it small" to choose yourself, or "use gpt for code today" to change a role for one session.
 
-## Use
+tblock works without asking on local, reversible work: reading, editing, builds, tests and local commits. it always stops before pushing, opening or merging a pr, posting, deploying or deleting. `tblock guard on` has the harness itself enforce that.
 
-Start a task with `/tblock-mode <task>`. tblock-mode first sizes the task and says so. A small task, such as a question or a one-file fix, gets the goal, the playbook's steps, and the proof, with no subagents and no ceremony. A standard task gets the full playbook with its todo list. A deep task, such as a migration or shared code, adds a design sketch, an adversarial review, and a decision trail. Say "go deep" or "keep it small" to set the size yourself. Then it picks the playbook or skill that fits and tells you which principles shaped each decision. To change a role for one session, say so: "use GPT for code today".
+## presets
 
-tblock works without asking on reversible, local work: reading, editing, builds, tests, and local commits. It always stops and asks before pushing, opening or merging a PR or MR, posting to chat or tickets, deploying, or deleting anything. `tblock guard on` has the harness enforce the push, PR, MR, ticket, and publish part of that.
+a preset sets every role's model and effort at once.
 
-## What's inside
+| preset | for | shape |
+| --- | --- | --- |
+| `max` | hard design, risky changes | top models, high to max effort, three-seat panels |
+| `balanced` | features and reviews (default) | top models think, strong models do the work |
+| `lean` | everyday bugs and small changes | strong models, medium effort |
 
-**Playbooks**, routed by [tblock-mode](skills/tblock-mode/SKILL.md):
+```bash
+tblock preset                     # list them, with your models
+tblock preset balanced            # switch
+tblock preset balanced --effort=+1   # same models, every role thinks harder
+tblock roles set "code=sonnet @ high"   # change one role
+```
 
-| Playbook | For |
+a preset never quietly resets a role you changed by hand. it lists them, and `--keep-edits` keeps them. the presets live in [presets.json](presets.json).
+
+## roles
+
+| role | used for |
 | --- | --- |
-| [Investigation](skills/tblock-mode/playbooks/investigation.md) | Read-only questions: how, why, are we sure, X or Y |
-| [Feature](skills/tblock-mode/playbooks/feature.md) | New or changed behavior, built from a named data shape |
-| [Bug fix](skills/tblock-mode/playbooks/bug-fix.md) | Reproduce, find the root cause, fix, prove |
-| [Refactoring](skills/tblock-mode/playbooks/refactoring.md) | Structure changes, behavior doesn't |
-| [Perf issue](skills/tblock-mode/playbooks/perf-issue.md) and [Hillclimb](skills/tblock-mode/playbooks/hillclimb.md) | Measured speedups, one-off or iterative |
-| [UI-UX](skills/tblock-mode/playbooks/ui-ux.md) | UI work, every state proved in the browser, then a UI council review |
-| [Visual parity](skills/tblock-mode/playbooks/visual-parity.md) | A restyle or migration proved pixel-identical by image diff |
-| [Prototype](skills/tblock-mode/playbooks/prototype.md) | Settle a design question with a throwaway sketch |
-| [Opening an MR](skills/tblock-mode/playbooks/opening-an-mr.md) | Tidy the branch, write the description, and ask before anything leaves the machine |
-| [Babysit](skills/tblock-mode/playbooks/babysit.md) | Drive a PR or MR to merge-ready: conflicts, review threads, CI |
-| [Reviewing a teammate's MR](skills/tblock-mode/playbooks/review-an-mr.md) | Run someone else's MR, keep the findings you can show, and draft comments you approve before they post |
-| [Runtime forensics](skills/tblock-mode/playbooks/runtime-forensics.md) and [Trace forensics](skills/tblock-mode/playbooks/trace-forensics.md) | Diagnose a live symptom, or a captured profile or trace |
-| [Authoring a skill](skills/tblock-mode/playbooks/authoring-a-skill.md) and [Eval](skills/tblock-mode/playbooks/eval.md) | Write skills, and test whether a change helps |
-| [Pause](skills/tblock-mode/playbooks/pause.md) and [Pickup](skills/tblock-mode/playbooks/pickup.md) | Stop with a checkpoint, and resume work an earlier session left, in the same harness or the other |
+| `code` | delegated changes in feature, bug fix, perf and hillclimb |
+| `hardest` | cross-cutting design, concurrency, subtle algorithms |
+| `judgment` | explanations, and judging other agents' work |
+| `reviewers` | the `interrogate` and `ui-council` panels |
+| `swarm workers` | `swarm` workers and `how` explorers |
+| `shootout runners` / `judges` | `shootout` attempts and their judges |
 
-**Skills:**
+a few rules of thumb:
 
-- **Understand:** [how](skills/how/SKILL.md), [why](skills/why/SKILL.md), [teach](skills/teach/SKILL.md), [blast-radius](skills/blast-radius/SKILL.md)
-- **Observe:** [probe](skills/probe/SKILL.md), [grafana-dashboard](skills/grafana-dashboard/SKILL.md)
-- **Design and build:** [architect](skills/architect/SKILL.md), [shootout](skills/shootout/SKILL.md), [swarm](skills/swarm/SKILL.md), [figure-it-out](skills/figure-it-out/SKILL.md), [tdd](skills/tdd/SKILL.md)
-- **Review and measure:** [interrogate](skills/interrogate/SKILL.md), [ui-council](skills/ui-council/SKILL.md), [interface-review](skills/interface-review/SKILL.md), [benchmark-checklist](skills/benchmark-checklist/SKILL.md)
-- **UI:** [better-layout](skills/better-layout/SKILL.md), [better-ui](skills/better-ui/SKILL.md), [better-writing](skills/better-writing/SKILL.md), [better-typography](skills/better-typography/SKILL.md), [better-colors](skills/better-colors/SKILL.md), [better-accessibility](skills/better-accessibility/SKILL.md), [better-interface](skills/better-interface/SKILL.md), [emil-design-eng](skills/emil-design-eng/SKILL.md), [state-machine](skills/state-machine/SKILL.md), [prototype](skills/prototype/SKILL.md), [break-ui](skills/break-ui/SKILL.md), [pick-ui-library](skills/pick-ui-library/SKILL.md), [learn-taste](skills/learn-taste/SKILL.md)
-- **Motion:** [animate](skills/animate/SKILL.md), [review-animations](skills/review-animations/SKILL.md), [animation-performance](skills/animation-performance/SKILL.md), [find-animation-opportunities](skills/find-animation-opportunities/SKILL.md), [improve-animations](skills/improve-animations/SKILL.md), [remove-animations](skills/remove-animations/SKILL.md), [choreograph](skills/choreograph/SKILL.md), [gestures](skills/gestures/SKILL.md), [animation-vocabulary](skills/animation-vocabulary/SKILL.md)
-- **TypeScript and React:** [typescript-best-practices](skills/typescript-best-practices/SKILL.md), [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md)
-- **Write:** [technical-writing](skills/technical-writing/SKILL.md), [unslop](skills/unslop/SKILL.md), [ticket-up](skills/ticket-up/SKILL.md), the threepio agent
-- **Run long work:** [show-me-your-work](skills/show-me-your-work/SKILL.md)
-- **Improve tblock itself:** [reflect](skills/reflect/SKILL.md), [correct](skills/correct/SKILL.md), [automate-me](skills/automate-me/SKILL.md)
-- **Verify a project:** [create-verification-skill](skills/create-verification-skill/SKILL.md), [maintain-verification-skill](skills/maintain-verification-skill/SKILL.md), [create-formal-verification-skill](skills/create-formal-verification-skill/SKILL.md), [maintain-formal-verification-skill](skills/maintain-formal-verification-skill/SKILL.md)
-- **Set up and help:** [setup-tblock](skills/setup-tblock/SKILL.md), [setup-project](skills/setup-project/SKILL.md), [tblock-help](skills/tblock-help/SKILL.md)
-- **Type these yourself:** [sharpen](skills/sharpen/SKILL.md), [in-your-own-words](skills/in-your-own-words/SKILL.md), [bro](skills/bro/SKILL.md)
+- put your strongest model on `hardest` and `judgment`. they run rarely.
+- give `judgment` a different family from `code`, so a second family checks the work.
+- use a fast model for `swarm workers`. many run at once.
+- in copilot, seat two or more families on each panel. claude code runs only claude models, so its panels mix opus, sonnet and haiku, and each reviewer gets its own lens.
 
-**Principles:** 24 short rules, such as [Prove It Works](skills/principle-prove-it-works/SKILL.md) and [Laziness Protocol](skills/principle-laziness-protocol/SKILL.md). tblock-mode lists them all, with when each applies.
+with no roles file, every subagent runs on the session model.
 
-## Develop
+## cli
 
-Check everything before you commit. It needs only Node 22, and CI runs the same two commands on every push and pull request:
+tblock ships a small node cli with no dependencies. `/setup-tblock` puts it on your path as `tblock`, or run `tblock command on`.
+
+| command | what it does |
+| --- | --- |
+| `tblock doctor` | checks the install, roles, copilot agents and git tools |
+| `tblock preset` | lists or switches presets |
+| `tblock roles` | shows or sets each role's model and effort |
+| `tblock guard on` | has the harness ask before a push, pr, ticket or publish |
+| `tblock watch` | a live view of your agent sessions and their subagents |
+| `tblock log` | what every session did since yesterday, for a standup |
+| `tblock handoff` | a brief of the last session, to pick up where it left off |
+| `tblock models` | lists your copilot models and suggests tiers |
+
+most commands take `--json`. the full reference is in [docs/cli.md](docs/cli.md).
+
+## what's inside
+
+### playbooks
+
+routed by [tblock-mode](skills/tblock-mode/SKILL.md).
+
+| playbook | for |
+| --- | --- |
+| [investigation](skills/tblock-mode/playbooks/investigation.md) | read-only questions: how, why, are we sure, x or y |
+| [feature](skills/tblock-mode/playbooks/feature.md) | new or changed behaviour, built from a named data shape |
+| [bug fix](skills/tblock-mode/playbooks/bug-fix.md) | reproduce, find the root cause, fix, prove |
+| [refactoring](skills/tblock-mode/playbooks/refactoring.md) | structure changes, behaviour doesn't |
+| [perf issue](skills/tblock-mode/playbooks/perf-issue.md) · [hillclimb](skills/tblock-mode/playbooks/hillclimb.md) | measured speedups, one-off or iterative |
+| [ui-ux](skills/tblock-mode/playbooks/ui-ux.md) | ui work, every state proved in the browser, then a ui council review |
+| [visual parity](skills/tblock-mode/playbooks/visual-parity.md) | a restyle proved pixel-identical by image diff |
+| [prototype](skills/tblock-mode/playbooks/prototype.md) | settle a design question with a throwaway sketch |
+| [opening an mr](skills/tblock-mode/playbooks/opening-an-mr.md) | tidy the branch, write the description, ask before it leaves |
+| [babysit](skills/tblock-mode/playbooks/babysit.md) | drive a pr to merge-ready: conflicts, threads, ci |
+| [reviewing an mr](skills/tblock-mode/playbooks/review-an-mr.md) | run someone else's change and draft comments you approve |
+| [runtime forensics](skills/tblock-mode/playbooks/runtime-forensics.md) · [trace forensics](skills/tblock-mode/playbooks/trace-forensics.md) | diagnose a live symptom, or a captured trace |
+| [authoring a skill](skills/tblock-mode/playbooks/authoring-a-skill.md) · [eval](skills/tblock-mode/playbooks/eval.md) | write skills, and test whether a change helps |
+| [pause](skills/tblock-mode/playbooks/pause.md) · [pickup](skills/tblock-mode/playbooks/pickup.md) | stop with a checkpoint, and resume it later, in either harness |
+
+### skills
+
+| group | skills |
+| --- | --- |
+| understand | [how](skills/how/SKILL.md) · [why](skills/why/SKILL.md) · [teach](skills/teach/SKILL.md) · [blast-radius](skills/blast-radius/SKILL.md) |
+| observe | [probe](skills/probe/SKILL.md) · [grafana-dashboard](skills/grafana-dashboard/SKILL.md) |
+| design and build | [architect](skills/architect/SKILL.md) · [shootout](skills/shootout/SKILL.md) · [swarm](skills/swarm/SKILL.md) · [figure-it-out](skills/figure-it-out/SKILL.md) · [tdd](skills/tdd/SKILL.md) |
+| review and measure | [interrogate](skills/interrogate/SKILL.md) · [ui-council](skills/ui-council/SKILL.md) · [interface-review](skills/interface-review/SKILL.md) · [benchmark-checklist](skills/benchmark-checklist/SKILL.md) |
+| ui | [better-layout](skills/better-layout/SKILL.md) · [better-ui](skills/better-ui/SKILL.md) · [better-writing](skills/better-writing/SKILL.md) · [better-typography](skills/better-typography/SKILL.md) · [better-colors](skills/better-colors/SKILL.md) · [better-accessibility](skills/better-accessibility/SKILL.md) · [better-interface](skills/better-interface/SKILL.md) · [emil-design-eng](skills/emil-design-eng/SKILL.md) · [state-machine](skills/state-machine/SKILL.md) · [prototype](skills/prototype/SKILL.md) · [break-ui](skills/break-ui/SKILL.md) · [pick-ui-library](skills/pick-ui-library/SKILL.md) · [learn-taste](skills/learn-taste/SKILL.md) |
+| motion | [animate](skills/animate/SKILL.md) · [review-animations](skills/review-animations/SKILL.md) · [animation-performance](skills/animation-performance/SKILL.md) · [find-animation-opportunities](skills/find-animation-opportunities/SKILL.md) · [improve-animations](skills/improve-animations/SKILL.md) · [remove-animations](skills/remove-animations/SKILL.md) · [choreograph](skills/choreograph/SKILL.md) · [gestures](skills/gestures/SKILL.md) · [animation-vocabulary](skills/animation-vocabulary/SKILL.md) |
+| typescript and react | [typescript-best-practices](skills/typescript-best-practices/SKILL.md) · [vercel-react-best-practices](skills/vercel-react-best-practices/SKILL.md) |
+| write | [technical-writing](skills/technical-writing/SKILL.md) · [unslop](skills/unslop/SKILL.md) · [ticket-up](skills/ticket-up/SKILL.md) |
+| long work | [show-me-your-work](skills/show-me-your-work/SKILL.md) |
+| improve tblock | [reflect](skills/reflect/SKILL.md) · [correct](skills/correct/SKILL.md) · [automate-me](skills/automate-me/SKILL.md) |
+| verify a project | [create-verification-skill](skills/create-verification-skill/SKILL.md) · [maintain-verification-skill](skills/maintain-verification-skill/SKILL.md) · [create-formal-verification-skill](skills/create-formal-verification-skill/SKILL.md) · [maintain-formal-verification-skill](skills/maintain-formal-verification-skill/SKILL.md) |
+| set up and help | [setup-tblock](skills/setup-tblock/SKILL.md) · [setup-project](skills/setup-project/SKILL.md) · [tblock-help](skills/tblock-help/SKILL.md) |
+| type these yourself | [sharpen](skills/sharpen/SKILL.md) · [in-your-own-words](skills/in-your-own-words/SKILL.md) · [bro](skills/bro/SKILL.md) |
+
+### principles
+
+24 short rules, such as [prove it works](skills/principle-prove-it-works/SKILL.md) and [laziness protocol](skills/principle-laziness-protocol/SKILL.md). tblock-mode lists them all, with when each applies.
+
+### agents
+
+- **delegate** does one bounded job inside a playbook, such as a code change. it carries a short [brief](skills/tblock-mode/delegate.md), stays inside its files, never pushes, and ends with a fixed report.
+- **threepio** is a grumbling protocol droid that drafts tickets with [ticket-up](skills/ticket-up/SKILL.md) and never posts them.
+
+## develop
+
+needs only node 22. ci runs the same two commands:
 
 ```bash
 node scripts/validate-skills.mjs
 node --test
 ```
 
-After editing [delegate.md](skills/tblock-mode/delegate.md), run `node scripts/build-agents.mjs`. It rebuilds the delegate agent for both harnesses with the brief inlined, and the validator fails when they are out of date.
+after editing [delegate.md](skills/tblock-mode/delegate.md), run `node scripts/build-agents.mjs` to rebuild the delegate agents.
 
-The validator checks frontmatter, local links, that every principle is routed from tblock-mode, that every model role is used, that the Claude Code and Copilot copies of each agent match, that the delegate agents are built from the current brief, that every playbook is routed from tblock-mode and listed here, that each hook runs a script that exists, and that the manifests agree on name and version. `node --test` runs the CLI, probe, validator, and eval scoring tests.
+to see whether a skill change helps, run the evals with `node evals/run.mjs --model sonnet`. see [evals/README.md](evals/README.md).
 
-To measure whether a change to a skill helps, run the eval suite with `node evals/run.mjs --model sonnet`. It runs each case with and without tblock, scores tblock's rules, hidden tests, and diff size, and appends the result to `evals/history.jsonl`. The shell cases can't run on Windows, so the `evals` workflow runs the whole suite on Linux from the Actions tab. See [evals/README.md](evals/README.md).
+## credits
 
-## Credits
-
-Much of tblock is adapted from [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan. The animation and polish skills are [Emil Kowalski's](https://github.com/emilkowalski/skills), and the `better-*`, `interface-review`, and `state-machine` skills are [Jakub Krehel's](https://github.com/jakubkrehel/skills). All are used under the MIT license. See [LICENSE](LICENSE).
+much of tblock is adapted from [pstack](https://github.com/cursor/plugins/tree/main/pstack) by lauren tan. the animation and polish skills are [emil kowalski's](https://github.com/emilkowalski/skills), and the `better-*`, `interface-review` and `state-machine` skills are [jakub krehel's](https://github.com/jakubkrehel/skills). all used under the mit license. see [license](LICENSE).

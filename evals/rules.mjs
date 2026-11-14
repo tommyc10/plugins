@@ -61,8 +61,7 @@ export function checkRules(trace, { principles = new Map(), plugin = true } = {}
 
   const invoked = trace.skills?.has('tblock-mode');
   const sized = trace.texts.some((t) => t.main && /\bSize:\s*\**\s*(small|standard|deep)\b/i.test(t.text));
-  const bro = /\*\*Bro version\.?\*\*/i.test(trace.reply);
-  rule('tblock-mode-loaded', invoked || sized || bro, invoked ? 'the session invoked tblock-mode' : sized ? 'the run stated its size' : 'final reply ends with the bro version');
+  rule('tblock-mode-loaded', invoked || sized, invoked ? 'the session invoked tblock-mode' : sized ? 'the run stated its size' : 'no size line, and tblock-mode never invoked');
   const dashes = (trace.reply.match(/—/g) || []).length;
   rule('reply-has-no-long-dash', dashes === 0, `${dashes} long dash(es) in the final reply`);
 

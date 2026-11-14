@@ -12,7 +12,7 @@ Before anything else, pick the task's size and say it in your first message, wri
 
 | Size | The task is | You do |
 | --- | --- | --- |
-| **Small** | A question a few files answer, or a change to one or two files with an obvious check and no shared code | **Always**, and the matching playbook's steps, followed without a todo list. Nothing else in this file applies: no roles file, no subagents, no principle citations, no throughput checkpoint, no bro version. |
+| **Small** | A question a few files answer, or a change to one or two files with an obvious check and no shared code | **Always**, and the matching playbook's steps, followed without a todo list. Nothing else in this file applies: no roles file, no subagents, no principle citations, no throughput checkpoint. |
 | **Standard** | Everything else. This is the default | **Always**, every **When** trigger that fires, the playbook with its todo list, and the subagents its steps call for. |
 | **Deep** | A one-way door, shared or cross-cutting code, concurrency, a migration, or work the user steps away from | Standard, and before shipping: [architect](../architect/SKILL.md) for the shape, [interrogate](../interrogate/SKILL.md) on the result, [blast-radius](../blast-radius/SKILL.md) when it touches shared code, and a decision trail via [show-me-your-work](../show-me-your-work/SKILL.md). |
 
@@ -51,8 +51,6 @@ Write the reply clean as you draft it. A cleanup pass after drafting does not re
 - **Frame impact for the consumer and the maintainer.** Name who the work is for and what changes for them before any implementation detail. Then say what the next engineer who owns this code inherits.
 - **Never fabricate a link, citation, or transcript reference.** Link only artifacts you produced or read this session.
 - **Every claim carries its evidence or its label in the same sentence.** Measured, inferred, or guess. A prediction or an unseen cause is a guess. Never hand the user a check you could run.
-
-**At standard and deep size, end every reply with a bro version.** After the normal reply, add a section headed "**Bro version.**" that says the same thing again in plain words, with no jargon, like one person talking to another, in a few short sentences. Keep every decision or question the user needs to act on. The normal reply above it stays complete; the bro version never replaces it. The user can still type `/bro` to have any reply restated.
 
 Every playbook ends with a reply written this way. Each playbook's own reply line names only the content unique to that playbook.
 
