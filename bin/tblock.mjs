@@ -12,7 +12,7 @@ import { addToPath, binDir, launcherTarget, onPath, refreshLauncher, removeFromP
 import { log } from './log.mjs';
 import { HARNESSES, HARNESS_NAME, emptyFile, formatEntry, formatRoles, parseEntry, readRoles, rolesPath, runsInClaudeCode, section } from './roles.mjs';
 import { createUI } from './ui.mjs';
-import { loadPrices, normalizeModel } from './usage.mjs';
+import { loadPrices } from './usage.mjs';
 import { watch } from './watch.mjs';
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -305,35 +305,6 @@ function resolvePreset(name, tiers, specs, harness, shift = 0) {
     }
   }
   return { roles, notes };
-}
-
-// A rough cost of a set of roles, for comparing presets: each seat's output price, times how much
-// work its role usually does, times how many tokens its effort tends to spend. Null when a model has
-// no price, so a guess never passes for a figure.
-const PRICES = loadPrices(PLUGIN, homedir());
-const versionKey = (key) => key.split('-').slice(2).map(Number);
-function outputPrice(model, tiers) {
-  const id = model === 'session' ? tiers['claude-strong'] : model;
-  if (!id) return null;
-  const direct = PRICES[normalizeModel(id)];
-  if (direct) return direct.output;
-  const newest = Object.keys(PRICES).filter((k) => k.startsWith(`claude-${id.toLowerCase()}-`))
-    .sort((a, b) => { const [x, y] = [versionKey(a), versionKey(b)]; return (y[0] - x[0]) || (y[1] - x[1]); })[0];
-  return newest ? PRICES[newest].output : null;
-}
-
-function costOf(roles, tiers, specs) {
-  let total = 0;
-  for (const { name, panel } of specs) {
-    // Shootout spawns one judge per run from its pool; a panel runs every seat.
-    const seats = panel ? roles[name] || [] : (roles[name] || []).slice(0, 1);
-    for (const { model, effort } of seats) {
-      const price = outputPrice(model, tiers);
-      if (price === null) return null;
-      total += price * (PRESETS.cost.weights[name] || 0) * (PRESETS.cost.effort[effort || 'medium'] || 1);
-    }
-  }
-  return total;
 }
 
 // VS Code keeps the Copilot model picker's list in its state database, so setup can offer
@@ -819,26 +790,20 @@ function showPresets() {
   if (json) {
     const out = Object.entries(PRESETS.presets).map(([name, preset]) => {
       const roles = tiers && resolvePreset(name, tiers, specs, harness).roles;
-      return { name, blurb: preset.blurb, current: recorded.name === name, roles, cost: roles ? costOf(roles, tiers, specs) : null };
+      return { name, blurb: preset.blurb, current: recorded.name === name, roles };
     });
-    const base = out.find((p) => p.name === 'balanced')?.cost;
-    out.forEach((p) => { p.relativeCost = p.cost && base ? Math.round((p.cost / base) * 10) / 10 : null; });
     return console.log(JSON.stringify({ harness: harness || null, current: current || null, presets: out }, null, 2));
   }
   process.stdout.write(ui.header('preset'));
   if (harness) say(ui.dim(`  With your ${HARNESS_NAME[harness]} models`), '');
   const nameWidth = Math.max(...Object.keys(PRESETS.presets).map((n) => n.length)) + 3;
   const resolved = Object.fromEntries(Object.keys(PRESETS.presets).map((name) => [name, tiers && resolvePreset(name, tiers, specs, harness).roles]));
-  const base = tiers && costOf(resolved.balanced, tiers, specs);
   for (const [name, preset] of Object.entries(PRESETS.presets)) {
     const on = recorded.name === name;
     const mark = ui.color ? (on ? ui.accent('●') : ui.dim('○')) : on ? '*' : ' ';
-    const cost = base && costOf(resolved[name], tiers, specs);
-    const costText = cost ? ui.dim(`  · ≈${(cost / base).toFixed(1).replace(/\.0$/, '')}× cost`) : '';
-    say(`  ${mark}  ${ui.pad(on ? ui.bold(ui.accent(name)) : ui.bold(name), nameWidth)}${preset.blurb}${costText}${on ? ui.dim(`  · current${recorded.shift ? `, effort ${current.split(' ')[1]}` : ''}${current.endsWith('(edited)') ? ', edited' : ''}`) : ''}`);
+    say(`  ${mark}  ${ui.pad(on ? ui.bold(ui.accent(name)) : ui.bold(name), nameWidth)}${preset.blurb}${on ? ui.dim(`  · current${recorded.shift ? `, effort ${current.split(' ')[1]}` : ''}${current.endsWith('(edited)') ? ', edited' : ''}`) : ''}`);
     say(`  ${' '.repeat(3 + nameWidth)}${presetShape(resolved[name], presetRoles(preset, harness)).join(ui.dim('   '))}`, '');
   }
-  if (base) say(ui.dim('  Cost is a rough guide against balanced: list prices, how much each role works, and its effort.'), '');
   if (ui.color) say(`  ${ui.dim('effort')}  ${['low', 'medium', 'high', 'max'].map((e) => `${ui.effort(e, { word: false })} ${ui.dim(e)}`).join('   ')}`, '');
   say(ui.hint('tblock preset <name>'), ui.dim('    switches every role at once, in every harness you have mapped'));
   say(ui.hint('tblock preset <name> --effort=+1'), ui.dim('    the same models, every role thinking one step harder (-1 for less)'));

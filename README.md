@@ -48,7 +48,7 @@ A preset sets every role's model and reasoning effort at once, in every harness 
 | `balanced` | Features and reviews (the default) | Top models on `hardest` and `judgment`, strong models elsewhere, two-seat panels |
 | `lean` | Everyday bugs and small changes | Strong models on the thinking roles, the session model for `code`, medium effort |
 
-`tblock preset` lists them with the models each one seats in your harness and, where every model has a list price, a rough cost against `balanced`. `tblock preset balanced --effort=+1` keeps the models and has every role think one step harder; `-1` thinks less. Claude Code's presets name Claude models directly, so nothing there falls back from a GPT default. The old names `extreme`, `high`, and `efficient` still work.
+`tblock preset` lists them with the models each one seats in your harness. `tblock preset balanced --effort=+1` keeps the models and has every role think one step harder; `-1` thinks less. Claude Code's presets name Claude models directly, so nothing there falls back from a GPT default. The old names `extreme`, `high`, and `efficient` still work.
 
 A preset never resets a role you changed by hand without saying so: it lists each one with your value and the preset's. Add `--keep-edits` to keep them, or `--dry-run` to see what would change first. The presets are data in [presets.json](presets.json). After a preset, change any single role with `tblock roles set "hardest=<model> @ max"`, adding `--harness=claude-code` or `--harness=copilot` when you run it outside a session.
 
@@ -88,7 +88,7 @@ To run the CLI before that, use `node <install folder>/bin/tblock.mjs`. To find 
 | `tblock models` | Lists the Copilot models VS Code's picker offers your plan, and suggests tiers (needs Node 22.5+). With VS Code on a remote, add `--from="<text>"` with the picker list in any shape, or Copilot's unknown-model error |
 | `tblock tiers detect` | Maps tiers from those detected models, so you never type picker names |
 | `tblock tiers` and `tblock tiers set claude-top=<model> gpt-fast=<model>` | Show or map which of your models fills each tier |
-| `tblock preset` and `tblock preset <name>` | List the presets with your models and a rough cost, or apply one. It lists the hand edits it resets; `--keep-edits` keeps them, `--dry-run` writes nothing, and `--effort=+1` or `-1` moves every role's effort a step |
+| `tblock preset` and `tblock preset <name>` | List the presets with your models, or apply one. It lists the hand edits it resets; `--keep-edits` keeps them, `--dry-run` writes nothing, and `--effort=+1` or `-1` moves every role's effort a step |
 
 Add `--json` for output a script or agent can read. Colour appears only in a terminal: `NO_COLOR` turns it off, and `FORCE_COLOR=1` keeps it on when piping, for a preview.
 

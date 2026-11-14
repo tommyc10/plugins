@@ -54,14 +54,14 @@ Run `node <tblock>/bin/tblock.mjs roles` and `node <tblock>/bin/tblock.mjs tiers
 
 **(a) Map the tiers.** Follow your harness file's step 3a. A tier left out falls back to the nearest one in the same family.
 
-**(b) Ask for a preset.** Run `node <tblock>/bin/tblock.mjs preset --json --harness=<this harness>`. For each preset it gives the blurb, the models it seats in this harness, and `relativeCost`, a rough cost against `balanced` that is null when a model has no price. Ask with `AskUserQuestion`, with these options in this order and these exact labels:
+**(b) Ask for a preset.** Run `node <tblock>/bin/tblock.mjs preset --json --harness=<this harness>`. For each preset it gives the blurb and the models it seats in this harness. Ask with `AskUserQuestion`, with these options in this order and these exact labels:
 
 - `balanced — top thinkers, strong workers` (recommended)
 - `max — top models, high to max effort`
 - `lean — strong models, medium effort`
 - `Keep my roles`, only when a roles file exists. It skips to (d).
 
-Give each preset's option a description in the user's own models, such as `opus thinks, sonnet codes, haiku searches · ≈1× cost`, and leave the cost out when it is null. Name the current preset in the question.
+Give each preset's option a description in the user's own models, such as `opus thinks, sonnet codes, haiku searches`. Name the current preset in the question.
 
 **(c) Apply the preset, keeping the user's edits if they want.** First see what it would change, without writing anything:
 

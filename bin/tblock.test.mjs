@@ -666,20 +666,18 @@ test('--effort moves every role along the effort ladder and is remembered for ed
   assert.equal(cli('preset', 'lean', '--effort=lots').code, 2);
 });
 
-test('preset lists each preset with this harness\'s models and a rough cost against balanced', () => {
+test('preset lists each preset with this harness\'s models', () => {
   const { cli } = sandbox();
   const bare = JSON.parse(cli('preset', '--json').out);
   assert.equal(bare.harness, null);
-  assert.ok(bare.presets.every((p) => p.relativeCost === null), 'no models mapped, so no cost');
+  assert.ok(bare.presets.every((p) => p.roles === null), 'no models mapped, so no roles');
   cli('tiers', 'set', '--harness=claude-code', 'claude-top=opus', 'claude-strong=sonnet', 'claude-fast=haiku');
   const out = JSON.parse(cli('preset', '--json', '--harness=claude-code').out);
-  const cost = Object.fromEntries(out.presets.map((p) => [p.name, p.relativeCost]));
-  assert.equal(cost.balanced, 1);
-  assert.ok(cost.max > 1 && cost.lean < 1, JSON.stringify(cost));
-  assert.match(cli('preset', '--harness=claude-code').out, /thinks opus @ max/);
-
-  cli('tiers', 'set', '--harness=copilot', 'gpt-strong=gpt-5', 'gpt-fast=gpt-5-mini');
-  assert.ok(JSON.parse(cli('preset', '--json', '--harness=copilot').out).presets.every((p) => p.relativeCost === null), 'a model without a price gives no cost');
+  assert.deepEqual(out.presets.map((p) => p.name), ['max', 'balanced', 'lean']);
+  assert.deepEqual(out.presets.find((p) => p.name === 'max').roles.hardest, [{ model: 'opus', effort: 'max' }]);
+  const text = cli('preset', '--harness=claude-code').out;
+  assert.match(text, /thinks opus @ max/);
+  assert.doesNotMatch(text, /cost/);
 });
 
 test('a roles file from before sections is read into its harness, and rewritten with one', () => {

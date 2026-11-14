@@ -166,8 +166,6 @@ export function validate(root) {
       }
     }
     for (const [alias, to] of Object.entries(data.aliases || {})) if (!data.presets?.[to]) errors.push(`presets.json: alias ${alias} points at no preset ${to}`);
-    const weighed = Object.keys(data.cost?.weights || {});
-    roles.filter((r) => !weighed.includes(r)).forEach((r) => errors.push(`presets.json: cost.weights has no weight for ${r}`));
   }
 
   const manifests = {};

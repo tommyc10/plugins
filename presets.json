@@ -3,11 +3,6 @@
   "families": ["claude", "gpt", "gemini"],
   "tiers": ["top", "strong", "fast"],
   "aliases": { "extreme": "max", "high": "balanced", "efficient": "lean" },
-  "cost": {
-    "about": "A rough guide, not a bill: each seat's output price from pricing.json, times how much work the role usually does, times how many tokens its effort tends to spend. Shown only when every model has a price.",
-    "weights": { "code": 3, "hardest": 1, "judgment": 1, "reviewers": 1, "swarm workers": 2, "shootout runners": 0.5, "shootout judges": 0.25 },
-    "effort": { "none": 0.4, "minimal": 0.5, "low": 0.6, "medium": 1, "high": 1.5, "xhigh": 2, "max": 3 }
-  },
   "presets": {
     "max": {
       "blurb": "Hard design and risky changes: top models, high to max effort",
