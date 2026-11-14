@@ -97,6 +97,13 @@ test('doctor reports an out-of-date install in each harness', { skip: process.pl
   assert.equal(find(checks, 'GitHub CLI')[0].level, 'SKIP');
 });
 
+test('a harness without tblock installed is skipped, not warned about', { skip: process.platform === 'win32' && 'the stub CLIs are POSIX shell scripts' }, () => {
+  const { cli } = sandbox({ copilot: 'echo "No plugins installed."' });
+  const check = find(doctorJson(cli), 'Copilot')[0];
+  assert.equal(check.level, 'SKIP');
+  assert.match(check.detail, /not installed there/);
+});
+
 test('a bad role is rejected without writing anything', () => {
   const { home, cli } = sandbox();
   const r = cli('roles', 'set', 'coder=gpt-5');

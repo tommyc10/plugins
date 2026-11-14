@@ -477,7 +477,8 @@ function doctor() {
   if (listed || onDisk) installCheck(add, 'Copilot', listed || onDisk.version, onDisk?.path);
   else if (copilot.missing) add('SKIP', 'Copilot', 'copilot CLI not found');
   else if (line) add('WARN', 'Copilot', `tblock is installed, version unreadable: ${line.trim()}`);
-  else add('WARN', 'Copilot', 'tblock is not in `copilot plugin list`');
+  // Only one harness is in use on many machines, so a harness without tblock is not a problem.
+  else add('SKIP', 'Copilot', 'tblock is not installed there');
 
   const file = readRolesFile();
   if (!file) add('WARN', 'Roles', `${ROLES_FILE} not found, so every subagent runs on the session model (run /setup-tblock)`);
