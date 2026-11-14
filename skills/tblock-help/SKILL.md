@@ -34,7 +34,7 @@ Check the state that changes the answer, and mention it only when it does. Run `
 ## Get set up
 
 1. Install. Copilot CLI: `copilot plugin install tommyc10/tblock`. Claude Code: `claude plugin marketplace add tommyc10/tblock` then `claude plugin install tblock@tblock`. After an update, reinstall in Copilot, because it caches plugins by version.
-2. Point a `tblock` alias at `bin/tblock.mjs` in the install folder. The [README](../../README.md) shows how to find it.
+2. Let setup-tblock add the `tblock` command, or run `node <install folder>/bin/tblock.mjs command on`. It puts a launcher in `~/.tblock/bin` on PATH, and each session start points it at the newest install, so it survives updates. The [README](../../README.md) shows how to find the install folder.
 3. Run [setup-tblock](../setup-tblock/SKILL.md). It asks for a preset (extreme, high, or efficient), applies it, shows the roles, lets the user change any of them, and writes `~/.tblock/roles.md`. In Copilot it also writes one agent per role and each agent's effort level. The file has a section per harness, so a user of both runs it once in each, and one `tblock preset` then switches both.
 4. In each repo, run [setup-project](../setup-project/SKILL.md). It sets up log reading, ticket labels, the Grafana target, and a verification skill in the repo's `.tblock/` folder, for the team to commit. setup-tblock offers it at the end.
 5. Optionally run `tblock guard on`. The harness then asks before an agent pushes, opens or merges a PR or MR, files a ticket, or publishes, and each session starts knowing its roles. It is tested in Claude Code.

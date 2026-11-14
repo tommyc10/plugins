@@ -65,13 +65,9 @@ Subagents that do one job inside a playbook, such as a code change or a fix, are
 
 ## CLI
 
-tblock ships a small Node CLI at `bin/tblock.mjs`, with no dependencies. Point an alias at it inside your install folder:
+tblock ships a small Node CLI at `bin/tblock.mjs`, with no dependencies. `/setup-tblock` offers to put a `tblock` command in your terminal. Say yes, or run `tblock command on` yourself. It writes a launcher to `~/.tblock/bin` and adds that folder to your PATH once, in your shell's startup file or, on Windows, your user PATH. Each session start points the launcher at the newest tblock install, so updates never break it, and `tblock command off` undoes it.
 
-```bash
-alias tblock="node <install folder>/bin/tblock.mjs"
-```
-
-To find the install folder:
+To run the CLI before that, use `node <install folder>/bin/tblock.mjs`. To find the install folder:
 
 - **Copilot CLI:** run `find ~/.copilot ~/.copilot-local-plugins -path '*bin/tblock.mjs' 2>/dev/null`. Use the path under `installed-plugins` or `.copilot-local-plugins`, not the one under `Library/Caches`, and drop the `/bin/tblock.mjs` end.
 - **Claude Code:** the `installPath` that `claude plugin list --json` shows for `tblock@tblock`.
@@ -79,6 +75,7 @@ To find the install folder:
 | Command | What it does |
 | --- | --- |
 | `tblock doctor` | Checks the install in each tool, the roles file per harness, the Copilot role agents with their models and efforts, and the git CLIs. It reads each installed copy from disk, so it warns when an install kept its version number but its files differ from this one. Exits 1 on any FAIL. |
+| `tblock command on` | Adds the `tblock` command to your terminal, as above. `tblock command` shows where it points, and `tblock command off` removes it. |
 | `tblock guard on` | Turns on the two hooks the plugin ships. The harness then asks you before an agent runs a push, a PR or MR, a ticket, or a publish, so the pause no longer rests on the agent alone. Each new session also starts knowing its roles and what the repo has set up. `tblock guard off` undoes it. Tested in Claude Code. Copilot reads the same hook contract, but whether it loads a plugin's `hooks/hooks.json` is not yet checked. |
 | `tblock roles` | Shows which model and effort each role uses, per harness |
 | `tblock roles set "code=gpt-5 @ medium" reviewers=claude-opus-5,gpt-5` | Sets roles for one harness, and rewrites the Copilot role agents with their models and efforts |

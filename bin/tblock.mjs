@@ -8,6 +8,7 @@ import { homedir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handoff } from './handoff.mjs';
+import { addToPath, binDir, launcherTarget, onPath, refreshLauncher, removeFromPath, shellProfile } from './launcher.mjs';
 import { log } from './log.mjs';
 import { HARNESSES, HARNESS_NAME, emptyFile, formatEntry, formatRoles, parseEntry, readRoles, rolesPath, runsInClaudeCode, section } from './roles.mjs';
 import { createUI } from './ui.mjs';
@@ -547,6 +548,12 @@ function doctor() {
     add(file.meta.guard ? 'PASS' : 'SKIP', 'Guard', file.meta.guard ? 'asks before a push, PR, MR, ticket, or publish, and tells each session its roles' : 'off, so pausing before a push rests on the agent alone (run: tblock guard on)');
   }
 
+  const target = launcherTarget(homedir());
+  const path = onPath(homedir());
+  if (!target) add('SKIP', 'Command', 'no `tblock` command yet (run: tblock command on)');
+  else if (!path) add('SKIP', 'Command', `the launcher runs ${target}, but ${binDir(homedir())} is not on PATH (run: tblock command on)`);
+  else add('PASS', 'Command', `\`tblock\` runs ${target}${path === 'profile' ? '; new terminals pick it up' : ''}`);
+
   for (const [tool, label] of [['glab', 'GitLab CLI'], ['gh', 'GitHub CLI']]) {
     const auth = run(tool, ['auth', 'status']);
     if (auth.missing) add('SKIP', label, `${tool} not found`);
@@ -760,10 +767,32 @@ function guard(to) {
   say(ui.hint(`tblock guard ${file.meta.guard ? 'off' : 'on'}`), ui.dim('    new sessions pick it up'));
 }
 
+// `tblock command on` writes the launcher and puts its folder on PATH, once; off undoes both.
+function shellCommand(to) {
+  if (to && to !== 'on' && to !== 'off') throw new Error(`command takes on or off, not "${to}"`);
+  const home = homedir();
+  if (!json) process.stdout.write(ui.header('command'));
+  let where = null;
+  if (to === 'on') {
+    refreshLauncher(home, PLUGIN);
+    where = addToPath(home);
+  } else if (to === 'off') removeFromPath(home);
+  const target = launcherTarget(home);
+  const path = onPath(home);
+  if (json) return console.log(JSON.stringify({ launcher: target, onPath: path, profile: where || shellProfile(home)?.file || null }));
+  if (to === 'off') return say(ui.status('SKIP', 'Command', 'removed the launcher and the PATH line', 10), '', ui.hint('tblock command on'), ui.dim('    puts it back'));
+  if (!target) return say(ui.status('SKIP', 'Command', 'no launcher yet', 10), '', ui.hint('tblock command on'), ui.dim('    adds a `tblock` command to your terminal'));
+  say(ui.status('PASS', 'Command', `\`tblock\` runs ${target}`, 10));
+  if (where) say(ui.done('PATH', `${binDir(home)} added in ${where}`));
+  say('', ui.dim(path === 'now' ? '  Ready in this terminal.' : '  Open a new terminal, and `tblock` works there.'));
+  say(ui.dim('  Each session start points it at the newest tblock install, so updates never break it.'));
+}
+
 const COMMANDS = [
   ['check', [
     ['doctor', 'check the install, roles, Copilot agents, and git tools'],
     ['guard on', 'have the harness ask before a push, PR, MR, ticket, or publish (guard off undoes it)'],
+    ['command on', 'add a `tblock` command to your terminal that follows updates (command off undoes it)'],
   ]],
   ['watch', [
     ['watch', 'live view of a Copilot or Claude Code session: agents, models, tools, files'],
@@ -872,6 +901,8 @@ try {
     applyPreset(sub, rest);
   } else if (command === 'guard') {
     guard(sub);
+  } else if (command === 'command') {
+    shellCommand(sub);
   } else if (command === 'log') {
     if (!json) process.stdout.write(ui.header('log'));
     process.stdout.write(log({ ui, json, flags: args.slice(1), cwd: process.cwd(), prices: loadPrices(PLUGIN, homedir()), ...homes }));

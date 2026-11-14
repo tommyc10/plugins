@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// tblock's guard: the two hooks the plugin ships. Both do nothing until `tblock guard on`.
+// tblock's guard: the two hooks the plugin ships. Both do nothing until `tblock guard on`, except that
+// session start always points the `tblock` launcher in ~/.tblock/bin at this install.
 //   hook.mjs session-start <harness>   tells a new session its roles and what the repo has set up
 //   hook.mjs pre-tool <harness>        has the harness ask the user before a command that leaves the machine
 // A hook must never break a session, so every failure exits 0 and says nothing. Node built-ins only.
@@ -7,6 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { refreshLauncher } from './launcher.mjs';
 import { outwardAction } from './outward.mjs';
 import { formatEntry, readRoles } from './roles.mjs';
 
@@ -56,6 +58,7 @@ export function sessionStart(input, file, harness, root = PLUGIN) {
 if (basename(process.argv[1] || '') === 'hook.mjs') {
   try {
     const [event, harness = 'claude-code'] = process.argv.slice(2);
+    if (event === 'session-start') try { refreshLauncher(homedir(), PLUGIN); } catch { /* the roles line still matters */ }
     const file = readRoles(homedir());
     const input = readInput();
     const out = event === 'pre-tool' ? preTool(input, file) : event === 'session-start' ? sessionStart(input, file, harness) : null;

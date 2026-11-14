@@ -126,9 +126,12 @@ A file written before sections existed is read as one section and rewritten in t
 
 Follow your harness file's step 6.
 
-### 7. Offer the guard
+### 7. Offer the guard and the `tblock` command
 
-Ask once, with `AskUserQuestion`: "Want the harness itself to ask you before an agent pushes, opens or merges a PR or MR, files a ticket, or publishes?" Offer `Turn the guard on` and `Leave it off`. On yes, run `node <tblock>/bin/tblock.mjs guard on`. It switches on two hooks the plugin ships: one makes those commands a permission prompt, and one tells each new session its roles and what the repo has set up. Say that it is tested in Claude Code, and that `tblock guard off` undoes it. Skip the question when the roles file already says `# guard: on`.
+Ask both in one `AskUserQuestion` call, as two questions, and leave out any that is already done:
+
+- **Guard**, unless the roles file says `# guard: on`: "Want the harness itself to ask you before an agent pushes, opens or merges a PR or MR, files a ticket, or publishes?" Offer `Turn the guard on` and `Leave it off`. On yes, run `node <tblock>/bin/tblock.mjs guard on`. It switches on two hooks the plugin ships: one makes those commands a permission prompt, and one tells each new session its roles and what the repo has set up. Say that it is tested in Claude Code, and that `tblock guard off` undoes it.
+- **Command**, unless `node <tblock>/bin/tblock.mjs command --json` shows `onPath` set: "Want a `tblock` command in your terminal? It adds `~/.tblock/bin` to your PATH in your shell's startup file." Recommend `Add the tblock command`, and offer `Not now`. On yes, run `node <tblock>/bin/tblock.mjs command on` and say where it added the line and that a new terminal picks it up. The launcher in `~/.tblock/bin` follows updates by itself, because each session start points it at the newest install. `tblock command off` undoes it.
 
 ### 8. Confirm
 
