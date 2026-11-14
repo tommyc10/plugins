@@ -46,7 +46,7 @@ If cost is the worry, run `tblock log --since=monday` first. It totals every ses
 
 ## Start a task with tblock-mode
 
-tblock-mode sizes the task first and says "Size: small", "standard", or "deep". Small is a question or a one-file fix: the goal, the playbook's steps, and the proof, with no subagents, todo list, or bro version. Standard is the full playbook. Deep adds a design sketch, an adversarial review, and a decision trail. "Go deep" or "keep it small" sets the size. Then it matches the task to a playbook, runs the skills its steps need, and names the principles that shaped each decision. A good prompt states the goal and how to tell it's done, in a few plain sentences. It doesn't list skills, because a hand-written sequence drops steps the playbook keeps. Read [references/prompting.md](references/prompting.md) before you help word one.
+tblock-mode sizes the task first and says "Size: small", "standard", or "deep". Small is a question or a one-file fix: the goal, the playbook's steps, and the proof, with no subagents or todo list. Standard is the full playbook. Deep adds a design sketch, an adversarial review, and a decision trail. "Go deep" or "keep it small" sets the size. Then it matches the task to a playbook, runs the skills its steps need, and names the principles that shaped each decision. A good prompt states the goal and how to tell it's done, in a few plain sentences. It doesn't list skills, because a hand-written sequence drops steps the playbook keeps. Read [references/prompting.md](references/prompting.md) before you help word one.
 
 For a vague or large task, start with `/in-your-own-words <task>` in the same session, so a misreading shows up before any code exists, then send the task to tblock-mode.
 

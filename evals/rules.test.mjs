@@ -14,31 +14,31 @@ const trace = (...lines) => parseTrace([...lines, JSON.stringify({ type: 'result
 const byName = (results) => Object.fromEntries(results.map((r) => [r.name, r]));
 const principles = principleNames(root);
 
-test('a small task has no bro version, so its size line shows that tblock-mode loaded', () => {
+test('a size line shows that tblock-mode loaded', () => {
   const r = byName(checkRules(trace(assistant([text('Size: small. You want the slug fixed.')]), assistant([text('Fixed. `node check.mjs` printed 7 passing.')])), { principles }));
   assert.equal(r['tblock-mode-loaded'].pass, true);
   assert.equal(byName(checkRules(trace(assistant([text('Fixed it.')])), { principles }))['tblock-mode-loaded'].pass, false);
 });
 
 test('the final reply is the last main-agent text, not a subagent report', () => {
-  const t = trace(assistant([text('Plan.')]), assistant([text('Subagent report.')], 'toolu_1'), assistant([text('Done.\n\n**Bro version.** Fixed.')]));
-  assert.equal(t.reply, 'Done.\n\n**Bro version.** Fixed.');
+  const t = trace(assistant([text('Plan.')]), assistant([text('Subagent report.')], 'toolu_1'), assistant([text('Done.')]));
+  assert.equal(t.reply, 'Done.');
   assert.equal(t.cost, 0.5);
 });
 
 test('a clean tblock run passes every rule that applies', () => {
   const t = trace(
-    assistant([text('Goal: drop the trailing dash.')]),
+    assistant([text('Size: small. Goal: drop the trailing dash.')]),
     assistant([tool('Read', { file_path: 'C:\\plugins\\skills\\principle-laziness-protocol\\SKILL.md' })]),
     assistant([tool('Edit', { file_path: 'src/slug.js' })]),
-    assistant([text('Fixed per the Laziness Protocol.\n\n**Bro version.** Done.')]),
+    assistant([text('Fixed per the Laziness Protocol.')]),
   );
   const r = byName(checkRules(t, { principles }));
   for (const name of ['no-outward-action', 'tblock-mode-loaded', 'reply-has-no-long-dash', 'cited-principles-were-read', 'goal-stated-before-first-edit']) assert.equal(r[name].pass, true, name);
 });
 
 test('citing a principle it never read fails', () => {
-  const r = byName(checkRules(trace(assistant([text('I followed Prove It Works.\n\n**Bro version.** ok')])), { principles }));
+  const r = byName(checkRules(trace(assistant([text('I followed Prove It Works.')])), { principles }));
   assert.equal(r['cited-principles-were-read'].pass, false);
   assert.match(r['cited-principles-were-read'].detail, /principle-prove-it-works/);
 });
@@ -61,7 +61,7 @@ test('the baseline arm is only held to the safety rule', () => {
 });
 
 test('long dashes in the reply fail', () => {
-  const r = byName(checkRules(trace(assistant([text('Done \u2014 mostly.\n\n**Bro version.** ok')])), { principles }));
+  const r = byName(checkRules(trace(assistant([text('Done \u2014 mostly.')])), { principles }));
   assert.equal(r['reply-has-no-long-dash'].pass, false);
 });
 

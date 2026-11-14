@@ -629,8 +629,8 @@ const FLOW = [
     code: 'order #4471  total £100.00  <span class="c">✓ matches expected</span>\ntest refunds_count_once  <span class="c">fail before → pass after</span>', by: ['Prove It Works', 'tdd', 'Test Behavior, Not Implementation'] },
   { t: 'It gets the change reviewed', d: 'For a fix it doesn\'t fully trust, reviewers on different model families try to break it. Only findings they prove with a run survive. UI changes get the UI council, which reviews the running page.',
     code: 'reviewer A (Claude)  1 finding  → verified\nreviewer B (GPT)     0 findings\n<b>verified:</b> partial refunds on split orders untested', by: ['interrogate', 'ui-council', 'blast-radius'] },
-  { t: 'It replies with evidence', d: 'The reply says what failed, the root cause, the fix, before and after evidence, and what it did not check. It names each principle that shaped a decision, then ends with a plain bro version.',
-    code: '<b>Not checked.</b> Split orders with partial refunds.\n<b>Principles.</b> Fix Root Causes moved the fix from\nsummary() to lineItems().\n<b>Bro version.</b> Refunds were taken off twice. Fixed\nthe first place, proved it on the real order.', by: ['unslop', 'technical-writing'] },
+  { t: 'It replies with evidence', d: 'The reply says what failed, the root cause, the fix, before and after evidence, and what it did not check. It names each principle that shaped a decision.',
+    code: '<b>Not checked.</b> Split orders with partial refunds.\n<b>Principles.</b> Fix Root Causes moved the fix from\nsummary() to lineItems().', by: ['unslop', 'technical-writing'] },
   { t: 'It asks before anything leaves', d: 'Local commits are fine. Pushing, opening a PR, or creating a ticket waits for your yes. Threepio can draft the ticket, but a person approves it.',
     code: 'Ready to push <b>fix/refund-double-count</b> and open a PR.\nOK to go ahead?', by: ['Opening an MR playbook', 'threepio', 'ticket-up'] }
 ];
