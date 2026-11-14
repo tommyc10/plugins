@@ -200,6 +200,44 @@ test('a preset maps tiers to models and reports what it had to fall back on', ()
   assert.match(readFileSync(join(home, '.tblock', 'roles.md'), 'utf8'), /^# preset: extreme \(edited\)$/m);
 });
 
+test('a preset names the edits it resets, keeps them with --keep-edits, and writes nothing on --dry-run', () => {
+  const { home, cli } = sandbox();
+  const file = join(home, '.tblock', 'roles.md');
+  cli('tiers', 'set', '--harness=claude-code', 'claude-top=opus', 'claude-strong=sonnet', 'claude-fast=haiku');
+  cli('preset', 'high');
+  cli('roles', 'set', '--harness=claude-code', 'code=sonnet @ high', 'reviewers=opus @ high,sonnet @ high');
+  const before = readFileSync(file, 'utf8');
+
+  const dry = cli('preset', 'high', '--dry-run');
+  assert.equal(dry.code, 0, dry.err);
+  assert.match(dry.out, /Would reset your edits\n\s+code\s+sonnet @ high\s+→ sonnet @ medium/);
+  assert.doesNotMatch(dry.out, /reviewers\s+opus @ high, sonnet @ high\s+→/, 'a reordered panel is not an edit');
+  assert.equal(readFileSync(file, 'utf8'), before, 'a dry run writes nothing');
+  const plan = JSON.parse(cli('preset', 'high', '--dry-run', '--json').out);
+  assert.deepEqual(plan.harnesses['claude-code'].edits.map((e) => e.role), ['code']);
+
+  const kept = cli('preset', 'high', '--keep-edits');
+  assert.match(kept.out, /Kept your edits/);
+  assert.match(readFileSync(file, 'utf8'), /^code: sonnet @ high$/m);
+  assert.match(readFileSync(file, 'utf8'), /^# preset: high \(edited\)$/m);
+
+  const reset = cli('preset', 'high');
+  assert.match(reset.out, /Reset your edits/);
+  assert.match(reset.out, /tblock preset high --keep-edits/);
+  assert.match(readFileSync(file, 'utf8'), /^code: sonnet @ medium$/m);
+  assert.match(readFileSync(file, 'utf8'), /^# preset: high$/m);
+  assert.equal(cli('preset', 'high', '--bogus').code, 2);
+});
+
+test('a role tblock no longer has is dropped with a note', () => {
+  const { home, cli } = sandbox();
+  mkdirSync(join(home, '.tblock'));
+  writeFileSync(join(home, '.tblock', 'roles.md'), '## claude-code\n# tiers: claude-top=opus\nartist: opus @ high\ncode: sonnet\n');
+  const r = cli('roles', 'set', '--harness=claude-code', 'hardest=opus');
+  assert.match(r.out, /dropped "artist", which is not a tblock role any more/);
+  assert.doesNotMatch(readFileSync(join(home, '.tblock', 'roles.md'), 'utf8'), /artist/);
+});
+
 test('a preset without tiers says how to set them', () => {
   const { cli } = sandbox();
   const r = cli('preset', 'high');

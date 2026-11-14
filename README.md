@@ -48,7 +48,7 @@ A preset sets every role's model and reasoning effort at once, in every harness 
 | `high` | Features and reviews (the default) | Top models on `hardest` and `judgment`, strong models elsewhere, two-family panels |
 | `efficient` | Everyday bugs and small changes | Strong models on the thinking roles, the session model for `code`, medium effort |
 
-The presets are data in [presets.json](presets.json). After a preset, change any single role with `tblock roles set "hardest=<model> @ max"`, adding `--harness=claude-code` or `--harness=copilot` when you run it outside a session.
+A preset never resets a role you changed by hand without saying so: it lists each one with your value and the preset's. Add `--keep-edits` to keep them, or `--dry-run` to see what would change first. The presets are data in [presets.json](presets.json). After a preset, change any single role with `tblock roles set "hardest=<model> @ max"`, adding `--harness=claude-code` or `--harness=copilot` when you run it outside a session.
 
 Claude Code runs only Claude models, so there a panel seats different tiers, such as Sonnet and Opus, and each reviewer in `interrogate` and `ui-council` attacks through its own lens. The lens is what makes a second reviewer on the same family worth running.
 
@@ -89,7 +89,7 @@ To find the install folder:
 | `tblock models` | Lists the Copilot models VS Code's picker offers your plan, and suggests tiers (needs Node 22.5+). With VS Code on a remote, add `--from="<text>"` with the picker list in any shape, or Copilot's unknown-model error |
 | `tblock tiers detect` | Maps tiers from those detected models, so you never type picker names |
 | `tblock tiers` and `tblock tiers set claude-top=<model> gpt-fast=<model>` | Show or map which of your models fills each tier |
-| `tblock preset` and `tblock preset <name>` | List the presets, or apply one |
+| `tblock preset` and `tblock preset <name>` | List the presets, or apply one. It lists the hand edits it resets; `--keep-edits` keeps them and `--dry-run` writes nothing |
 
 Add `--json` for output a script or agent can read. Colour appears only in a terminal: `NO_COLOR` turns it off, and `FORCE_COLOR=1` keeps it on when piping, for a preview.
 

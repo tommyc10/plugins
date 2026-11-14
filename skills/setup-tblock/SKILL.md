@@ -60,11 +60,19 @@ Run `node <tblock>/bin/tblock.mjs roles` and `node <tblock>/bin/tblock.mjs tiers
 
 **(b) Map the tiers.** Follow your harness file's step 3b. A tier left out falls back to the nearest one in the same family.
 
-**(c) Apply the preset.** It fills every harness that has tiers, so a section the user set up earlier in the other harness moves to the new preset too. Show any `note:` lines the CLI prints about tiers it had to fall back on, or a panel it filled from one family:
+**(c) Apply the preset, keeping the user's edits if they want.** First see what it would change, without writing anything:
 
 ```
-node <tblock>/bin/tblock.mjs preset <name>
+node <tblock>/bin/tblock.mjs preset <name> --dry-run
 ```
+
+When it prints `Would reset your edits`, show that list, each role with the user's value and the preset's, and ask once with `AskUserQuestion`: `Keep my edits` or `Reset to <name>`. Never reset an edit without this question. Then apply the preset, adding `--keep-edits` on `Keep my edits`:
+
+```
+node <tblock>/bin/tblock.mjs preset <name> [--keep-edits]
+```
+
+It fills every harness that has tiers, so a section the user set up earlier in the other harness moves to the new preset too. Show any `note:` lines the CLI prints: tiers it had to fall back on, a panel it filled from one family, and any role it `dropped` because tblock no longer has it.
 
 **(d) Show the roles and confirm.** Run `node <tblock>/bin/tblock.mjs roles` and show every role with its model and effort. Ask whether to accept as-is or change specific roles. For each role the user names, ask its model, then its effort:
 

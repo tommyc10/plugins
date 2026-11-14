@@ -9,7 +9,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handoff } from './handoff.mjs';
 import { log } from './log.mjs';
-import { HARNESSES, HARNESS_NAME, emptyFile, formatRoles, parseEntry, readRoles, rolesPath, runsInClaudeCode, section } from './roles.mjs';
+import { HARNESSES, HARNESS_NAME, emptyFile, formatEntry, formatRoles, parseEntry, readRoles, rolesPath, runsInClaudeCode, section } from './roles.mjs';
 import { createUI } from './ui.mjs';
 import { loadPrices } from './usage.mjs';
 import { watch } from './watch.mjs';
@@ -129,7 +129,19 @@ const expectedEfforts = (roles, specs) => expectedSettings(roles, specs, 'effort
 
 const readRolesFile = () => readRoles(homedir(), PRESETS.efforts);
 
+// A line naming a role tblock no longer has is dropped on the next write, so say which went.
+function droppedRoles(specs) {
+  const known = new Set(specs.map((s) => s.name));
+  const before = readRolesFile();
+  if (!before) return [];
+  return HARNESSES.flatMap((h) => Object.keys(before.harnesses[h]?.roles || {}).filter((r) => !known.has(r)).map((r) => ({ harness: h, role: r })));
+}
+
 function writeRolesFile(file, specs) {
+  const dropped = droppedRoles(specs);
+  const many = HARNESSES.filter((h) => file.harnesses[h]).length > 1;
+  dropped.forEach(({ harness, role }) => say(ui.note(`dropped ${many ? `${HARNESS_NAME[harness]}: ` : ''}"${role}", which is not a tblock role any more`)));
+  if (dropped.length) say('');
   mkdirSync(dirname(ROLES_FILE), { recursive: true });
   writeFileSync(ROLES_FILE, formatRoles(file, specs));
   say(ui.done('Saved roles', ROLES_FILE));
@@ -643,20 +655,67 @@ function showTiers() {
   say(ui.hint('tblock models'), ui.dim('    suggests tiers from your Copilot models'));
 }
 
+const presetOf = (recorded) => (recorded || '').split(' ')[0];
+// A panel seats its entries side by side, so the same models in another order are the same panel.
+const sameEntries = (a = [], b = [], panel = false) => {
+  const key = (list) => (panel ? list.map(formatEntry).sort() : list.map(formatEntry)).join(', ');
+  return key(a) === key(b);
+};
+
+// The user's own edits: roles that differ from what the recorded preset gives with today's tiers.
+// With no preset recorded, every role was set by hand.
+function editedRoles(file, harness, specs) {
+  const part = file.harnesses[harness];
+  if (!part) return [];
+  let base = {};
+  try { if (PRESETS.presets[presetOf(file.meta.preset)]) base = resolvePreset(presetOf(file.meta.preset), part.tiers, specs).roles; } catch { /* no tiers yet */ }
+  return specs.filter((s) => part.roles[s.name] && !sameEntries(part.roles[s.name], base[s.name], s.panel)).map((s) => s.name);
+}
+
 // One preset fills every harness that has tiers, so Claude Code and Copilot never drift apart.
-function applyPreset(name) {
+// It names every edit of the user's it resets, and --keep-edits keeps them; --dry-run writes nothing.
+function checkPresetFlags(flags) {
+  const unknown = flags.filter((f) => f !== '--keep-edits' && f !== '--dry-run');
+  if (unknown.length) throw new Error(`preset takes --keep-edits and --dry-run, not ${unknown.join(' ')}`);
+}
+
+function applyPreset(name, flags = []) {
+  checkPresetFlags(flags);
+  const keep = flags.includes('--keep-edits');
+  const dry = flags.includes('--dry-run');
   const specs = roleSpecs();
   const file = readRolesFile() || emptyFile();
   const mapped = HARNESSES.filter((h) => Object.keys(file.harnesses[h]?.tiers || {}).length);
   const targets = harnessFlag ? [pickHarness(file)] : mapped;
   if (!targets.length) resolvePreset(name, {}, specs);
+  const report = {};
   for (const harness of targets) {
-    const { roles, notes } = resolvePreset(name, section(file, harness).tiers, specs);
+    const edited = editedRoles(file, harness, specs);
+    const before = section(file, harness).roles;
+    const { roles, notes } = resolvePreset(name, file.harnesses[harness].tiers, specs);
+    const panel = new Set(specs.filter((s) => s.panel).map((s) => s.name));
+    const edits = edited.filter((r) => !sameEntries(before[r], roles[r], panel.has(r))).map((role) => ({ role, yours: before[role], preset: roles[role] }));
+    if (keep) edits.forEach(({ role, yours }) => { roles[role] = yours; });
+    report[harness] = { roles, notes, edits };
     file.harnesses[harness].roles = roles;
-    notes.forEach((n) => say(ui.note(targets.length > 1 ? `${HARNESS_NAME[harness]}: ${n}` : n)));
-    if (notes.length) say('');
   }
-  file.meta.preset = name;
+  const kept = keep && Object.values(report).some((r) => r.edits.length);
+  file.meta.preset = kept ? `${name} (edited)` : name;
+  if (dry && json) return console.log(JSON.stringify({ preset: file.meta.preset, harnesses: report }, null, 2));
+  const who = (harness) => (targets.length > 1 ? `${HARNESS_NAME[harness]}: ` : '');
+  for (const [harness, { notes }] of Object.entries(report)) notes.forEach((n) => say(ui.note(`${who(harness)}${n}`)));
+  if (Object.values(report).some((r) => r.notes.length)) say('');
+  const edits = Object.entries(report).flatMap(([harness, r]) => r.edits.map((e) => ({ harness, ...e })));
+  if (edits.length) {
+    const verb = keep ? 'Kept your edits' : dry ? 'Would reset your edits' : 'Reset your edits';
+    say(ui.section(verb));
+    say(ui.table(edits.map((e) => [ui.bold(`${who(e.harness)}${e.role}`), e.yours.map(formatEntry).join(', '), ui.dim(keep ? `instead of ${e.preset.map(formatEntry).join(', ')}` : `→ ${e.preset.map(formatEntry).join(', ')}`)])), '');
+    if (!keep) say(ui.hint(`tblock preset ${name} --keep-edits`), ui.dim('    applies the preset and keeps these'), '');
+  }
+  if (dry) {
+    for (const harness of targets) say(ui.section(`${HARNESS_NAME[harness]}, with preset ${file.meta.preset}`), rolesTable(file.harnesses[harness].roles), '');
+    return say(ui.dim('  Dry run: nothing written.'));
+  }
   writeRolesFile(file, specs);
   syncCopilot(file, specs);
   say('');
@@ -725,6 +784,7 @@ const COMMANDS = [
   ['presets', [
     ['preset', `list presets: ${Object.keys(PRESETS.presets).join(', ')}`],
     ['preset <name>', "set every role's model and effort at once, in every mapped harness"],
+    ['preset <name> --keep-edits', 'apply a preset but keep the roles you changed by hand (--dry-run shows what changes)'],
   ]],
   ['log', [
     ['log', 'every agent session since yesterday: task, last reply, MRs, files, and cost'],
@@ -807,8 +867,9 @@ try {
   } else if (command === 'preset' && !sub) {
     showPresets();
   } else if (command === 'preset') {
-    process.stdout.write(ui.header(`preset ${sub}`));
-    applyPreset(sub);
+    checkPresetFlags(rest);
+    if (!(json && rest.includes('--dry-run'))) process.stdout.write(ui.header(`preset ${sub}`));
+    applyPreset(sub, rest);
   } else if (command === 'guard') {
     guard(sub);
   } else if (command === 'log') {
