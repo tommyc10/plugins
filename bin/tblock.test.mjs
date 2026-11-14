@@ -179,9 +179,9 @@ test('a preset maps tiers to models and reports what it had to fall back on', ()
   const { home, cli } = sandbox();
   cli('tiers', 'set', '--harness=copilot', 'claude-top=opus', 'claude-strong=sonnet', 'gpt-strong=sol', 'gpt-fast=luna');
 
-  assert.equal(cli('preset', 'high').code, 0);
+  assert.equal(cli('preset', 'balanced').code, 0);
   let roles = readFileSync(join(home, '.tblock', 'roles.md'), 'utf8');
-  assert.match(roles, /^# preset: high$/m);
+  assert.match(roles, /^# preset: balanced$/m);
   assert.match(roles, /^hardest: opus @ high$/m);
   assert.match(roles, /^code: sol @ medium$/m);
   assert.match(roles, /^swarm workers: luna @ low$/m);
@@ -189,7 +189,7 @@ test('a preset maps tiers to models and reports what it had to fall back on', ()
   const roleLines = roles.split('\n').filter((l) => l && !l.startsWith('#')).map((l) => l.split(':')[0]);
   assert.deepEqual(roleLines, ['code', 'hardest', 'judgment', 'reviewers', 'swarm workers', 'shootout runners', 'shootout judges']);
 
-  const extreme = cli('preset', 'extreme');
+  const extreme = cli('preset', 'max');
   assert.equal(extreme.code, 0, extreme.err);
   assert.match(extreme.out, /reviewers: 2 of 3 families have models, so sonnet fills the panel/);
   assert.match(extreme.out, /code: no gpt-top, used gpt-strong/);
@@ -197,36 +197,36 @@ test('a preset maps tiers to models and reports what it had to fall back on', ()
   assert.match(roles, /^code: sol @ high$/m);
 
   cli('roles', 'set', 'code=gpt-6');
-  assert.match(readFileSync(join(home, '.tblock', 'roles.md'), 'utf8'), /^# preset: extreme \(edited\)$/m);
+  assert.match(readFileSync(join(home, '.tblock', 'roles.md'), 'utf8'), /^# preset: max \(edited\)$/m);
 });
 
 test('a preset names the edits it resets, keeps them with --keep-edits, and writes nothing on --dry-run', () => {
   const { home, cli } = sandbox();
   const file = join(home, '.tblock', 'roles.md');
   cli('tiers', 'set', '--harness=claude-code', 'claude-top=opus', 'claude-strong=sonnet', 'claude-fast=haiku');
-  cli('preset', 'high');
+  cli('preset', 'balanced');
   cli('roles', 'set', '--harness=claude-code', 'code=sonnet @ high', 'reviewers=opus @ high,sonnet @ high');
   const before = readFileSync(file, 'utf8');
 
-  const dry = cli('preset', 'high', '--dry-run');
+  const dry = cli('preset', 'balanced', '--dry-run');
   assert.equal(dry.code, 0, dry.err);
   assert.match(dry.out, /Would reset your edits\n\s+code\s+sonnet @ high\s+→ sonnet @ medium/);
   assert.doesNotMatch(dry.out, /reviewers\s+opus @ high, sonnet @ high\s+→/, 'a reordered panel is not an edit');
   assert.equal(readFileSync(file, 'utf8'), before, 'a dry run writes nothing');
-  const plan = JSON.parse(cli('preset', 'high', '--dry-run', '--json').out);
+  const plan = JSON.parse(cli('preset', 'balanced', '--dry-run', '--json').out);
   assert.deepEqual(plan.harnesses['claude-code'].edits.map((e) => e.role), ['code']);
 
-  const kept = cli('preset', 'high', '--keep-edits');
+  const kept = cli('preset', 'balanced', '--keep-edits');
   assert.match(kept.out, /Kept your edits/);
   assert.match(readFileSync(file, 'utf8'), /^code: sonnet @ high$/m);
-  assert.match(readFileSync(file, 'utf8'), /^# preset: high \(edited\)$/m);
+  assert.match(readFileSync(file, 'utf8'), /^# preset: balanced \(edited\)$/m);
 
-  const reset = cli('preset', 'high');
+  const reset = cli('preset', 'balanced');
   assert.match(reset.out, /Reset your edits/);
-  assert.match(reset.out, /tblock preset high --keep-edits/);
+  assert.match(reset.out, /tblock preset balanced --keep-edits/);
   assert.match(readFileSync(file, 'utf8'), /^code: sonnet @ medium$/m);
-  assert.match(readFileSync(file, 'utf8'), /^# preset: high$/m);
-  assert.equal(cli('preset', 'high', '--bogus').code, 2);
+  assert.match(readFileSync(file, 'utf8'), /^# preset: balanced$/m);
+  assert.equal(cli('preset', 'balanced', '--bogus').code, 2);
 });
 
 test('a role tblock no longer has is dropped with a note', () => {
@@ -240,7 +240,7 @@ test('a role tblock no longer has is dropped with a note', () => {
 
 test('a preset without tiers says how to set them', () => {
   const { cli } = sandbox();
-  const r = cli('preset', 'high');
+  const r = cli('preset', 'balanced');
   assert.equal(r.code, 2);
   assert.match(r.err, /tblock tiers set/);
 });
@@ -372,7 +372,7 @@ test('a pasted list in any shape gives the same models', () => {
 test('every view prints plain text when piped, and colour only when asked for', () => {
   const { cli } = sandbox();
   cli('tiers', 'set', 'claude-top=claude-opus-5.5', 'gpt-fast=gpt-6-luna');
-  cli('preset', 'high');
+  cli('preset', 'balanced');
   for (const view of [[], ['roles'], ['tiers'], ['preset'], ['doctor'], ['models']]) {
     assert.doesNotMatch(cli(...view).out, /\x1b\[/, `tblock ${view.join(' ')} is plain when piped`);
   }
@@ -609,7 +609,7 @@ test('one preset fills Claude Code and Copilot together, and keeps the Copilot a
   const { home, cli, agents } = sandbox();
   cli('tiers', 'set', '--harness=claude-code', 'claude-top=opus', 'claude-strong=sonnet', 'claude-fast=haiku');
   cli('tiers', 'set', '--harness=copilot', 'claude-top=claude-opus-5.5', 'gpt-strong=gpt-5', 'gpt-fast=gpt-5-mini');
-  const r = cli('preset', 'high');
+  const r = cli('preset', 'balanced');
   assert.equal(r.code, 0, r.err);
   const [, claude, copilot] = rolesText(home).split(/^## /m);
   assert.match(claude, /^claude-code\n# tiers: claude-top=opus/);
@@ -627,13 +627,59 @@ test('one preset fills Claude Code and Copilot together, and keeps the Copilot a
 test('a Claude Code panel seats different tiers when it has one family', () => {
   const { home, cli } = sandbox();
   cli('tiers', 'set', '--harness=claude-code', 'claude-top=opus', 'claude-strong=sonnet', 'claude-fast=haiku');
-  const r = cli('preset', 'high');
+  const r = cli('preset', 'balanced');
   assert.match(rolesText(home), /^reviewers: sonnet @ high, opus @ high$/m);
-  assert.match(r.out, /reviewers: 1 of 2 families have models, so opus fills the panel/);
+  assert.doesNotMatch(r.out, /note:/, 'Claude Code presets name Claude models, so nothing falls back');
   assert.equal(find(doctorJson(cli), 'Roles').some((c) => /no model diversity/.test(c.detail)), false, 'one family is all Claude Code has, so doctor does not warn about it');
 
-  cli('preset', 'extreme');
+  cli('preset', 'max');
   assert.match(rolesText(home), /^reviewers: opus @ xhigh, sonnet @ xhigh, haiku @ xhigh$/m);
+});
+
+test('the old preset names still work, and a file that records one has no false edits', () => {
+  const { home, cli } = sandbox();
+  cli('tiers', 'set', '--harness=claude-code', 'claude-top=opus', 'claude-strong=sonnet', 'claude-fast=haiku');
+  const old = cli('preset', 'high');
+  assert.match(old.out, /"high" is now called "balanced"/);
+  assert.match(rolesText(home), /^# preset: balanced$/m);
+  writeFileSync(join(home, '.tblock', 'roles.md'), rolesText(home).replace('# preset: balanced', '# preset: high'));
+  assert.deepEqual(JSON.parse(cli('preset', 'balanced', '--dry-run', '--json').out).harnesses['claude-code'].edits, []);
+  for (const [from, to] of [['extreme', 'max'], ['efficient', 'lean']]) {
+    cli('preset', from);
+    assert.match(rolesText(home), new RegExp(`^# preset: ${to}$`, 'm'));
+  }
+});
+
+test('--effort moves every role along the effort ladder and is remembered for edit checks', () => {
+  const { home, cli } = sandbox();
+  cli('tiers', 'set', '--harness=claude-code', 'claude-top=opus', 'claude-strong=sonnet', 'claude-fast=haiku');
+  cli('preset', 'balanced', '--effort=+1');
+  assert.match(rolesText(home), /^# preset: balanced \+1$/m);
+  assert.match(rolesText(home), /^code: sonnet @ high$/m);
+  assert.match(rolesText(home), /^hardest: opus @ xhigh$/m);
+  assert.match(rolesText(home), /^swarm workers: haiku @ medium$/m);
+  assert.deepEqual(JSON.parse(cli('preset', 'balanced', '--effort=+1', '--dry-run', '--json').out).harnesses['claude-code'].edits, []);
+  cli('preset', 'max', '--effort=+3');
+  assert.match(rolesText(home), /^hardest: opus @ max$/m, 'the ladder stops at max');
+  cli('preset', 'lean', '--effort=-1');
+  assert.match(rolesText(home), /^swarm workers: haiku @ minimal$/m);
+  assert.equal(cli('preset', 'lean', '--effort=lots').code, 2);
+});
+
+test('preset lists each preset with this harness\'s models and a rough cost against balanced', () => {
+  const { cli } = sandbox();
+  const bare = JSON.parse(cli('preset', '--json').out);
+  assert.equal(bare.harness, null);
+  assert.ok(bare.presets.every((p) => p.relativeCost === null), 'no models mapped, so no cost');
+  cli('tiers', 'set', '--harness=claude-code', 'claude-top=opus', 'claude-strong=sonnet', 'claude-fast=haiku');
+  const out = JSON.parse(cli('preset', '--json', '--harness=claude-code').out);
+  const cost = Object.fromEntries(out.presets.map((p) => [p.name, p.relativeCost]));
+  assert.equal(cost.balanced, 1);
+  assert.ok(cost.max > 1 && cost.lean < 1, JSON.stringify(cost));
+  assert.match(cli('preset', '--harness=claude-code').out, /thinks opus @ max/);
+
+  cli('tiers', 'set', '--harness=copilot', 'gpt-strong=gpt-5', 'gpt-fast=gpt-5-mini');
+  assert.ok(JSON.parse(cli('preset', '--json', '--harness=copilot').out).presets.every((p) => p.relativeCost === null), 'a model without a price gives no cost');
 });
 
 test('a roles file from before sections is read into its harness, and rewritten with one', () => {

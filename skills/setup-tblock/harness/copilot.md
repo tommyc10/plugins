@@ -12,7 +12,7 @@ Find the models in this order, and never ask the user to type or map model names
 
 Models marked `overCostTier` cost more than the session model. Say so when one fills a tier: VS Code's chat refuses that subagent unless the session model costs at least as much.
 
-## Step 3b: map the tiers
+## Step 3a: map the tiers
 
 Show the suggested tiers from `models --json` with each model's picker name, and confirm them with one `AskUserQuestion` whose options are `Use these tiers` and `Change some`, never a free-text box.
 

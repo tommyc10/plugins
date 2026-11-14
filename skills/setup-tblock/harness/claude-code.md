@@ -6,7 +6,7 @@ Read this with [setup-tblock](../SKILL.md) when you run in Claude Code, which me
 
 The models are the `model` values the `Agent` tool lists: `opus`, `sonnet`, `haiku`, `fable`. Claude Code runs only Claude models, so only the claude tiers fill, and every panel draws from one family. A preset seats a panel from different tiers, such as `sonnet` and `opus`, and `interrogate` and `ui-council` give each reviewer its own lens, which is where the variety comes from. Say so once, in one sentence.
 
-## Step 3b: map the tiers
+## Step 3a: map the tiers
 
 Don't ask. The mapping is always the same, so write it:
 

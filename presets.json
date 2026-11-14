@@ -2,33 +2,68 @@
   "efforts": ["none", "minimal", "low", "medium", "high", "xhigh", "max"],
   "families": ["claude", "gpt", "gemini"],
   "tiers": ["top", "strong", "fast"],
+  "aliases": { "extreme": "max", "high": "balanced", "efficient": "lean" },
+  "cost": {
+    "about": "A rough guide, not a bill: each seat's output price from pricing.json, times how much work the role usually does, times how many tokens its effort tends to spend. Shown only when every model has a price.",
+    "weights": { "code": 3, "hardest": 1, "judgment": 1, "reviewers": 1, "swarm workers": 2, "shootout runners": 0.5, "shootout judges": 0.25 },
+    "effort": { "none": 0.4, "minimal": 0.5, "low": 0.6, "medium": 1, "high": 1.5, "xhigh": 2, "max": 3 }
+  },
   "presets": {
-    "extreme": {
-      "hardest": { "family": "claude", "tier": "top", "effort": "max" },
-      "judgment": { "family": "claude", "tier": "top", "effort": "max" },
-      "code": { "family": "gpt", "tier": "top", "effort": "high" },
-      "swarm workers": { "family": "gpt", "tier": "strong", "effort": "medium" },
-      "reviewers": { "panel": 3, "tier": "top", "effort": "xhigh" },
-      "shootout runners": { "panel": 3, "tier": "top", "effort": "xhigh" },
-      "shootout judges": { "panel": 3, "tier": "top", "effort": "xhigh" }
+    "max": {
+      "blurb": "Hard design and risky changes: top models, high to max effort",
+      "roles": {
+        "hardest": { "family": "claude", "tier": "top", "effort": "max" },
+        "judgment": { "family": "claude", "tier": "top", "effort": "max" },
+        "code": { "family": "gpt", "tier": "top", "effort": "high" },
+        "swarm workers": { "family": "gpt", "tier": "strong", "effort": "medium" },
+        "reviewers": { "panel": 3, "tier": "top", "effort": "xhigh" },
+        "shootout runners": { "panel": 3, "tier": "top", "effort": "xhigh" },
+        "shootout judges": { "panel": 3, "tier": "top", "effort": "xhigh" }
+      },
+      "claude-code": {
+        "code": { "family": "claude", "tier": "top", "effort": "high" },
+        "swarm workers": { "family": "claude", "tier": "strong", "effort": "medium" },
+        "reviewers": { "seats": ["claude-top", "claude-strong", "claude-fast"], "effort": "xhigh" },
+        "shootout runners": { "seats": ["claude-top", "claude-strong", "claude-fast"], "effort": "xhigh" },
+        "shootout judges": { "seats": ["claude-top", "claude-strong", "claude-fast"], "effort": "xhigh" }
+      }
     },
-    "high": {
-      "hardest": { "family": "claude", "tier": "top", "effort": "high" },
-      "judgment": { "family": "claude", "tier": "top", "effort": "high" },
-      "code": { "family": "gpt", "tier": "strong", "effort": "medium" },
-      "swarm workers": { "family": "gpt", "tier": "fast", "effort": "low" },
-      "reviewers": { "panel": 2, "tier": "strong", "effort": "high" },
-      "shootout runners": { "panel": 2, "tier": "strong", "effort": "high" },
-      "shootout judges": { "panel": 2, "tier": "strong", "effort": "high" }
+    "balanced": {
+      "blurb": "Features and reviews (the default): top thinkers, strong workers",
+      "roles": {
+        "hardest": { "family": "claude", "tier": "top", "effort": "high" },
+        "judgment": { "family": "claude", "tier": "top", "effort": "high" },
+        "code": { "family": "gpt", "tier": "strong", "effort": "medium" },
+        "swarm workers": { "family": "gpt", "tier": "fast", "effort": "low" },
+        "reviewers": { "panel": 2, "tier": "strong", "effort": "high" },
+        "shootout runners": { "panel": 2, "tier": "strong", "effort": "high" },
+        "shootout judges": { "panel": 2, "tier": "strong", "effort": "high" }
+      },
+      "claude-code": {
+        "code": { "family": "claude", "tier": "strong", "effort": "medium" },
+        "swarm workers": { "family": "claude", "tier": "fast", "effort": "low" },
+        "reviewers": { "seats": ["claude-strong", "claude-top"], "effort": "high" },
+        "shootout runners": { "seats": ["claude-strong", "claude-top"], "effort": "high" },
+        "shootout judges": { "seats": ["claude-strong", "claude-top"], "effort": "high" }
+      }
     },
-    "efficient": {
-      "hardest": { "family": "claude", "tier": "strong", "effort": "medium" },
-      "judgment": { "family": "claude", "tier": "strong", "effort": "medium" },
-      "code": { "tier": "session", "effort": "medium" },
-      "swarm workers": { "family": "gpt", "tier": "fast", "effort": "low" },
-      "reviewers": { "panel": 2, "tier": "strong", "effort": "medium" },
-      "shootout runners": { "panel": 2, "tier": "strong", "effort": "medium" },
-      "shootout judges": { "panel": 2, "tier": "strong", "effort": "medium" }
+    "lean": {
+      "blurb": "Everyday bugs and small changes: strong models, medium effort",
+      "roles": {
+        "hardest": { "family": "claude", "tier": "strong", "effort": "medium" },
+        "judgment": { "family": "claude", "tier": "strong", "effort": "medium" },
+        "code": { "tier": "session", "effort": "medium" },
+        "swarm workers": { "family": "gpt", "tier": "fast", "effort": "low" },
+        "reviewers": { "panel": 2, "tier": "strong", "effort": "medium" },
+        "shootout runners": { "panel": 2, "tier": "strong", "effort": "medium" },
+        "shootout judges": { "panel": 2, "tier": "strong", "effort": "medium" }
+      },
+      "claude-code": {
+        "swarm workers": { "family": "claude", "tier": "fast", "effort": "low" },
+        "reviewers": { "seats": ["claude-strong", "claude-top"], "effort": "medium" },
+        "shootout runners": { "seats": ["claude-strong", "claude-top"], "effort": "medium" },
+        "shootout judges": { "seats": ["claude-strong", "claude-top"], "effort": "medium" }
+      }
     }
   }
 }

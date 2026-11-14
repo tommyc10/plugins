@@ -12,7 +12,7 @@ import { addToPath, binDir, launcherTarget, onPath, refreshLauncher, removeFromP
 import { log } from './log.mjs';
 import { HARNESSES, HARNESS_NAME, emptyFile, formatEntry, formatRoles, parseEntry, readRoles, rolesPath, runsInClaudeCode, section } from './roles.mjs';
 import { createUI } from './ui.mjs';
-import { loadPrices } from './usage.mjs';
+import { loadPrices, normalizeModel } from './usage.mjs';
 import { watch } from './watch.mjs';
 
 const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -256,32 +256,84 @@ function seatPanel(tiers, families, want) {
   return picks;
 }
 
-function resolvePreset(name, tiers, specs) {
-  const preset = PRESETS.presets[name];
-  if (!preset) throw new Error(`no preset "${name}". Presets: ${Object.keys(PRESETS.presets).join(', ')}`);
+// A preset's roles for one harness: the shared ones, with that harness's own on top, so Claude Code
+// gets Claude defaults instead of falling back from GPT ones.
+const presetRoles = (preset, harness) => ({ ...preset.roles, ...(preset[harness] || {}) });
+// A preset's name, or the old name it replaced (extreme, high, efficient).
+const canonicalPreset = (name) => (PRESETS.presets[name] ? name : PRESETS.aliases?.[name] || null);
+
+// Moves an effort up or down the ladder, stopping at its ends.
+function shiftEffort(effort, by) {
+  if (!by || !effort) return effort;
+  const at = PRESETS.efforts.indexOf(effort);
+  return PRESETS.efforts[Math.min(PRESETS.efforts.length - 1, Math.max(0, at + by))];
+}
+
+function resolvePreset(name, tiers, specs, harness, shift = 0) {
+  const canonical = canonicalPreset(name);
+  if (!canonical) throw new Error(`no preset "${name}". Presets: ${Object.keys(PRESETS.presets).join(', ')}`);
+  const wants = presetRoles(PRESETS.presets[canonical], harness);
   const families = PRESETS.families.filter((f) => PRESETS.tiers.some((t) => tiers[`${f}-${t}`]));
   if (!families.length) throw new Error('no tiers set. Map your models first, for example: tblock tiers set claude-top=<model> gpt-strong=<model>');
   const roles = {};
   const notes = [];
   for (const { name: role } of specs) {
-    const want = preset[role];
-    if (want.tier === 'session') {
-      roles[role] = [{ model: 'session', effort: want.effort }];
+    const want = wants[role];
+    const effort = shiftEffort(want.effort, shift);
+    if (want.seats) {
+      // A harness's own panel names each seat's family and tier.
+      roles[role] = want.seats.map((key) => {
+        const [fam, tier] = key.split('-');
+        const pick = pickModel(tiers, fam, tier) || pickModel(tiers, families[0], tier);
+        if (pick.model !== tiers[key]) notes.push(`${role}: no ${key}, used ${pick.model}`);
+        return { model: pick.model, effort };
+      });
+    } else if (want.tier === 'session') {
+      roles[role] = [{ model: 'session', effort }];
     } else if (want.panel) {
       const picks = seatPanel(tiers, families, want);
       const spare = picks.filter((p) => p.spare).map((p) => p.model);
       if (families.length < want.panel) notes.push(`${role}: ${families.length} of ${want.panel} families have models${spare.length ? `, so ${spare.join(' and ')} ${spare.length > 1 ? 'fill' : 'fills'} the panel` : ''}`);
       picks.filter((p) => !p.spare && p.tier !== want.tier).forEach((p) => notes.push(`${role}: no ${p.f}-${want.tier}, used ${p.f}-${p.tier}`));
-      roles[role] = picks.map((p) => ({ model: p.model, effort: want.effort }));
+      roles[role] = picks.map((p) => ({ model: p.model, effort }));
     } else {
       const fam = families.includes(want.family) ? want.family : families[0];
       const pick = pickModel(tiers, fam, want.tier);
       if (fam !== want.family) notes.push(`${role}: no ${want.family} models, used ${fam}`);
       else if (pick.tier !== want.tier) notes.push(`${role}: no ${fam}-${want.tier}, used ${fam}-${pick.tier}`);
-      roles[role] = [{ model: pick.model, effort: want.effort }];
+      roles[role] = [{ model: pick.model, effort }];
     }
   }
   return { roles, notes };
+}
+
+// A rough cost of a set of roles, for comparing presets: each seat's output price, times how much
+// work its role usually does, times how many tokens its effort tends to spend. Null when a model has
+// no price, so a guess never passes for a figure.
+const PRICES = loadPrices(PLUGIN, homedir());
+const versionKey = (key) => key.split('-').slice(2).map(Number);
+function outputPrice(model, tiers) {
+  const id = model === 'session' ? tiers['claude-strong'] : model;
+  if (!id) return null;
+  const direct = PRICES[normalizeModel(id)];
+  if (direct) return direct.output;
+  const newest = Object.keys(PRICES).filter((k) => k.startsWith(`claude-${id.toLowerCase()}-`))
+    .sort((a, b) => { const [x, y] = [versionKey(a), versionKey(b)]; return (y[0] - x[0]) || (y[1] - x[1]); })[0];
+  return newest ? PRICES[newest].output : null;
+}
+
+function costOf(roles, tiers, specs) {
+  let total = 0;
+  for (const { name, panel } of specs) {
+    // Shootout spawns one judge per run from its pool; a panel runs every seat.
+    const seats = panel ? roles[name] || [] : (roles[name] || []).slice(0, 1);
+    for (const { model, effort } of seats) {
+      const price = outputPrice(model, tiers);
+      if (price === null) return null;
+      total += price * (PRESETS.cost.weights[name] || 0) * (PRESETS.cost.effort[effort || 'medium'] || 1);
+    }
+  }
+  return total;
 }
 
 // VS Code keeps the Copilot model picker's list in its state database, so setup can offer
@@ -510,7 +562,7 @@ function doctor() {
         (file.meta.preset ? `, preset ${file.meta.preset}` : '') + (unset.length ? `; on the session model: ${unset.join(', ')}` : ''));
       if (harness === 'claude-code') {
         const foreign = [...new Set(models.filter((m) => !runsInClaudeCode(m)))];
-        if (foreign.length) add('WARN', 'Roles', `${who}Claude Code runs only Claude models, so ${foreign.join(', ')} will not start (run: tblock preset ${(file.meta.preset || 'high').split(' ')[0]} --harness=claude-code)`);
+        if (foreign.length) add('WARN', 'Roles', `${who}Claude Code runs only Claude models, so ${foreign.join(', ')} will not start (run: tblock preset ${recordedPreset(file.meta.preset).name || 'balanced'} --harness=claude-code)`);
       }
       for (const { name, panel } of specs) {
         const seats = (roles[name] || []).map((e) => e.model);
@@ -520,7 +572,7 @@ function doctor() {
         else if (harness !== 'claude-code' && new Set(seats.map(family)).size === 1) add('WARN', 'Roles', `${who}${name}: every entry is ${family(seats[0])}, so the panel has no model diversity`);
       }
     }
-    if (!sections.includes('claude-code') && usedInClaude) add('WARN', 'Roles', 'no Claude Code section, so its subagents run on the session model (run: tblock preset high --harness=claude-code)');
+    if (!sections.includes('claude-code') && usedInClaude) add('WARN', 'Roles', 'no Claude Code section, so its subagents run on the session model (run: tblock preset balanced --harness=claude-code)');
     const copilotRoles = file.harnesses.copilot?.roles;
     if (copilotRoles) {
       const want = expectedAgents(copilotRoles, specs, file.meta.names);
@@ -662,7 +714,13 @@ function showTiers() {
   say(ui.hint('tblock models'), ui.dim('    suggests tiers from your Copilot models'));
 }
 
-const presetOf = (recorded) => (recorded || '').split(' ')[0];
+// The roles file records a preset as "balanced", "balanced +1" with an effort shift, and either one
+// followed by " (edited)".
+function recordedPreset(recorded) {
+  const [name, shift] = (recorded || '').split(' ');
+  return { name: canonicalPreset(name), shift: /^[+-]\d+$/.test(shift || '') ? Number(shift) : 0 };
+}
+const presetLabel = (name, shift, edited) => `${name}${shift ? ` ${shift > 0 ? '+' : ''}${shift}` : ''}${edited ? ' (edited)' : ''}`;
 // A panel seats its entries side by side, so the same models in another order are the same panel.
 const sameEntries = (a = [], b = [], panel = false) => {
   const key = (list) => (panel ? list.map(formatEntry).sort() : list.map(formatEntry)).join(', ');
@@ -675,31 +733,36 @@ function editedRoles(file, harness, specs) {
   const part = file.harnesses[harness];
   if (!part) return [];
   let base = {};
-  try { if (PRESETS.presets[presetOf(file.meta.preset)]) base = resolvePreset(presetOf(file.meta.preset), part.tiers, specs).roles; } catch { /* no tiers yet */ }
+  const recorded = recordedPreset(file.meta.preset);
+  try { if (recorded.name) base = resolvePreset(recorded.name, part.tiers, specs, harness, recorded.shift).roles; } catch { /* no tiers yet */ }
   return specs.filter((s) => part.roles[s.name] && !sameEntries(part.roles[s.name], base[s.name], s.panel)).map((s) => s.name);
 }
 
 // One preset fills every harness that has tiers, so Claude Code and Copilot never drift apart.
 // It names every edit of the user's it resets, and --keep-edits keeps them; --dry-run writes nothing.
+const EFFORT_FLAG = /^--effort=([+-]?\d+)$/;
 function checkPresetFlags(flags) {
-  const unknown = flags.filter((f) => f !== '--keep-edits' && f !== '--dry-run');
-  if (unknown.length) throw new Error(`preset takes --keep-edits and --dry-run, not ${unknown.join(' ')}`);
+  const unknown = flags.filter((f) => f !== '--keep-edits' && f !== '--dry-run' && !EFFORT_FLAG.test(f));
+  if (unknown.length) throw new Error(`preset takes --keep-edits, --dry-run, and --effort=+1 or -1, not ${unknown.join(' ')}`);
 }
 
 function applyPreset(name, flags = []) {
   checkPresetFlags(flags);
   const keep = flags.includes('--keep-edits');
   const dry = flags.includes('--dry-run');
+  const shift = Number(flags.map((f) => f.match(EFFORT_FLAG)?.[1]).find(Boolean) || 0);
+  const canonical = canonicalPreset(name) || name;
   const specs = roleSpecs();
   const file = readRolesFile() || emptyFile();
   const mapped = HARNESSES.filter((h) => Object.keys(file.harnesses[h]?.tiers || {}).length);
   const targets = harnessFlag ? [pickHarness(file)] : mapped;
   if (!targets.length) resolvePreset(name, {}, specs);
+  if (canonical !== name && !(dry && json)) say(ui.note(`"${name}" is now called "${canonical}"`), '');
   const report = {};
   for (const harness of targets) {
     const edited = editedRoles(file, harness, specs);
     const before = section(file, harness).roles;
-    const { roles, notes } = resolvePreset(name, file.harnesses[harness].tiers, specs);
+    const { roles, notes } = resolvePreset(canonical, file.harnesses[harness].tiers, specs, harness, shift);
     const panel = new Set(specs.filter((s) => s.panel).map((s) => s.name));
     const edits = edited.filter((r) => !sameEntries(before[r], roles[r], panel.has(r))).map((role) => ({ role, yours: before[role], preset: roles[role] }));
     if (keep) edits.forEach(({ role, yours }) => { roles[role] = yours; });
@@ -707,7 +770,7 @@ function applyPreset(name, flags = []) {
     file.harnesses[harness].roles = roles;
   }
   const kept = keep && Object.values(report).some((r) => r.edits.length);
-  file.meta.preset = kept ? `${name} (edited)` : name;
+  file.meta.preset = presetLabel(canonical, shift, kept);
   if (dry && json) return console.log(JSON.stringify({ preset: file.meta.preset, harnesses: report }, null, 2));
   const who = (harness) => (targets.length > 1 ? `${HARNESS_NAME[harness]}: ` : '');
   for (const [harness, { notes }] of Object.entries(report)) notes.forEach((n) => say(ui.note(`${who(harness)}${n}`)));
@@ -717,7 +780,7 @@ function applyPreset(name, flags = []) {
     const verb = keep ? 'Kept your edits' : dry ? 'Would reset your edits' : 'Reset your edits';
     say(ui.section(verb));
     say(ui.table(edits.map((e) => [ui.bold(`${who(e.harness)}${e.role}`), e.yours.map(formatEntry).join(', '), ui.dim(keep ? `instead of ${e.preset.map(formatEntry).join(', ')}` : `→ ${e.preset.map(formatEntry).join(', ')}`)])), '');
-    if (!keep) say(ui.hint(`tblock preset ${name} --keep-edits`), ui.dim('    applies the preset and keeps these'), '');
+    if (!keep) say(ui.hint(`tblock preset ${presetLabel(canonical, 0)}${shift ? ` --effort=${shift > 0 ? '+' : ''}${shift}` : ''} --keep-edits`), ui.dim('    applies the preset and keeps these'), '');
   }
   if (dry) {
     for (const harness of targets) say(ui.section(`${HARNESS_NAME[harness]}, with preset ${file.meta.preset}`), rolesTable(file.harnesses[harness].roles), '');
@@ -729,26 +792,56 @@ function applyPreset(name, flags = []) {
   printRoles(file);
 }
 
-const PRESET_BLURBS = {
-  extreme: 'Hard design and risky changes: top models, high to max effort',
-  high: 'Features and reviews: top thinkers, strong workers',
-  efficient: 'Everyday bugs and small changes: strong models, medium effort',
-};
+// One line per role group, with the models a preset seats in this harness, or its tiers when no
+// harness has models mapped yet.
+function presetShape(roles, wants) {
+  const seats = (role) => {
+    const list = roles?.[role];
+    if (!list) {
+      const w = wants[role];
+      const tier = w.seats ? w.seats.map((k) => k.split('-')[1]).join(', ') : `${w.panel ? `${w.panel}×` : ''}${w.tier}`;
+      return `${tier} ${ui.color ? ui.effort(w.effort, { word: false }) : `@ ${w.effort}`}`;
+    }
+    const efforts = [...new Set(list.map((e) => e.effort))];
+    return efforts.length === 1 ? `${list.map((e) => e.model).join(', ')} ${ui.color ? ui.effort(efforts[0], { word: false }) : `@ ${efforts[0]}`}` : list.map(formatEntry).join(', ');
+  };
+  return [['hardest', 'thinks'], ['code', 'codes'], ['swarm workers', 'searches'], ['reviewers', 'reviews']].map(([role, verb]) => `${ui.dim(verb)} ${seats(role)}`);
+}
 
 function showPresets() {
-  const current = readRolesFile()?.meta.preset;
-  process.stdout.write(ui.header('preset'));
-  const nameWidth = Math.max(...Object.keys(PRESETS.presets).map((n) => n.length)) + 3;
-  for (const [name, roles] of Object.entries(PRESETS.presets)) {
-    const on = current && current.split(' ')[0] === name;
-    const mark = ui.color ? (on ? ui.accent('●') : ui.dim('○')) : on ? '*' : ' ';
-    say(`  ${mark}  ${ui.pad(on ? ui.bold(ui.accent(name)) : ui.bold(name), nameWidth)}${PRESET_BLURBS[name] || ''}${on ? ui.dim(`  · current${current.endsWith('(edited)') ? ', edited' : ''}`) : ''}`);
-    const shape = [['hardest', roles.hardest], ['code', roles.code], ['reviewers', roles.reviewers]]
-      .map(([role, r]) => `${ui.dim(role)} ${r.panel ? `${r.panel}×` : ''}${r.tier} ${ui.color ? ui.effort(r.effort, { word: false }) : `@ ${r.effort}`}`);
-    say(`  ${' '.repeat(3 + nameWidth)}${shape.join(ui.dim('   '))}`, '');
+  const file = readRolesFile();
+  const current = file?.meta.preset;
+  const recorded = recordedPreset(current);
+  const specs = roleSpecs();
+  const mapped = HARNESSES.filter((h) => Object.keys(file?.harnesses[h]?.tiers || {}).length);
+  const harness = harnessFlag || (process.env.CLAUDECODE === '1' && mapped.includes('claude-code') ? 'claude-code' : mapped[0]);
+  const tiers = harness ? file.harnesses[harness].tiers : null;
+  if (json) {
+    const out = Object.entries(PRESETS.presets).map(([name, preset]) => {
+      const roles = tiers && resolvePreset(name, tiers, specs, harness).roles;
+      return { name, blurb: preset.blurb, current: recorded.name === name, roles, cost: roles ? costOf(roles, tiers, specs) : null };
+    });
+    const base = out.find((p) => p.name === 'balanced')?.cost;
+    out.forEach((p) => { p.relativeCost = p.cost && base ? Math.round((p.cost / base) * 10) / 10 : null; });
+    return console.log(JSON.stringify({ harness: harness || null, current: current || null, presets: out }, null, 2));
   }
+  process.stdout.write(ui.header('preset'));
+  if (harness) say(ui.dim(`  With your ${HARNESS_NAME[harness]} models`), '');
+  const nameWidth = Math.max(...Object.keys(PRESETS.presets).map((n) => n.length)) + 3;
+  const resolved = Object.fromEntries(Object.keys(PRESETS.presets).map((name) => [name, tiers && resolvePreset(name, tiers, specs, harness).roles]));
+  const base = tiers && costOf(resolved.balanced, tiers, specs);
+  for (const [name, preset] of Object.entries(PRESETS.presets)) {
+    const on = recorded.name === name;
+    const mark = ui.color ? (on ? ui.accent('●') : ui.dim('○')) : on ? '*' : ' ';
+    const cost = base && costOf(resolved[name], tiers, specs);
+    const costText = cost ? ui.dim(`  · ≈${(cost / base).toFixed(1).replace(/\.0$/, '')}× cost`) : '';
+    say(`  ${mark}  ${ui.pad(on ? ui.bold(ui.accent(name)) : ui.bold(name), nameWidth)}${preset.blurb}${costText}${on ? ui.dim(`  · current${recorded.shift ? `, effort ${current.split(' ')[1]}` : ''}${current.endsWith('(edited)') ? ', edited' : ''}`) : ''}`);
+    say(`  ${' '.repeat(3 + nameWidth)}${presetShape(resolved[name], presetRoles(preset, harness)).join(ui.dim('   '))}`, '');
+  }
+  if (base) say(ui.dim('  Cost is a rough guide against balanced: list prices, how much each role works, and its effort.'), '');
   if (ui.color) say(`  ${ui.dim('effort')}  ${['low', 'medium', 'high', 'max'].map((e) => `${ui.effort(e, { word: false })} ${ui.dim(e)}`).join('   ')}`, '');
   say(ui.hint('tblock preset <name>'), ui.dim('    switches every role at once, in every harness you have mapped'));
+  say(ui.hint('tblock preset <name> --effort=+1'), ui.dim('    the same models, every role thinking one step harder (-1 for less)'));
 }
 
 // The guard is two hooks the plugin ships. They stay silent until this switch is on.
@@ -814,6 +907,7 @@ const COMMANDS = [
     ['preset', `list presets: ${Object.keys(PRESETS.presets).join(', ')}`],
     ['preset <name>', "set every role's model and effort at once, in every mapped harness"],
     ['preset <name> --keep-edits', 'apply a preset but keep the roles you changed by hand (--dry-run shows what changes)'],
+    ['preset <name> --effort=+1', 'the same models, every role one effort step higher (-1 for lower)'],
   ]],
   ['log', [
     ['log', 'every agent session since yesterday: task, last reply, MRs, files, and cost'],

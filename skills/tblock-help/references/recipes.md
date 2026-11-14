@@ -37,7 +37,7 @@ Swap in the real names and done checks. In Claude Code, write `/tblock:tblock-mo
 ## Setup and tuning
 
 - `/setup-tblock` applies a preset, then lets you change any role's model and effort.
-- `tblock preset efficient` before everyday bugs. `tblock preset extreme` before a hard or risky change.
+- `tblock preset lean` before everyday bugs. `tblock preset max` before a hard or risky change. `tblock preset balanced --effort=+1` when the models are right but they should think harder.
 - `tblock roles set "code=sonnet @ high"` changes one role.
 - `tblock doctor` checks it all.
 
